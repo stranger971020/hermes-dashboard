@@ -1,0 +1,22 @@
+{
+  "_comment": "公开看板脱敏词表。可随时增删；改完跑 run.sh --force 生效。",
+  "_rules": [
+    "topic_map: 命中词 → 通用词替换（保留句子其余部分，仍可识别任务）",
+    "entity_mask: 就地替换为占位符",
+    "keep_companies=true: 股票/公开公司名保留（用户已确认不算 personal）"
+  ],
+  "topic_map": {
+    "去衣|褪衣|脱衣|vton|catvton|换脸|inpaint|nude|undress": "图像处理",
+    "简历|求职|面试|interview|resume|offer|招聘|应聘|跳槽|职位|jd|\\bcv\\b": "职业发展",
+    "工资|薪资|薪酬|salary|compensation": "薪酬",
+    "焦虑|抑郁|情绪|therapy|心理": "身心"
+  },
+  "entity_mask": [
+    {"pattern": "@[A-Za-z0-9_]+bot", "replace": "[bot]"},
+    {"pattern": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "replace": "[邮箱]"},
+    {"pattern": "1[3-9][0-9]{9}", "replace": "[电话]"},
+    {"pattern": "Amazon|Google|Meta|Microsoft|字节跳动|腾讯|阿里巴巴|美团|滴滴", "replace": "[公司]"}
+  ],
+  "person_names": [],
+  "keep_companies": true
+}

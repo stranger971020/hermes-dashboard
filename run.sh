@@ -7,6 +7,33 @@ MIRROR="$HOME/hermes-agent/data/vault_mirror/dashboard"
 PY=/Users/jren/miniforge3/bin/python3
 TS="[$(date '+%F %T')]"
 
+FORCE=""; [ "${1:-}" = "--force" ] && FORCE=1
+
+# ── 指纹守卫：任务/回执/cron 无变化则直接退出（不写 vault、不提交）──
+FP=$($PY - <<'PYEOF'
+import os, hashlib, subprocess
+H = os.path.expanduser("~"); h = hashlib.md5()
+for sub in ["Documents/Obsidian Vault/tasks", "Documents/Obsidian Vault/responses"]:
+    d = os.path.join(H, sub)
+    try: ents = sorted(os.listdir(d))
+    except Exception: ents = []
+    h.update(",".join(ents).encode())
+    for f in ents:
+        try: h.update(str(int(os.path.getmtime(os.path.join(d, f)))).encode())
+        except Exception: pass
+try: h.update(str(int(os.path.getmtime(os.path.join(H, ".hermes/cron/jobs.json")))).encode())
+except Exception: pass
+try: h.update(subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout.encode())
+except Exception: pass
+print(h.hexdigest())
+PYEOF
+)
+STATE="$DIR/state.json"
+PREV=$($PY -c "import json;print(json.load(open('$STATE')).get('fp',''))" 2>/dev/null || echo "")
+if [ -z "$FORCE" ] && [ "$FP" = "$PREV" ]; then
+  echo "$TS no change (fp=${FP:0:8})"; exit 0
+fi
+
 cd "$DIR" || exit 1
 $PY collect.py >/dev/null 2>&1 || { echo "$TS ERROR: collect 失败"; exit 1; }
 $PY render.py --public  >/dev/null 2>&1 || { echo "$TS ERROR: render(public) 失败"; exit 1; }
@@ -26,3 +53,6 @@ else
   if git push -q origin main 2>/dev/null; then echo "$TS OK pushed $(git rev-parse --short HEAD)"
   else echo "$TS WARN: push 失败（看板已在本地/vault，不影响查看）"; fi
 fi
+
+# 3) 记录指纹（仅在成功刷新后）
+echo "{\"fp\":\"$FP\",\"at\":\"$(date '+%F %T')\"}" > "$STATE"

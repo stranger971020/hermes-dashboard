@@ -46,6 +46,25 @@ def theme_color(t):
 
 S = D["scheduled"]; M = D["monitor"]; A = D["adhoc"]
 
+# ── 脱敏（公开版）────────────────────────────────────────
+_RP = os.path.join(HERE, "redact_rules.json")
+RULES = json.load(open(_RP, encoding="utf-8")) if os.path.exists(_RP) else {}
+_TOPIC = [(re.compile(k, re.I), v) for k, v in (RULES.get("topic_map") or {}).items()]
+_MASK = [(re.compile(m["pattern"], re.I), m["replace"]) for m in (RULES.get("entity_mask") or [])]
+_NAMES = RULES.get("person_names") or []
+
+def redact_title(t):
+    """保留描述性关键词，只替换敏感主题词与实体。"""
+    t = str(t)
+    for rx, rep in _TOPIC:
+        t = rx.sub(rep, t)
+    for nm in _NAMES:
+        if nm: t = t.replace(nm, "[姓名]")
+    for rx, rep in _MASK:
+        t = rx.sub(rep, t)
+    return t
+
+
 n_sched = len(S["hermes"]) + len(S["crontab"]) + len(S["launchd"])
 failing = len(M.get("cron_failing") or [])
 backup_last = (M.get("backup", {}).get("last_commit", "") or "").split("|")
@@ -101,10 +120,10 @@ for g in A.get("groups", []):
     adhoc_html += (f'<div class="group"><h3><span class="dot" style="background:{theme_color(g["theme"])}"></span>'
                    f'{e(g["theme"])} <span class="cnt">{g["count"]}</span></h3>')
     if PUBLIC:
-        adhoc_html += '<table><thead><tr><th class="ck"></th><th>日期</th><th>主题</th><th>类型</th><th>状态</th><th>ID</th></tr></thead><tbody>'
+        adhoc_html += '<table><thead><tr><th class="ck"></th><th>日期</th><th>标题（脱敏）</th><th>类型</th><th>状态</th><th>ID</th></tr></thead><tbody>'
         for it in g["items"]:
             adhoc_html += (f'<tr><td><input type="checkbox" class="pick" data-ref="{e(it["id"])}"></td>'
-                           f'<td class="mono">{e(it["date"])}</td><td>{e(g["theme"])}</td>'
+                           f'<td class="mono">{e(it["date"])}</td><td>{e(redact_title(it["title"]))}</td>'
                            f'<td>{e(kind_of(it["title"], it["path"]))}</td>'
                            f'<td>{status_pill(it["status"])}</td><td class="mono small">{e(it["id"])}</td></tr>')
     else:
