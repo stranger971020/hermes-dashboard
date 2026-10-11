@@ -49,6 +49,13 @@ S = D["scheduled"]; M = D["monitor"]; A = D["adhoc"]
 # ── 脱敏（公开版）────────────────────────────────────────
 _RP = os.path.join(HERE, "redact_rules.json")
 RULES = json.load(open(_RP, encoding="utf-8")) if os.path.exists(_RP) else {}
+# 本地私有规则（人名等，不入公开仓）
+_LP = os.path.join(HERE, "redact_local.json")
+if os.path.exists(_LP):
+    _loc = json.load(open(_LP, encoding="utf-8"))
+    RULES.setdefault("topic_map", {}).update(_loc.get("topic_map") or {})
+    RULES["entity_mask"] = (RULES.get("entity_mask") or []) + (_loc.get("entity_mask") or [])
+    RULES["person_names"] = (RULES.get("person_names") or []) + (_loc.get("person_names") or [])
 _TOPIC = [(re.compile(k, re.I), v) for k, v in (RULES.get("topic_map") or {}).items()]
 _MASK = [(re.compile(m["pattern"], re.I), m["replace"]) for m in (RULES.get("entity_mask") or [])]
 _NAMES = RULES.get("person_names") or []

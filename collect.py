@@ -145,10 +145,14 @@ def collect_launchd():
 
 # ── 4. Ad-hoc 任务 ──────────────────────────────────────────────
 THEMES = [
-    ("投资研究", ["估值", "A股", "a股", "股票", "量化", "交易", "回测", "财报", "tdd", "行情", "个股", "行业", "策略", "tushare", "trend", "601138", "300394", "688102", "用友", "富联", "天孚", "量子", "三花", "金山", "免税", "中免"]),
+    ("投资研究", ["估值", "A股", "a股", "股票", "量化", "交易", "回测", "财报", "tdd", "行情", "个股", "行业", "策略", "tushare", "trend", "601138", "300394", "688102", "用友", "富联", "天孚", "量子", "三花", "金山", "免税", "中免",
+                 "波段", "v6", "V6", "日报", "回撤", "动量", "引擎", "因子", "ic", "IC", "特征工程", "训练", "选股", "温度计", "大盘", "ml", "ML", "收益", "仓位", "止损", "反转", "指数"]),
+    ("职业发展", ["面试", "interview", "简历", "求职", "职场", "prep", "career", "跳槽", "resume", "offer", "招聘"]),
+    ("旅行/行程", ["visa", "签证", "行程", "景点", "旅行", "退票", "itinerary", "机票", "酒店"]),
     ("知识库/文档", ["obsidian", "vault", "知识库", "标签", "笔记", "文档", "归档", "索引", "mirror"]),
-    ("Agent 系统", ["hermes", "agent", "skill", "技能", "cron", "网关", "gateway", "bot", "claude", "派发", "dispatch", "protocol", "协议"]),
-    ("健康", ["健康", "health", "ios", "血压", "饮食"]),
+    ("Agent 系统", ["hermes", "agent", "skill", "技能", "cron", "网关", "gateway", "bot", "claude", "派发", "dispatch", "protocol", "协议",
+                    "ollama", "launchd", "rag", "RAG", "记忆双写", "规范", "留痕", "溯源", "模型路由", "监控看板", "看板", "registry", "推送"]),
+    ("健康", ["健康", "health", "ios", "血压", "饮食", "体检", "购粮", "就医", "药品", "养生"]),
     ("图像/视觉", ["图", "comfy", "绘图", "vton", "inpaint", "视觉", "image"]),
     ("播客/媒体", ["播客", "podcast", "小宇宙", "音频", "转录"]),
     ("资讯/新闻", ["新闻", "资讯", "news", "要闻", "快讯"]),
@@ -162,7 +166,10 @@ def theme_of(text):
 def collect_adhoc():
     items = []
     for path in glob.glob(os.path.join(VAULT, "tasks/*.md")) + glob.glob(os.path.join(VAULT, "responses/*.md")):
-        if os.path.basename(path).startswith("."): continue
+        bn = os.path.basename(path)
+        # 跳过模板 / 占位文件
+        if bn.startswith(".") or re.match(r"^TASK-YYYYMMDD", bn) or bn in ("TASK.md", "TEMPLATE.md"):
+            continue
         rel = os.path.relpath(path, VAULT)
         st = safe(lambda: os.stat(path), None)
         mtime = datetime.datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d") if st else ""
