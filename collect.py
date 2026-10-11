@@ -302,6 +302,23 @@ def collect_monitor():
     return m
 
 # ── main ────────────────────────────────────────────────────────
+def collect_checks():
+    """中枢检查体系结果（由 checks.py 写入）。"""
+    p = os.path.join(HOME, ".hermes/state/hub_checks.json")
+    if not os.path.exists(p): return []
+    raw = json.load(open(p, encoding="utf-8"))
+    out = []
+    for k, v in raw.items():
+        out.append({
+            "key": k, "name": v.get("name", k), "status": v.get("status", "?"),
+            "detail": str(v.get("detail", ""))[:160],
+            "at": str(v.get("at", ""))[:16].replace("T", " "),
+        })
+    order = {"fail": 0, "error": 0, "warn": 1, "ok": 2}
+    out.sort(key=lambda x: order.get(x["status"], 3))
+    return out
+
+
 def main():
     data = {
         "generated_at": NOW.strftime("%Y-%m-%d %H:%M:%S"),
@@ -312,6 +329,7 @@ def main():
             "launchd": safe(collect_launchd, []),
         },
         "adhoc": safe(collect_adhoc, {"total": 0, "groups": []}),
+        "checks": safe(collect_checks, []),
         "monitor": safe(collect_monitor, {}),
     }
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.json")

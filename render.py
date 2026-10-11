@@ -157,9 +157,18 @@ def bar(label, size, maxsize):
 
 bd = M.get("bigdirs", []); mx = max([b["size"] for b in bd] or [1])
 svc = "".join(f'<div class="svc">{status_pill(s["state"])} <b>{e(s["name"])}</b> <span class="sub">{e(s["detail"])}</span></div>' for s in M.get("services", []))
+CK = D.get("checks", [])
+_ckpill = {"ok": "ok", "warn": "warn", "fail": "err", "error": "err"}
+checks_html = "".join(
+    f'<div class="svc"><span class="pill {_ckpill.get(c["status"],"warn")}">{e(c["status"])}</span> '
+    f'<b>{e(c["name"])}</b> <span class="sub">{e(c["detail"])}</span>'
+    f'<div class="sub mono">{e(c["at"])}</div></div>'
+    for c in CK
+) or '<p class="empty">尚未运行</p>'
 V = M.get("vault", {}); SK = M.get("skills", {})
 monitor_html = f"""
 <div class="mgrid">
+  <div class="mcard"><h4>🩺 中枢检查 ({len(CK)})</h4>{checks_html}</div>
   <div class="mcard"><h4>磁盘占用</h4>{''.join(bar(b['name'], b['size'], mx) for b in bd)}</div>
   <div class="mcard"><h4>服务</h4>{svc}
       <div class="kv"><span>Ollama 绑定</span><b class="mono">{e(M.get('ollama_bind'))}</b></div>

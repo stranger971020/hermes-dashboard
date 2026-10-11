@@ -8,8 +8,16 @@ PY=/Users/jren/miniforge3/bin/python3
 TS="[$(date '+%F %T')]"
 
 FORCE=""; [ "${1:-}" = "--force" ] && FORCE=1
+PY=/Users/jren/miniforge3/bin/python3
 
-# ── 指纹守卫：任务/回执/cron 无变化则直接退出（不写 vault、不提交）──
+# ── 0) 中枢检查（内部按到期规则调度；替代 4 个独立检查 cron）──
+CHK=$($PY "$HOME/projects/hermes-dashboard/checks.py" --due 2>&1); CHK_RC=$?
+echo "$TS $CHK" >> "$HOME/.hermes/logs/hub_checks.log"
+if [ "$CHK_RC" -ne 0 ]; then
+  $PY "$HOME/.hermes/scripts/dashboard_push.py" --checks-alert >/dev/null 2>&1 || true
+fi
+
+# ── 指纹守卫：任务/回执/cron/检查结果 无变化则直接退出 ──
 FP=$($PY - <<'PYEOF'
 import os, hashlib, subprocess
 H = os.path.expanduser("~"); h = hashlib.md5()
@@ -22,6 +30,8 @@ for sub in ["Documents/Obsidian Vault/tasks", "Documents/Obsidian Vault/response
         try: h.update(str(int(os.path.getmtime(os.path.join(d, f)))).encode())
         except Exception: pass
 try: h.update(str(int(os.path.getmtime(os.path.join(H, ".hermes/cron/jobs.json")))).encode())
+except Exception: pass
+try: h.update(str(int(os.path.getmtime(os.path.join(H, ".hermes/state/hub_checks.json")))).encode())
 except Exception: pass
 try: h.update(subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout.encode())
 except Exception: pass
