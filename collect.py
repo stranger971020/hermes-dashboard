@@ -351,10 +351,13 @@ def collect_skills():
         o = obj_re.match(ln)
         if o and cur is not None:
             cur["objects"].append({"kind": o.group(1)[0], "name": o.group(2)})
-    # 无计数标题（如手工回填条目）→ 用对象数兜底
+    # 无计数标题（如手工回填条目）→ 用对象数 + 对象类型兜底
     for e in out["entries"]:
         if not e["count"] and e["objects"]:
             e["count"] = len(e["objects"])
+            e["add"] = sum(1 for o in e["objects"] if o["kind"] == "➕")
+            e["chg"] = sum(1 for o in e["objects"] if o["kind"] == "✏")
+            e["del"] = sum(1 for o in e["objects"] if o["kind"] == "🗑")
     # 近 30 天
     for e in out["entries"]:
         if e["at"] >= cutoff:

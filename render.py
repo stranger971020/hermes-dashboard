@@ -167,7 +167,7 @@ checks_html = "".join(
 ) or '<p class="empty">尚未运行</p>'
 V = M.get("vault", {}); SK = M.get("skills", {})
 SC = D.get("skill_changes", {})
-_obpill = {"➕": "ok", "✏️": "warn", "🗑": "err"}
+_obpill = {"➕": "ok", "✏": "warn", "🗑": "err"}
 sc_rows = "".join(
     f'<div class="svc"><span class="pill {_obpill.get(o["kind"],"warn")}">{e(o["kind"])}</span> '
     f'<b>{e(o["name"])}</b> <span class="sub mono">{e((o["at"] or "")[5:])}</span></div>'
