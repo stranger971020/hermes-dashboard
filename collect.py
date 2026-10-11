@@ -39,17 +39,45 @@ def collect_hermes_cron():
     out = []
     for j in jobs:
         sched = j.get("schedule") or {}
+        model = str(j.get("model") or "").strip()
+        provider = str(j.get("provider") or "").strip()
+        no_agent = bool(j.get("no_agent"))
+        err = j.get("last_error") or ""
+        st = j.get("last_status") or "-"
+        # 健康分类
+        if not j.get("enabled"):
+            health = "paused"
+        elif "drift_skip" in err:
+            health = "drift"
+        elif "blocked_config" in err or "credential" in err:
+            health = "config"
+        elif st in ("ok", "-"):
+            health = "ok"
+        else:
+            health = "error"
+        # 计费分类
+        if no_agent:
+            cost = "脚本·无LLM"
+        elif not model:
+            cost = "⚠️跟随主模型(收费)"
+        elif "ollama" in provider.lower() or "11434" in provider:
+            cost = "本地·免费"
+        else:
+            cost = "云端·收费"
         out.append({
             "id": j.get("id"), "name": j.get("name"),
             "schedule": j.get("schedule_display") or sched.get("display") or str(sched),
             "last_run": (j.get("last_run_at") or "")[:16].replace("T", " "),
-            "last_status": j.get("last_status") or "-",
+            "last_status": st,
             "next_run": (j.get("next_run_at") or "")[:16].replace("T", " "),
             "enabled": bool(j.get("enabled")),
             "state": j.get("state"), "deliver": j.get("deliver"),
             "script": j.get("script") or (j.get("prompt") or "")[:60],
             "fail_streak": j.get("failure_streak", 0),
-            "last_error": (j.get("last_error") or "")[:120],
+            "last_error": err[:120],
+            "provider": provider, "model": model,
+            "pinned": bool(model), "no_agent": no_agent,
+            "health": health, "cost": cost,
         })
     return out
 

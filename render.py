@@ -87,11 +87,18 @@ cards = [
 # ── Tab1 ──
 def tbl_hermes(rows):
     if not rows: return '<p class="empty">无 Hermes cron 任务</p>'
-    h = '<table><thead><tr><th>任务</th><th>排程</th><th>上次运行</th><th>状态</th><th>下次运行</th><th>投递</th></tr></thead><tbody>'
+    h = '<table><thead><tr><th>任务</th><th>排程</th><th>模型 / 计费</th><th>上次运行</th><th>状态</th><th>下次运行</th><th>投递</th></tr></thead><tbody>'
     for r in rows:
+        md = r.get("model") or "（跟随主模型）"
+        cost = r.get("cost") or "—"
+        cost_cls = "ok" if "免费" in cost else ("warn" if "跟踪" in cost or "跟随" in cost else "")
         h += (f'<tr><td><b>{e(r["name"])}</b></td>'
-              f'<td class="mono">{e(r["schedule"])}</td><td class="mono">{e(r["last_run"])}</td>'
-              f'<td>{status_pill(r["last_status"])}</td><td class="mono">{e(r["next_run"])}</td>'
+              f'<td class="mono">{e(r["schedule"])}</td>'
+              f'<td class="mono small">{e(md)}<br><span class="pill {cost_cls}">{e(cost)}</span></td>'
+              f'<td class="mono">{e(r["last_run"])}</td>'
+              f'<td>{status_pill(r["last_status"])}'
+              + (f'<div class="sub" style="color:#f0708a">{(r.get("last_error") or "")[:70]}</div>' if r.get("health") in ("drift","config","error") else "")
+              + f'</td><td class="mono">{e(r["next_run"])}</td>'
               f'<td>{e(r["deliver"])}</td></tr>')
     return h + '</tbody></table>'
 
