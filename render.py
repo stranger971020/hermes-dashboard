@@ -166,6 +166,19 @@ checks_html = "".join(
     for c in CK
 ) or '<p class="empty">尚未运行</p>'
 V = M.get("vault", {}); SK = M.get("skills", {})
+SC = D.get("skill_changes", {})
+_obpill = {"➕": "ok", "✏️": "warn", "🗑": "err"}
+sc_rows = "".join(
+    f'<div class="svc"><span class="pill {_obpill.get(o["kind"],"warn")}">{e(o["kind"])}</span> '
+    f'<b>{e(o["name"])}</b> <span class="sub mono">{e((o["at"] or "")[5:])}</span></div>'
+    for o in SC.get("recent_objects", [])[:8]
+) or '<p class="empty">尚无变更记录</p>'
+sc_kind = SC.get("by_kind", {})
+sc_card = f"""<div class="mcard"><h4>📚 Skill/协议变更</h4>
+    <div class="kv"><span>近 30 天</span><b>{SC.get('total_30d', 0)} 项</b></div>
+    <div class="kv"><span>➕ 新增 / ✏️ 更新 / 🗑 删除</span><b>{sc_kind.get('add', 0)} / {sc_kind.get('chg', 0)} / {sc_kind.get('del', 0)}</b></div>
+    <div class="kv"><span>最近一次</span><b class="mono">{e(SC.get('last_at') or '—')}</b></div>
+    {sc_rows}</div>"""
 monitor_html = f"""
 <div class="mgrid">
   <div class="mcard"><h4>🩺 中枢检查 ({len(CK)})</h4>{checks_html}</div>
@@ -185,6 +198,7 @@ monitor_html = f"""
       <div class="kv"><span>待清理(stale)</span><b>{SK.get('stale','?')}</b></div>
       <div class="kv"><span>未纳管</span><b>{SK.get('unmanaged','?')}</b></div>
       <div class="kv"><span>失败 cron</span><b>{failing}</b></div></div>
+  {sc_card}
 </div>
 """
 

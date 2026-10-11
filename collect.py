@@ -319,6 +319,61 @@ def collect_checks():
     return out
 
 
+def collect_skills():
+    """从 vault 账本 logs/skill-changelog.md 解析 skill/协议变更（近 30 天）。"""
+    out = {"entries": [], "recent_objects": [], "total_30d": 0, "last_at": None,
+           "by_kind": {"add": 0, "chg": 0, "del": 0}}
+    ledger = os.path.join(VAULT, "logs/skill-changelog.md")
+    if not os.path.exists(ledger):
+        return out
+    head_re = re.compile(r"^## (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) · (.+)$")
+    cnt_re = re.compile(r"(\d+) 个对象变更（➕(\d+) ✏️(\d+) 🗑(\d+)）")
+    obj_re = re.compile(r"^### (➕ 新增|✏️ 更新|🗑 删除) `([^`]+)`")
+    try:
+        with open(ledger, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return out
+    cutoff = (NOW - datetime.timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+    cur = None
+    for ln in lines:
+        m = head_re.match(ln)
+        if m:
+            c = cnt_re.search(m.group(2))
+            cur = {"at": m.group(1),
+                   "count": int(c.group(1)) if c else 0,
+                   "add": int(c.group(2)) if c else 0,
+                   "chg": int(c.group(3)) if c else 0,
+                   "del": int(c.group(4)) if c else 0,
+                   "objects": []}
+            out["entries"].append(cur)
+            continue
+        o = obj_re.match(ln)
+        if o and cur is not None:
+            cur["objects"].append({"kind": o.group(1)[0], "name": o.group(2)})
+    # 无计数标题（如手工回填条目）→ 用对象数兜底
+    for e in out["entries"]:
+        if not e["count"] and e["objects"]:
+            e["count"] = len(e["objects"])
+    # 近 30 天
+    for e in out["entries"]:
+        if e["at"] >= cutoff:
+            out["total_30d"] += e["count"]
+            out["by_kind"]["add"] += e["add"]
+            out["by_kind"]["chg"] += e["chg"]
+            out["by_kind"]["del"] += e["del"]
+    if out["entries"]:
+        out["last_at"] = out["entries"][0]["at"]
+        seen = set()
+        for e in out["entries"][:6]:
+            for ob in e["objects"]:
+                if ob["name"] not in seen:
+                    seen.add(ob["name"])
+                    out["recent_objects"].append({"name": ob["name"], "kind": ob["kind"], "at": e["at"]})
+    out["entries"] = out["entries"][:12]
+    return out
+
+
 def main():
     data = {
         "generated_at": NOW.strftime("%Y-%m-%d %H:%M:%S"),
@@ -330,6 +385,7 @@ def main():
         },
         "adhoc": safe(collect_adhoc, {"total": 0, "groups": []}),
         "checks": safe(collect_checks, []),
+        "skill_changes": safe(collect_skills, {}),
         "monitor": safe(collect_monitor, {}),
     }
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.json")

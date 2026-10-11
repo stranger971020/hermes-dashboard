@@ -33,6 +33,10 @@ try: h.update(str(int(os.path.getmtime(os.path.join(H, ".hermes/cron/jobs.json")
 except Exception: pass
 try: h.update(str(int(os.path.getmtime(os.path.join(H, ".hermes/state/hub_checks.json")))).encode())
 except Exception: pass
+try: h.update(str(int(os.path.getmtime(os.path.join(H, "Documents/Obsidian Vault/logs/skill-changelog.md")))).encode())
+except Exception: pass
+try: h.update(str(int(os.path.getmtime(os.path.join(H, ".hermes/config.yaml")))).encode())
+except Exception: pass
 try: h.update(subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout.encode())
 except Exception: pass
 print(h.hexdigest())
