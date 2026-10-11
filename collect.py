@@ -484,10 +484,16 @@ def collect_errors():
                 if rx.search(ln):
                     out["by_kind"][label] = out["by_kind"].get(label, 0) + 1
                     out["total"] += 1
+                    # 真实「事故」按唯一分钟计：一次抖动会连刷多行重试，行数 ≠ 次数
+                    out.setdefault("_mins", {}).setdefault(label, set()).add(m.group(1)[:16])
                     if not out["last_at"] or m.group(1) > out["last_at"]:
                         out["last_at"] = m.group(1)
                         out["last"] = ln.strip()[-160:]
                     break
+    # 换算：incidents[类] = 唯一分钟数
+    incidents = {k: len(v) for k, v in out.pop("_mins", {}).items()}
+    out["incidents"] = incidents
+    out["incident_total"] = sum(incidents.values())
     return out
 
 

@@ -197,11 +197,13 @@ pu_card = (f'<div class="mcard"><h4>📡 推送源登记 ({len(PU)})</h4>{pu_row
 # ── 🧯 Hermes 自身运行错误（进程活着 ≠ 链路健康）────────────────────────
 ER = D.get("errors", {})
 _er_kind = ER.get("by_kind", {})
-er_rows = "".join(f'<div class="kv"><span>{e(k)}</span><b>{v}</b></div>'
+er_rows = "".join(f'<div class="kv"><span>{e(k)}</span><b>{v} 次 / {ER.get("incidents", {}).get(k, v)} 分</b></div>'
                   for k, v in sorted(_er_kind.items(), key=lambda x: -x[1])) or \
           '<div class="kv"><span>近 24h</span><b>0</b></div>'
 er_card = (f'<div class="mcard"><h4>🧯 Hermes 运行错误（近 {ER.get("window_h", 24)}h）</h4>'
-           f'<div class="kv"><span>合计</span><b>{ER.get("total", 0)}</b></div>{er_rows}'
+           f'<div class="kv"><span>真实事故（按唯一分钟）</span><b>{ER.get("incident_total", ER.get("total", 0))}</b></div>'
+           f'<div class="kv"><span>日志行数（含重试刷屏）</span><b>{ER.get("total", 0)}</b></div>{er_rows}'
+           f'<div class="sub">行数 ≫ 事故数是正常的：一次网络抖动会连刷多行重试。</div>'
            f'<div class="sub mono">最近 {e(ER.get("last_at") or "—")}</div></div>')
 
 # ── 📌 挂账 / 到期 ────────────────────────────────────────────────────────
