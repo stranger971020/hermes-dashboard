@@ -37,6 +37,8 @@ try: h.update(str(int(os.path.getmtime(os.path.join(H, "Documents/Obsidian Vault
 except Exception: pass
 try: h.update(str(int(os.path.getmtime(os.path.join(H, ".hermes/config.yaml")))).encode())
 except Exception: pass
+try: h.update(str(int(os.path.getmtime(os.path.join(H, ".hermes/state/backlog.json")))).encode())
+except Exception: pass
 try: h.update(subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout.encode())
 except Exception: pass
 print(h.hexdigest())

@@ -377,6 +377,148 @@ def collect_skills():
     return out
 
 
+def collect_pushes():
+    """推送源登记处 —— 谁在往 Telegram 推、推给谁、上次是否真送达。
+
+    来源：watchdog 的 .last_pushed_filename stamp（4 个 job）+ 各外部推送方的日志。
+    「看不见的推送源」是 2026-10-11 审计发现的最大缺口（第 5/6 条推送链）。
+    """
+    JOB_NAMES = {"a4d70e50199b": "Sina 财经/科技早报", "392103372da5": "《播客值得听》周报",
+                 "e95423c20e57": "AI Agent Tools Digest", "9fe6f3c37c9d": "Vault 标签健康"}
+    rows = []
+    # ① watchdog 管辖的 Hermes cron job
+    slots = {"a4d70e50199b": "上午 08:00–12:00", "392103372da5": "下午 15:00–21:00",
+             "e95423c20e57": "下午 15:00–21:00", "9fe6f3c37c9d": "仅异常（不受窗口限）"}
+    for jid, slot in slots.items():
+        d = os.path.join(HOME, ".hermes/cron/output", jid)
+        stamp_f = os.path.join(d, ".last_pushed_filename")
+        last, files = None, []
+        try:
+            files = sorted(glob.glob(os.path.join(d, "*.md")))
+        except OSError:
+            pass
+        newest = os.path.basename(files[-1]) if files else None
+        try:
+            with open(stamp_f, encoding="utf-8") as fh:
+                last = fh.read().strip()
+        except OSError:
+            pass
+        mt, age_h = None, None
+        if last:
+            p = os.path.join(d, last)
+            if os.path.exists(p):
+                mt = datetime.datetime.fromtimestamp(os.path.getmtime(p)).strftime("%m-%d %H:%M")
+        if newest and newest != last:
+            p = os.path.join(d, newest)
+            if os.path.exists(p):
+                age_h = round((NOW.timestamp() - os.path.getmtime(p)) / 3600, 1)
+        rows.append({"name": JOB_NAMES.get(jid, jid), "slot": slot, "via": "watchdog",
+                     "last": mt, "pending": bool(newest and newest != last), "age_h": age_h,
+                     "kind": "hermes"})
+    # ② trend-trading v6 日报（外部项目，直推同一 bot）
+    tl = os.path.join(HOME, "projects/trend-trading-system/logs/v6_pipeline_cron.log")
+    v6_last = None
+    try:
+        with open(tl, encoding="utf-8", errors="replace") as fh:
+            for ln in fh:
+                if "Telegram 已推送" in ln:
+                    v6_last = ln[:16]
+    except OSError:
+        pass
+    reports = sorted(glob.glob(os.path.join(
+        HOME, "projects/trend-trading-system/reports/v6_daily/v6_daily_*.html")))
+    v6_report = os.path.basename(reports[-1])[9:17] if reports else None
+    rows.append({"name": "V6 交易日报", "slot": "周一–五 02:45（盘前信号）",
+                 "via": "@flash971_bot 直推", "last": v6_last,
+                 "pending": False, "kind": "external", "extra": f"报告 {v6_report}"})
+    # ③ daily_bot_doc_check（原先无条件推；2026-10-11 已加 --no-send 抑制）
+    bl = os.path.join(VAULT, "logs/bot-check.log")
+    bc_note = "已抑制（--no-send）"
+    try:
+        with open(bl, encoding="utf-8", errors="replace") as fh:
+            tail = fh.read()[-4000:]
+        if "Telegram 发送异常" in tail:
+            bc_note = "曾尝试推送并失败（401）→ 已改 --no-send"
+    except OSError:
+        pass
+    rows.append({"name": "Bot 文档健康", "slot": "中枢调度（03:00 / 15:00）",
+                 "via": "—", "last": None, "pending": False, "kind": "suppressed",
+                 "extra": bc_note})
+    return rows
+
+
+def collect_errors():
+    """Hermes 自身运行错误（进程活着 ≠ 链路健康）。
+
+    只看近 24h；按类归档：Telegram 网络 / MarkdownV2 回退 / 流中断 / 其它。
+    """
+    out = {"window_h": 24, "total": 0, "by_kind": {}, "last": None, "last_at": None}
+    since = NOW - datetime.timedelta(hours=out["window_h"])
+    pats = [
+        ("Telegram 网络", re.compile(r"Telegram.*(Network error|ConnectError|reconnect)", re.I)),
+        ("MarkdownV2 回退", re.compile(r"MarkdownV2 parse failed", re.I)),
+        ("流中断重试", re.compile(r"Stream drop|EmptyStreamError")),
+        ("发送重试", re.compile(r"Network error on send", re.I)),
+        ("API 连接错误", re.compile(r"APIConnectionError")),
+    ]
+    for fn in ("errors.log", "gateway.error.log"):
+        p = os.path.join(HOME, ".hermes/logs", fn)
+        if not os.path.exists(p):
+            continue
+        try:
+            with open(p, encoding="utf-8", errors="replace") as fh:
+                lines = fh.readlines()[-4000:]
+        except OSError:
+            continue
+        for ln in lines:
+            m = re.match(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})", ln)
+            if not m:
+                continue
+            try:
+                ts = datetime.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                continue
+            if ts < since:
+                continue
+            for label, rx in pats:
+                if rx.search(ln):
+                    out["by_kind"][label] = out["by_kind"].get(label, 0) + 1
+                    out["total"] += 1
+                    if not out["last_at"] or m.group(1) > out["last_at"]:
+                        out["last_at"] = m.group(1)
+                        out["last"] = ln.strip()[-160:]
+                    break
+    return out
+
+
+def collect_backlog():
+    """挂账 / 到期项（看板此前完全没这一栏）。"""
+    p = os.path.join(HOME, ".hermes/state/backlog.json")
+    items = []
+    try:
+        with open(p, encoding="utf-8") as fh:
+            items = json.load(fh).get("items", [])
+    except (OSError, ValueError):
+        pass
+    today = NOW.strftime("%Y-%m-%d")
+    for it in items:
+        due = it.get("due") or ""
+        if due and due < today and it.get("status") != "done":
+            it["overdue"] = True
+        else:
+            it["overdue"] = False
+        if due:
+            try:
+                d = (datetime.datetime.strptime(due, "%Y-%m-%d").date()
+                     - datetime.date.today()).days
+                it["days_left"] = d
+            except ValueError:
+                it["days_left"] = None
+    return {"items": items, "overdue": sum(1 for i in items if i.get("overdue")),
+            "due_soon": sum(1 for i in items if (i.get("days_left") or 99) <= 7
+                            and not i.get("overdue") and i.get("status") != "done")}
+
+
 def main():
     data = {
         "generated_at": NOW.strftime("%Y-%m-%d %H:%M:%S"),
@@ -389,6 +531,9 @@ def main():
         "adhoc": safe(collect_adhoc, {"total": 0, "groups": []}),
         "checks": safe(collect_checks, []),
         "skill_changes": safe(collect_skills, {}),
+        "pushes": safe(collect_pushes, []),
+        "errors": safe(collect_errors, {}),
+        "backlog": safe(collect_backlog, {}),
         "monitor": safe(collect_monitor, {}),
     }
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.json")

@@ -30,12 +30,12 @@ CHECKS = [
     },
     {
         "key": "bots", "name": "Bot 文档健康",
-        "cmd": [PY, os.path.join(HOME, "projects/obsidian-hermes/scripts/daily_bot_doc_check.py"), "--health-only"],
+        "cmd": [PY, os.path.join(HOME, "projects/obsidian-hermes/scripts/daily_bot_doc_check.py"), "--health-only", "--no-send"],
         "every": 720, "hours": [3, 15], "timeout": 600, "cap": "warn",
     },
     {
         "key": "bots_full", "name": "Bot 全量扫描",
-        "cmd": [PY, os.path.join(HOME, "projects/obsidian-hermes/scripts/daily_bot_doc_check.py")],
+        "cmd": [PY, os.path.join(HOME, "projects/obsidian-hermes/scripts/daily_bot_doc_check.py"), "--no-send"],
         "every": 1380, "hours": [3], "timeout": 900, "cap": "warn",
     },
     {

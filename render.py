@@ -179,6 +179,44 @@ sc_card = f"""<div class="mcard"><h4>📚 Skill/协议变更</h4>
     <div class="kv"><span>➕ 新增 / ✏️ 更新 / 🗑 删除</span><b>{sc_kind.get('add', 0)} / {sc_kind.get('chg', 0)} / {sc_kind.get('del', 0)}</b></div>
     <div class="kv"><span>最近一次</span><b class="mono">{e(SC.get('last_at') or '—')}</b></div>
     {sc_rows}</div>"""
+
+# ── 📡 推送源登记 + 上次送达 ──────────────────────────────────────────────
+PU = D.get("pushes", [])
+_pu_pill = {"hermes": "ok", "external": "warn", "suppressed": "warn"}
+pu_rows = "".join(
+    f'<div class="svc"><span class="pill {_pu_pill.get(p["kind"],"warn")}">{e(p["kind"])}</span> '
+    f'<b>{e(p["name"])}</b> <span class="sub">{e(p["slot"])}</span>'
+    f'<div class="sub mono">{e(p.get("extra") or "")} '
+    f'{"· ⚠️ 有未推产物" if p.get("pending") else "· 已送达 " + e(p.get("last") or "—")}</div></div>'
+    for p in PU
+) or '<p class="empty">无数据</p>'
+pu_card = (f'<div class="mcard"><h4>📡 推送源登记 ({len(PU)})</h4>{pu_rows}'
+           f'<div class="sub">「看不见的推送源」是 2026-10-11 审计最大缺口；'
+           f'此处按登记处全量列出，含外部项目直推。</div></div>')
+
+# ── 🧯 Hermes 自身运行错误（进程活着 ≠ 链路健康）────────────────────────
+ER = D.get("errors", {})
+_er_kind = ER.get("by_kind", {})
+er_rows = "".join(f'<div class="kv"><span>{e(k)}</span><b>{v}</b></div>'
+                  for k, v in sorted(_er_kind.items(), key=lambda x: -x[1])) or \
+          '<div class="kv"><span>近 24h</span><b>0</b></div>'
+er_card = (f'<div class="mcard"><h4>🧯 Hermes 运行错误（近 {ER.get("window_h", 24)}h）</h4>'
+           f'<div class="kv"><span>合计</span><b>{ER.get("total", 0)}</b></div>{er_rows}'
+           f'<div class="sub mono">最近 {e(ER.get("last_at") or "—")}</div></div>')
+
+# ── 📌 挂账 / 到期 ────────────────────────────────────────────────────────
+BL = D.get("backlog", {})
+bl_rows = ""
+for it in BL.get("items", []):
+    st = it.get("status", "")
+    pill = "err" if it.get("overdue") else ("warn" if (it.get("days_left") or 99) <= 7 else "ok")
+    due = it.get("due") or ""
+    tail = (f'{it.get("days_left")} 天' if due and it.get("days_left") is not None and not it.get("overdue")
+            else ("已逾期" if it.get("overdue") else e(st)))
+    bl_rows += (f'<div class="svc"><span class="pill {pill}">{e(st)}</span> '
+                f'<b>{e(it.get("item", "")[:40])}</b> <span class="sub mono">{e(due)} {tail}</span></div>')
+bl_rows = bl_rows or '<p class="empty">无挂账</p>'
+bl_card = (f'<div class="mcard"><h4>📌 挂账 / 到期 ({len(BL.get("items", []))})</h4>{bl_rows}</div>')
 monitor_html = f"""
 <div class="mgrid">
   <div class="mcard"><h4>🩺 中枢检查 ({len(CK)})</h4>{checks_html}</div>
@@ -199,6 +237,9 @@ monitor_html = f"""
       <div class="kv"><span>未纳管</span><b>{SK.get('unmanaged','?')}</b></div>
       <div class="kv"><span>失败 cron</span><b>{failing}</b></div></div>
   {sc_card}
+  {pu_card}
+  {er_card}
+  {bl_card}
 </div>
 """
 
