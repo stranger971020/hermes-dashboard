@@ -9,6 +9,7 @@
     "去衣|褪衣|脱衣|vton|catvton|换脸|inpaint|nude|undress": "图像处理",
     "简历|求职|面试|interview|resume|offer|招聘|应聘|跳槽|职位|jd|\\bcv\\b": "职业发展",
     "工资|薪资|薪酬|salary|compensation": "薪酬",
+    "token|api[_-]?key|密钥|密码|password|secret": "[凭据]",
     "焦虑|抑郁|情绪|therapy|心理": "身心"
   },
   "entity_mask": [
