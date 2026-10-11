@@ -111,14 +111,18 @@ def collect_crontab():
         lm = re.search(r">>\s*([^\s]+\.log)", cmd)
         logf = lm.group(1).replace("\\ ", " ") if lm else ""
         logf = os.path.expanduser(logf) if logf else ""
-        last_mtime, tail = "", ""
+        last_mtime, tail, size = "", "", 0
         if logf and os.path.exists(logf):
             last_mtime = datetime.datetime.fromtimestamp(os.path.getmtime(logf)).strftime("%Y-%m-%d %H:%M")
+            size = os.path.getsize(logf)
             tail = sh(f"tail -1 {json.dumps(logf)} 2>/dev/null")[:100]
+        # 名称：命令里最后一个 .py/.sh 脚本 basename（无扩展名）
+        hits = re.findall(r"([\w.\-]+\.(?:py|sh))\b", cmd)
+        name = os.path.splitext(os.path.basename(hits[-1]))[0] if hits else (cmd.split()[0] if cmd else "?")
         out.append({
-            "schedule": expr, "human": human_cron(expr), "cmd": cmd[:150],
+            "schedule": expr, "human": human_cron(expr), "cmd": cmd[:150], "name": name,
             "next_run": cron_next(expr), "log": logf.replace(HOME, "~") if logf else "",
-            "last_log": last_mtime, "last_line": tail,
+            "last_log": last_mtime, "last_line": tail, "log_size": size,
         })
     out.sort(key=lambda x: x["next_run"] or "9")
     return out
