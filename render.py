@@ -163,7 +163,9 @@ def tbl_crontab(rows):
     for r in rows:
         note = ""
         if not r.get("log"):
-            note = ' <span class="pill warn">日志路径未解析</span>'
+            # 命令本来就没有 `>>` → 它不写日志，不是「解析失败」（否则永远挂个假告警）
+            note = (' <span class="pill warn">日志路径未解析</span>' if r.get("has_redirect")
+                    else ' <span class="sub">不写日志</span>')
         elif not r.get("log_exists"):
             note = ' <span class="pill warn">日志缺失</span>'
         elif not (r.get("log_size") or 0):

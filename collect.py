@@ -251,6 +251,7 @@ def collect_crontab():
             "cmd": cmd[:150], "name": name,
             "next_run": cron_next(expr) if expr else "",
             "log": logf.replace(HOME, "~") if logf else "",
+            "has_redirect": ">>" in cmd,      # 有重定向却解析不出路径 → 才是「未解析」
             "log_exists": exists,
             "last_log": last_mtime, "last_line": tail, "log_size": size,
         })
