@@ -55,6 +55,12 @@ CHECKS = [
         "key": "provider_wiring", "name": "Provider 接线",
         "builtin": "provider_wiring", "every": 360, "timeout": 90,
     },
+    # 2026-10-13 审计 TASK-20261013-001：Vault 备份自建立起 100% 失败而看板报绿。
+    # 把「备份」从「没人守的日志」变成常驻检查：同时断言接线（cron 用已授权解释器）与结果（日志新鲜无 ERROR）。
+    {
+        "key": "vault_backup", "name": "Vault 备份",
+        "builtin": "vault_backup", "every": 360, "timeout": 30,
+    },
 ]
 
 
@@ -100,7 +106,9 @@ def parse(name, out, rc):
         passed, total, pct = int(m.group(1)), int(m.group(2)), float(m.group(3))
         bad = total - passed
         st = "ok" if bad == 0 else ("warn" if pct >= 90 else "fail")
-        return st, f"{passed}/{total} 通过 ({pct}%)，{bad} 项失败"
+        # 口径：这些是**子项**，检查组的数量是另一回事（原先写「12 项失败」与
+        # 「1 个 warn 检查」同屏并存，读者无法判断是 1 个还是 12 个问题）
+        return st, f"{passed}/{total} 通过 ({pct}%)，{bad} 个子项失败"
     if "非交易日" in out:
         return "ok", "非交易日，跳过"
     if "启动检查" in out or "预热" in out:
@@ -200,7 +208,47 @@ def check_provider_wiring():
     return "ok", "provider 名已全部接上 profile"
 
 
-BUILTINS = {"cron": check_cron, "egress": check_egress, "provider_wiring": check_provider_wiring}
+def check_vault_backup():
+    """内置：Vault 备份是否真的在跑、真的成功（2026-10-13 审计 TASK-20261013-001）。
+
+    背景：备份自 2026-10-11 建立起 100% 失败。cron 行原用 /bin/bash 起 rsync 脚本，而 cron 的
+    子进程里 /bin/bash、/bin/zsh、/bin/sh 访问 ~/Documents 一律被 TCC 拒绝
+    （`Operation not permitted`，rsync 退出码 23）；只有 ~/miniforge3/bin/python3.13 持有
+    Full Disk Access。rsync 失败有日志但无人消费 → 页面与晨报长期报绿。
+
+    本检查同时断言两件事，缺一不可：
+      接线 —— cron 那一行用的是已授权解释器（改回 shell 即 fail）；
+      结果 —— 日志新鲜（>36h 视为未运行）且末行不含 ERROR。
+    """
+    logf = os.path.join(HOME, ".hermes/logs/vault-backup.log")
+    try:
+        cr = subprocess.run(["crontab", "-l"], capture_output=True, text=True, timeout=10).stdout
+    except Exception as exc:  # noqa: BLE001
+        return "warn", f"无法读取 crontab: {str(exc)[:60]}"
+    line = next((l.strip() for l in cr.splitlines()
+                 if ("backup_vault.py" in l or "backup-vault.sh" in l) and not l.strip().startswith("#")), "")
+    if not line:
+        return "fail", "找不到 Vault 备份的 crontab 行（备份已从调度里消失）"
+    if "/miniforge3/bin/python3" not in line:
+        return "fail", f"备份 cron 未用已授权解释器（TCC 会拒绝读 vault）: {line[:64]}"
+    if not os.path.exists(logf):
+        return "fail", "备份日志不存在（备份从未运行）"
+    age_h = (datetime.datetime.now().timestamp() - os.path.getmtime(logf)) / 3600
+    try:
+        with open(logf, encoding="utf-8", errors="replace") as fh:
+            lines = [l for l in fh.read().splitlines() if l.strip()]
+        last = lines[-1] if lines else ""
+    except OSError:
+        last = ""
+    if "ERROR" in last or "Operation not permitted" in last:
+        return "fail", f"最近一次备份失败（{age_h:.1f}h 前）: {last[-66:]}"
+    if age_h > 36:
+        return "fail", f"备份日志停更 {age_h:.0f}h（>36h 视为未运行）"
+    return "ok", f"{age_h:.1f}h 前: {last[-56:]}"
+
+
+BUILTINS = {"cron": check_cron, "egress": check_egress, "provider_wiring": check_provider_wiring,
+            "vault_backup": check_vault_backup}
 
 
 def run_one(chk, now):
@@ -220,10 +268,16 @@ def run_one(chk, now):
 
 
 def apply_cap(chk, res):
-    """cap: 已知基线问题 → 降级为 warn，避免天天误报（修完断言后移除）。"""
+    """cap: 已知基线问题 → 降级为 warn，避免天天误报（修完断言后移除）。
+
+    降级必须留痕（raw_status + suppressed），否则页面上它等于黑洞：
+    读者只看到一个黄色 warn，看不到「原判 fail / 是 critical 检查」（2026-10-13 审计 P0-4）。
+    """
     caps = {"warn": ("ok", "warn"), "ok": ("ok",)}
     allowed = caps.get(chk.get("cap"))
     if allowed and res["status"] not in allowed:
+        res["raw_status"] = res["status"]
+        res["suppressed"] = True
         res["detail"] = f"[已有基线问题] " + res["detail"]
         res["status"] = chk["cap"]
     return res

@@ -10,6 +10,18 @@
   · 任务记录只留 日期/主题/类型/状态/ID —— **丢弃标题与路径**
   · 命令/程序路径中的 /Users/<name> → ~
   · ID = 文件名 md5 前 4 位（稳定）；ID→真实路径的映射只在私有的 lookup.json
+
+Changelog
+  2026-10-13  审计 TASK-20261013-001 修复：
+    · 所有数字补判据/阈值（备份新鲜度、磁盘水位、服务绑定、技能、推送源、挂账），
+      并把「采集失败」显式渲染成红色横幅 —— 不再让失败回落成 0/健康的假绿。
+    · 「失败任务」卡片 = Hermes cron 失败 + 中枢检查 fail/error（原先只看 6 个
+      Hermes job 却写「全部正常」，与同屏「12 项失败」自相矛盾）。
+    · crontab 任务名改用 collect 已算好的 r["name"]（原先 render 自解析 → 14 行里
+      10 行显示 `2>&1`）；日志列补 log_size/log_exists 守卫，与 dashboard_push 对齐
+      （0 字节日志不再误报「停更 31 天」）。
+    · 被 cap 降级的检查显式标注「已被抑制（基线）· 原判 fail」，不再是黑洞。
+    · 任务记录状态列拆出 digest 阶段副标签；launchd「未加载」不再与「空闲」同形。
 """
 import json, os, html, sys, datetime, re
 
@@ -33,10 +45,13 @@ def kind_of(title, path):
     if re.search(r"模板|template", t): return "模板"
     return "其它"
 
+_ST_LABEL = {"running": "运行中", "idle": "空闲", "not_loaded": "未加载"}
+
 def status_pill(s):
     s = str(s).lower()
-    cls = "ok" if s in ("ok", "up", "running", "success") else ("err" if s in ("error", "failed", "down", "fail") else "warn")
-    return f'<span class="pill {cls}">{e(s)}</span>'
+    cls = "ok" if s in ("ok", "up", "running", "success") else (
+        "err" if s in ("error", "failed", "down", "fail") else "warn")
+    return f'<span class="pill {cls}">{e(_ST_LABEL.get(s, s))}</span>'
 
 def theme_color(t):
     pal = {"投资研究": "#e8a33d", "知识库/文档": "#4a9eda", "Agent 系统": "#8b7fe8",
@@ -45,6 +60,7 @@ def theme_color(t):
     return pal.get(t, "#8a8f98")
 
 S = D["scheduled"]; M = D["monitor"]; A = D["adhoc"]
+CE = D.get("collect_errors") or {}
 
 # ── 脱敏（公开版）────────────────────────────────────────
 _RP = os.path.join(HERE, "redact_rules.json")
@@ -72,16 +88,55 @@ def redact_title(t):
     return t
 
 
+# ── 顶栏卡片（每个数字都带判据）─────────────────────────────
 n_sched = len(S["hermes"]) + len(S["crontab"]) + len(S["launchd"])
-failing = len(M.get("cron_failing") or [])
+CK = D.get("checks", [])
+ck_fail = [c for c in CK if c.get("status") in ("fail", "error")]
+cron_fail = list(M.get("cron_failing") or [])
+failing = len(cron_fail) + len(ck_fail)
+if CE:
+    fail_cls, fail_sub = "err", "采集失败：" + "、".join(list(CE)[:2])
+elif failing:
+    fail_cls = "err"
+    fail_sub = f"Hermes cron {len(cron_fail)} · 中枢检查 {len(ck_fail)}"
+else:
+    fail_cls, fail_sub = "ok", "全部正常"
+_supp = [c for c in CK if c.get("suppressed")]
+if fail_cls == "ok" and _supp:
+    # 有被 cap 降级的检查时必须说清：不是「没问题」，是「基线问题被抑制」
+    fail_sub = f"全部正常 · {len(_supp)} 项基线已抑制"
+
 backup_last = (M.get("backup", {}).get("last_commit", "") or "").split("|")
+BK = M.get("backup", {})
+_bk_res = (BK.get("last_result") or "").strip()
+_bk_age = BK.get("log_age_h")
+if _bk_age is None:
+    bk_cls, bk_note = "warn", "无备份日志（从未运行）"
+elif "ERROR" in _bk_res:
+    bk_cls, bk_note = "err", "上次运行失败"
+elif _bk_age > 36:
+    bk_cls, bk_note = "err", f"日志停更 {_bk_age:.0f}h"
+else:
+    bk_cls, bk_note = "ok", f"{_bk_age:.1f}h 前运行"
+
+_dpct = M.get("disk", {}).get("used_pct") or 0
+disk_cls = "err" if _dpct >= 92 else ("warn" if _dpct >= 85 else "ok")
+
+_bind = str(M.get("ollama_bind") or "?")
+if "127.0.0.1:" in _bind or "[::1]:" in _bind:
+    ob_cls, ob_sub = "ok", "仅本机"
+elif _bind == "not listening":
+    ob_cls, ob_sub = "warn", "未监听（服务未跑）"
+else:
+    ob_cls, ob_sub = "err", "⚠️ 非本机绑定"
+
 cards = [
-    ("定时任务", n_sched, f"Hermes {len(S['hermes'])} · crontab {len(S['crontab'])} · launchd {len(S['launchd'])}"),
-    ("失败任务", failing, "最近一次运行非 ok" if failing else "全部正常"),
-    ("任务记录", A.get("total", 0), f"{len(A.get('groups', []))} 个主题簇"),
-    ("最近备份", (backup_last[0] if backup_last else "未知"), f"{M.get('backup',{}).get('commits','?')} 次提交"),
-    ("磁盘已用", f"{M.get('disk',{}).get('used_pct','?')}%", f"可用 {M.get('disk',{}).get('free',0)//1024//1024} GB"),
-    ("Ollama 绑定", M.get("ollama_bind", "?"), "仅本机 ✅" if "127.0.0.1" in str(M.get("ollama_bind")) else "⚠️ 检查暴露"),
+    ("定时任务", n_sched, f"Hermes {len(S['hermes'])} · crontab {len(S['crontab'])} · launchd {len(S['launchd'])}", ""),
+    ("失败任务", failing, fail_sub, fail_cls),
+    ("任务记录", A.get("total", 0), f"{len(A.get('groups', []))} 个主题簇", ""),
+    ("最近备份", (backup_last[0] if backup_last else "未知"), f"{BK.get('commits', '?')} 次提交 · {bk_note}", bk_cls),
+    ("磁盘已用", f"{M.get('disk',{}).get('used_pct','?')}%", f"可用 {M.get('disk',{}).get('free',0)//1024//1024} GB", disk_cls),
+    ("Ollama 绑定", M.get("ollama_bind", "?"), ob_sub, ob_cls),
 ]
 
 # ── Tab1 ──
@@ -106,25 +161,32 @@ def tbl_crontab(rows):
     if not rows: return '<p class="empty">无 crontab 任务</p>'
     h = '<table><thead><tr><th>排程</th><th>下次运行</th><th>任务</th><th>命令</th><th>日志最近写入</th></tr></thead><tbody>'
     for r in rows:
-        stale = ""
-        if r["last_log"]:
+        note = ""
+        if not r.get("log"):
+            note = ' <span class="pill warn">日志路径未解析</span>'
+        elif not r.get("log_exists"):
+            note = ' <span class="pill warn">日志缺失</span>'
+        elif not (r.get("log_size") or 0):
+            note = ' <span class="sub">0 字节（重定向到别处）</span>'
+        elif r.get("last_log"):
             try:
                 age = (datetime.datetime.now() - datetime.datetime.strptime(r["last_log"], "%Y-%m-%d %H:%M")).days
-                if age > 3: stale = f' <span class="pill warn">停更 {age}天</span>'
-            except Exception: pass
-        name = os.path.basename(re.split(r"&&|;", r["cmd"])[-1].split()[-1]) if r["cmd"] else "—"
+                if age > 3: note = f' <span class="pill warn">停更 {age}天</span>'
+            except ValueError: pass
+        name = r.get("name") or "—"      # collect 已算好的脚本名（原先 render 自解析 → 显示 2>&1）
         cmd = mask_path(r["cmd"])[:80]
         h += (f'<tr><td class="mono">{e(r["human"])}<div class="sub mono">{e(r["schedule"])}</div></td>'
-              f'<td class="mono">{e(r["next_run"])}</td><td class="mono small">{e(name)}</td>'
-              f'<td class="mono small">{e(cmd)}</td><td class="mono small">{e(r["last_log"] or "—")}{stale}</td></tr>')
+              f'<td class="mono">{e(r["next_run"] or "—")}</td><td class="mono small">{e(name)}</td>'
+              f'<td class="mono small">{e(cmd)}</td><td class="mono small">{e(r["last_log"] or "—")}{note}</td></tr>')
     return h + '</tbody></table>'
 
 def tbl_launchd(rows):
     if not rows: return '<p class="empty">无 launchd 任务</p>'
     h = '<table><thead><tr><th>Label</th><th>类型</th><th>状态</th><th>PID</th><th>上次退出码</th></tr></thead><tbody>'
     for r in rows:
+        extra = '<div class="sub">已安装但未加载 → launchd 不会触发它</div>' if r["status"] == "not_loaded" else ""
         h += (f'<tr><td class="mono">{e(r["label"])}</td><td>{e(r["schedule"])}</td>'
-              f'<td>{status_pill(r["status"])}</td><td class="mono">{e(r["pid"] or "—")}</td>'
+              f'<td>{status_pill(r["status"])}{extra}</td><td class="mono">{e(r["pid"] or "—")}</td>'
               f'<td class="mono">{e(r["last_exit"])}</td></tr>')
     return h + '</tbody></table>'
 
@@ -136,16 +198,18 @@ for g in A.get("groups", []):
     if PUBLIC:
         adhoc_html += '<table><thead><tr><th class="ck"></th><th>日期</th><th>标题（脱敏）</th><th>类型</th><th>状态</th><th>ID</th></tr></thead><tbody>'
         for it in g["items"]:
+            dg = f'<div class="sub">{e(it["digest"])}</div>' if it.get("digest") else ""
             adhoc_html += (f'<tr><td><input type="checkbox" class="pick" data-ref="{e(it["id"])}"></td>'
                            f'<td class="mono">{e(it["date"])}</td><td>{e(redact_title(it["title"]))}</td>'
                            f'<td>{e(kind_of(it["title"], it["path"]))}</td>'
-                           f'<td>{status_pill(it["status"])}</td><td class="mono small">{e(it["id"])}</td></tr>')
+                           f'<td>{status_pill(it["status"])}{dg}</td><td class="mono small">{e(it["id"])}</td></tr>')
     else:
         adhoc_html += '<table><thead><tr><th class="ck"></th><th>日期</th><th>标题</th><th>状态</th><th>路径</th><th>ID</th></tr></thead><tbody>'
         for it in g["items"]:
+            dg = f'<div class="sub">{e(it["digest"])}</div>' if it.get("digest") else ""
             adhoc_html += (f'<tr><td><input type="checkbox" class="pick" data-ref="{e(it["id"])}"></td>'
                            f'<td class="mono">{e(it["date"])}</td><td>{e(it["title"])}</td>'
-                           f'<td>{status_pill(it["status"])}</td><td class="mono small">{e(it["path"])}</td>'
+                           f'<td>{status_pill(it["status"])}{dg}</td><td class="mono small">{e(it["path"])}</td>'
                            f'<td class="mono small">{e(it["id"])}</td></tr>')
     adhoc_html += '</tbody></table></div>'
 
@@ -155,16 +219,22 @@ def bar(label, size, maxsize):
     gb = f"{size/1024**3:.1f} GB" if size >= 1024**3 else f"{size/1024/1024:.0f} MB"
     return f'<div class="barrow"><span class="barlbl">{e(label)}</span><div class="bartrack"><div class="barfill" style="width:{pct:.1f}%"></div></div><span class="barval">{gb}</span></div>'
 
+def checks_html_fn(rows):
+    if not rows:
+        return '<p class="empty">尚未运行</p>'
+    out = []
+    for c in rows:
+        supp = ('<div class="sub" style="color:#e8b552">已被抑制（基线）· 原判 '
+                + e(c.get("raw_status") or "") + '</div>') if c.get("suppressed") else ""
+        out.append(f'<div class="svc"><span class="pill {_ckpill.get(c["status"],"warn")}">{e(c["status"])}</span> '
+                   f'<b>{e(c["name"])}</b> <span class="sub">{e(c["detail"])}</span>{supp}'
+                   f'<div class="sub mono">{e(c["at"])}</div></div>')
+    return "".join(out)
+
 bd = M.get("bigdirs", []); mx = max([b["size"] for b in bd] or [1])
 svc = "".join(f'<div class="svc">{status_pill(s["state"])} <b>{e(s["name"])}</b> <span class="sub">{e(s["detail"])}</span></div>' for s in M.get("services", []))
-CK = D.get("checks", [])
 _ckpill = {"ok": "ok", "warn": "warn", "fail": "err", "error": "err"}
-checks_html = "".join(
-    f'<div class="svc"><span class="pill {_ckpill.get(c["status"],"warn")}">{e(c["status"])}</span> '
-    f'<b>{e(c["name"])}</b> <span class="sub">{e(c["detail"])}</span>'
-    f'<div class="sub mono">{e(c["at"])}</div></div>'
-    for c in CK
-) or '<p class="empty">尚未运行</p>'
+checks_html = checks_html_fn(CK)
 V = M.get("vault", {}); SK = M.get("skills", {})
 SC = D.get("skill_changes", {})
 _obpill = {"➕": "ok", "✏": "warn", "🗑": "err"}
@@ -179,6 +249,21 @@ sc_card = f"""<div class="mcard"><h4>📚 Skill/协议变更</h4>
     <div class="kv"><span>➕ 新增 / ✏️ 更新 / 🗑 删除</span><b>{sc_kind.get('add', 0)} / {sc_kind.get('chg', 0)} / {sc_kind.get('del', 0)}</b></div>
     <div class="kv"><span>最近一次</span><b class="mono">{e(SC.get('last_at') or '—')}</b></div>
     {sc_rows}</div>"""
+
+# 技能卡：采集失败必须显形，不能回落成 0（审计 P1-5）
+if SK.get("managed") is None:
+    sk_rows = ('<div class="kv"><span>采集失败</span><b class="errv">hermes curator status</b></div>'
+               f'<div class="sub">{e(SK.get("error") or "")}</div>')
+else:
+    sk_rows = (f'<div class="kv"><span>纳管</span><b>{e(SK.get("managed"))}</b></div>'
+               f'<div class="kv"><span>待清理(stale)</span><b>{e(SK.get("stale"))}</b></div>'
+               f'<div class="kv"><span>已归档</span><b>{e(SK.get("archived"))}</b></div>')
+
+# Vault/备份卡：备份要判新鲜度与成败，而不是只印日期
+bk_rows = (f'<div class="kv"><span>最近备份</span><b class="mono {bk_cls}">{e(backup_last[0] if backup_last else "—")}</b></div>'
+           f'<div class="kv"><span>备份状态</span><b class="{bk_cls}">{e(bk_note)}</b></div>'
+           f'<div class="kv"><span>备份提交数</span><b>{BK.get("commits", "?")}</b></div>'
+           f'<div class="sub mono">{e(_bk_res[-90:] or "（无日志）")}</div>')
 
 # ── 📡 推送源登记 + 上次送达 ──────────────────────────────────────────────
 PU = D.get("pushes", [])
@@ -211,9 +296,10 @@ BL = D.get("backlog", {})
 bl_rows = ""
 for it in BL.get("items", []):
     st = it.get("status", "")
-    pill = "err" if it.get("overdue") else ("warn" if (it.get("days_left") or 99) <= 7 else "ok")
+    dl = it.get("days_left")
+    pill = "err" if it.get("overdue") else ("warn" if (dl is not None and dl <= 7) else "ok")
     due = it.get("due") or ""
-    tail = (f'{it.get("days_left")} 天' if due and it.get("days_left") is not None and not it.get("overdue")
+    tail = (f'{dl} 天' if due and dl is not None and not it.get("overdue")
             else ("已逾期" if it.get("overdue") else e(st)))
     bl_rows += (f'<div class="svc"><span class="pill {pill}">{e(st)}</span> '
                 f'<b>{e(it.get("item", "")[:40])}</b> <span class="sub mono">{e(due)} {tail}</span></div>')
@@ -222,22 +308,20 @@ bl_card = (f'<div class="mcard"><h4>📌 挂账 / 到期 ({len(BL.get("items", [
 monitor_html = f"""
 <div class="mgrid">
   <div class="mcard"><h4>🩺 中枢检查 ({len(CK)})</h4>{checks_html}</div>
-  <div class="mcard"><h4>磁盘占用</h4>{''.join(bar(b['name'], b['size'], mx) for b in bd)}</div>
+  <div class="mcard"><h4>磁盘占用</h4>{''.join(bar(b['name'], b['size'], mx) for b in bd)}
+      <div class="kv"><span>已用水位</span><b class="{disk_cls}">{M.get('disk',{}).get('used_pct','?')}%</b></div></div>
   <div class="mcard"><h4>服务</h4>{svc}
-      <div class="kv"><span>Ollama 绑定</span><b class="mono">{e(M.get('ollama_bind'))}</b></div>
+      <div class="kv"><span>Ollama 绑定</span><b class="mono {ob_cls}">{e(M.get('ollama_bind'))}</b></div>
       <div class="kv"><span>防火墙</span><b>{e(M.get('firewall'))}</b></div></div>
   <div class="mcard"><h4>Vault / 备份</h4>
       <div class="kv"><span>vault .md 文件</span><b>{V.get('md_files','?')}</b></div>
       <div class="kv"><span>镜像缺口</span><b>{V.get('mirror_gap','?')}</b></div>
+      <div class="sub">镜像只覆盖经 R7 双写协议写入的文件，缺口 ≠ 丢失</div>
       <div class="kv"><span>iCloud 未下载</span><b>{V.get('icloud_evicted','?')}</b></div>
       <div class="kv"><span>冲突文件</span><b>{V.get('conflicts','?')}</b></div>
-      <div class="kv"><span>最近备份</span><b class="mono">{e(backup_last[0] if backup_last else '—')}</b></div>
-      <div class="kv"><span>备份提交数</span><b>{M.get('backup',{}).get('commits','?')}</b></div></div>
+      {bk_rows}</div>
   <div class="mcard"><h4>技能</h4>
-      <div class="kv"><span>纳管</span><b>{SK.get('managed','?')}</b></div>
-      <div class="kv"><span>待清理(stale)</span><b>{SK.get('stale','?')}</b></div>
-      <div class="kv"><span>未纳管</span><b>{SK.get('unmanaged','?')}</b></div>
-      <div class="kv"><span>失败 cron</span><b>{failing}</b></div></div>
+      {sk_rows}</div>
   {sc_card}
   {pu_card}
   {er_card}
@@ -250,15 +334,23 @@ tip = ("勾选条目 → 底部生成指令，复制发给我即可（归档不�
       "勾选条目 → 底部生成指令，复制发给我即可（归档不删除）。本页为完整版，含真实标题与路径。"
 ver = "公开版" if PUBLIC else "完整版"
 
+banner = ""
+if CE:
+    banner = ('<div class="banner">⚠️ 数据采集失败：'
+              + "、".join(f"{e(k)}（{e(str(v)[:70])}）" for k, v in CE.items())
+              + '　—— 相关数字不可信，已按「采集失败」显示而非 0。</div>')
+
 HTML = f"""<!DOCTYPE html>
 <html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hermes 监控看板 · {ver}</title>
 <style>
 *{{box-sizing:border-box}} body{{margin:0;font:14px/1.55 -apple-system,"PingFang SC",Segoe UI,sans-serif;background:#0f1115;color:#e6e8ec}}
 header{{padding:18px 24px 0}} h1{{margin:0;font-size:20px}} .meta{{color:#8a8f98;font-size:12px;margin-top:4px}}
+.banner{{background:#3a1620;border:1px solid #6b2436;color:#f0708a;margin:12px 24px 0;padding:8px 12px;border-radius:8px;font-size:13px}}
 .cards{{display:flex;gap:10px;flex-wrap:wrap;padding:14px 24px}}
 .card{{background:#171a21;border:1px solid #232733;border-radius:10px;padding:10px 14px;min-width:120px}}
 .card .v{{font-size:20px;font-weight:700}} .card .l{{color:#8a8f98;font-size:11px}} .card .s{{color:#6f7682;font-size:11px;margin-top:2px}}
+.v.err,.errv{{color:#f0708a}} .v.warn,.warnv{{color:#e8b552}} .v.ok,.okv{{color:#4ad48a}}
 nav{{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid #232733;position:sticky;top:0;background:#0f1115;z-index:5}}
 nav button{{background:none;border:none;color:#8a8f98;padding:12px 16px;font-size:14px;cursor:pointer;border-bottom:2px solid transparent}}
 nav button.on{{color:#e6e8ec;border-bottom-color:#4a9eda}}
@@ -286,7 +378,8 @@ tr:hover td{{background:#181d28}} .mono{{font-family:ui-monospace,SF Mono,Menlo,
 </style></head><body>
 <header><h1>🛰️ Hermes 监控看板 <span class="sub">· {ver}</span></h1>
 <div class="meta">生成于 {e(D['generated_at'])} · 数据源：Hermes cron · crontab · launchd · vault</div></header>
-<div class="cards">{''.join(f'<div class="card"><div class="l">{e(l)}</div><div class="v">{e(v)}</div><div class="s">{e(s)}</div></div>' for l,v,s in cards)}</div>
+{banner}
+<div class="cards">{''.join(f'<div class="card"><div class="l">{e(l)}</div><div class="v {cls}">{e(v)}</div><div class="s">{e(s)}</div></div>' for l, v, s, cls in cards)}</div>
 <nav>
   <button class="on" data-t="t1">定时任务 ({n_sched})</button>
   <button data-t="t2">任务记录 ({A.get('total',0)})</button>

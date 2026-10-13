@@ -56,9 +56,26 @@ $PY render.py --public  >/dev/null 2>&1 || { echo "$TS ERROR: render(public) 失
 $PY render.py --private >/dev/null 2>&1 || { echo "$TS ERROR: render(private) 失败"; exit 1; }
 
 # 1) 写入 vault + mirror（跨设备；完整版只进 vault，不进公开仓）
-mkdir -p "$VAULT" "$MIRROR"
-cp index.html index-private.html data.json lookup.json "$VAULT"/ 2>/dev/null
-cp index.html index-private.html "$MIRROR"/ 2>/dev/null
+#    ⚠️ 必须用 $PY 拷：cron 子进程里 /bin/bash 读 ~/Documents 被 TCC 拒绝（Operation not permitted），
+#    原先的 `cp` 一直静默失败 → vault/dashboard 自 2026-10-11 起从未更新（审计 TASK-20261013-001）。
+$PY - "$VAULT" "$MIRROR" "$DIR" <<'PYEOF'
+import os, shutil, sys
+vault, mirror, src = sys.argv[1], sys.argv[2], sys.argv[3]
+for d in (vault, mirror):
+    os.makedirs(d, exist_ok=True)
+for name in ("data.json", "lookup.json", "index.html", "index-private.html"):
+    s = os.path.join(src, name)
+    if not os.path.exists(s):
+        print(f"ERROR: 缺少 {s}"); sys.exit(1)
+    shutil.copy2(s, os.path.join(vault, name))
+for name in ("index.html", "index-private.html"):
+    shutil.copy2(os.path.join(src, name), os.path.join(mirror, name))
+ok = os.path.getsize(os.path.join(vault, "index.html")) == os.path.getsize(os.path.join(src, "index.html"))
+print(f"{'vault copy: OK' if ok else 'ERROR: vault 拷贝后大小不符'} -> {vault}")
+sys.exit(0 if ok else 1)
+PYEOF
+COPY_RC=$?
+[ "$COPY_RC" -ne 0 ] && echo "$TS WARN: vault/mirror 拷贝失败（TCC？）"
 
 # 2) 提交到看板仓库（有变化才提交）
 git add -A
