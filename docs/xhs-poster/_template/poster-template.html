@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  html, body { height: auto; min-height: 100%; overflow-x: hidden; width: 100%; }
+
+  body {
+    font-family: 'Noto Sans SC', -apple-system, 'Helvetica Neue', sans-serif;
+    background: #f5f2ed;
+    display: flex;
+    justify-content: center;
+    align-items: start;
+    min-height: 100%;
+    padding: 18px 6px;
+    width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .poster {
+    width: 354px;
+    max-width: calc(100vw - 16px);
+    background: #fffef9;
+    border-radius: 14px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin-left: auto;
+    margin-right: auto;
+    min-height: fit-content;
+    height: auto;
+  }
+
+  .top-bar { height: 6px; background: linear-gradient(to right, #e8c547, #f4a261); flex-shrink: 0; }
+
+  .content {
+    padding: 12px 14px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1; min-height: 0;
+  }
+
+  /* ============== 模板变量区（按需修改）============== */
+  
+  .series-tag { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 9px; font-weight: 500; padding: 3px 10px; border-radius: 14px; letter-spacing: 0.3px; margin-bottom: 8px; flex-shrink: 0; }
+
+  .title { font-size: 26px; font-weight: 900; color: #1a1a1a; line-height: 1.15; margin-bottom: 3px; text-align: center; letter-spacing: -0.4px; flex-shrink: 0; }
+  
+  .title-line { display: block; width: 100%; }
+
+  /* ── 子类型1：S2风格（quote块）── */
+  .quote { font-size: 16px; font-weight: 400; color: #5a5a5a; margin: 8px 0 12px; text-align: center; line-height: 1.5; flex-shrink: 0; width: 92%; max-width: 100%; word-break: break-word; }
+  .quote strong { color: #3a3a3a; font-weight: 700; }
+
+  /* ── 子类型2：S1风格（body-text块）── */
+  .subtitle { font-size: 12px; color: #6b6b6b; margin-bottom: 8px; line-height: 1.35; text-align: center; flex-shrink: 0; padding: 0 4px; word-break: break-word; }
+  
+  .body-text { font-size: 11.5px; line-height: 1.5; color: #3a3a3a; margin-bottom: 2px; flex-shrink: 0; width: 95%; text-align: left; max-width: 100%; word-break: break-word; }
+  
+  .highlight-line { background: linear-gradient(90deg, rgba(232,197,71,0.15), transparent); padding-left: 8px; border-left: 2.5px solid #e8c547; margin: 6px auto 6px; font-size: 11px; line-height: 1.5; color: #3a3a3a; width: 90%; max-width: 100%; flex-shrink: 0; padding-top: 4px; padding-bottom: 4px; text-align: left; border-radius: 0 8px 8px 0; word-break: break-word; }
+  
+  .golden-line { background: linear-gradient(90deg, rgba(232,197,71,0.15), transparent); padding: 12px 18px; border-left: 3px solid #e8c547; margin-top: auto; font-size: 14px; line-height: 1.55; color: #3a3a3a; text-align: left; width: 92%; max-width: calc(100% - 6px); border-radius: 0 8px 8px 0; flex-shrink: 0; word-break: break-word; }
+
+  /* ── 通用分隔线 ── */
+  .divider { width: 90%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 6px auto; flex-shrink: 0; }
+
+  /* ── 子类型3：对比框（core-conflict）── */
+  .core-conflict { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 6px 0; font-size: 15.5px; color: #3a3a3a; text-align: center; flex-shrink: 0; width: 92%; max-width: 100%; }
+  
+  .core-conflict .item { font-size: 15.5px; padding: 8px 14px; background: #fefcf5; border: 1.5px solid #ede6d4; border-radius: 7px; min-width: 110px; flex-shrink: 0; text-align: center; max-width: 100%; word-break: break-word; }
+  
+  .core-conflict .item.green { background: #fafff8; border-color: #e8c547; color: #3a3a3a; }
+  
+  /* ── 子类型4：徽章（green-badge）── */
+  .conflict { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-shrink: 0; width: 95%; justify-content: center; max-width: 100%; }
+  
+  .green-badge { display: inline-flex; align-items: center; gap: 4px; background: #f0faf0; border: 1.5px solid #a8e6a0; border-radius: 7px; padding: 5px 10px; font-size: 10.5px; font-weight: 500; color: #3d8b3d; white-space: nowrap; }
+  
+  .green-badge .dot { width: 6px; height: 6px; background: #6cc84c; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px rgba(108,200,76,0.5); }
+  
+  .question-mark { font-size: 24px; color: #e8c547; font-weight: 900; flex-shrink: 0; }
+
+  /* ── 底部区（统一）── */
+  .bottom-section { display: flex; justify-content: space-between; align-items: start; margin-top: auto; padding-top: 10px; border-top: 1px solid #ede6d4; width: 95%; max-width: 100%; flex-shrink: 0; gap: 8px; }
+  
+  .fan-chai { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  .stars { font-size: 16px; letter-spacing: 2px; line-height: 1; white-space: nowrap; }
+  .label-small { font-size: 10.5px; color: #999; margin-top: 2px; line-height: 1.35; flex-shrink: 1; min-width: 0; word-break: break-word; text-align: left; max-width: calc(100% - 80px); }
+  
+  .action-hint { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 10.5px; font-weight: 500; padding: 6px 12px; border-radius: 7px; flex-shrink: 0; white-space: nowrap; }
+
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="top-bar"></div>
+  <div class="content">
+    <!-- STEP 1：改系列角标 -->
+    <div class="series-tag">SxE · 系列副标题文字（不超过20字）</div>
+
+    <!-- STEP 2：改大标题（每行一段，≤3行）-->
+    <h1 class="title"><span class="title-line" style="font-size:0.95em;">大标题第1行</span><br><span class="title-line" style="font-size:0.76em;color:#999;font-weight:400;">=</span><span class="title-line" style="font-size:0.95em;">大标题第2行？</span></h1>
+
+    <!-- STEP 3：选一种中间区布局（注释掉不用的）-->
+    
+    <!-- [选项A] 引用块 -->
+    <p class="quote"><strong>"引用的话"</strong><br>副文说明。</p>
+
+    <!-- [选项B] 对比框 -->
+    <!-- 
+    <div class="core-conflict">
+      <span class="item green">✅ 正面表述</span>
+      <span style="font-size:22px;color:#999;">≠</span>
+      <span class="item" style="color:#c0813d;">📦 反面概念</span>
+    </div> 
+    -->
+
+    <!-- [选项C] 徽章+问号 -->
+    <!--
+    <div class="conflict">
+      <span class="green-badge"><span class="dot"></span> 状态描述</span>
+      <span class="question-mark">?</span>
+    </div> 
+    -->
+
+    <!-- STEP 4：金句/高亮线（选一种，注释掉不用的）-->
+
+    <!-- [选项A] 金色线条（适合长一句总结） -->
+    <div class="golden-line"><strong>金句主体</strong><br>解释说明。</div>
+
+    <!-- [选项B] 高亮条（适合短结论） -->
+    <!--
+    <div class="highlight-line"><strong>"简洁的结论"</strong></div> 
+    -->
+
+    <!-- STEP 5：底部翻车指数 + 行动提示 -->
+    <div class="bottom-section">
+      <div>
+        <div class="fan-chai"><span class="stars">★★★★</span><span style="font-size:10px;color:#aaa;">翻车指数</span></div>
+        <p class="label-small">副标题/补充说明（不超过两行）。<br>第二行接在这里。</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body></html>
