@@ -7,65 +7,62 @@
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  html, body { height: 100%; }
+  
   body {
     font-family: 'Noto Sans SC', -apple-system, 'Helvetica Neue', sans-serif;
     background: #f5f2ed;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    padding: 16px 20px;
+    height: 100vh;
+    padding: 36px 24px;
   }
 
   .poster {
-    width: 680px;
-    max-height: 780px;
+    width: 640px;
+    height: calc(100vh - 72px);
     background: #fffef9;
-    border-radius: 20px;
-    box-shadow: 0 3px 24px rgba(0,0,0,0.06);
-    overflow: hidden;
+    border-radius: 18px;
+    box-shadow: 0 3px 20px rgba(0,0,0,0.06);
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    max-width: 95vw;
+    min-height: 620px;
   }
 
   .top-bar { height: 8px; background: linear-gradient(to right, #e8c547, #f4a261); flex-shrink: 0; }
 
   .content {
-    padding: 24px 32px 20px;
+    padding: 20px 28px 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 1;
-    min-height: 0;
+    flex: 1; min-height: 0;
   }
 
-  .series-tag {
-    display: inline-block;
-    background: linear-gradient(135deg, #e8c547, #f4a261);
-    color: #fff;
-    font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 18px; letter-spacing: 0.5px; margin-bottom: 16px; flex-shrink: 0;
-  }
+  .series-tag { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 16px; letter-spacing: 0.5px; margin-bottom: 12px; flex-shrink: 0; }
 
-  .title { font-size: 36px; font-weight: 900; color: #1a1a1a; line-height: 1.25; margin-bottom: 4px; text-align: center; letter-spacing: -0.5px; flex-shrink: 0; }
+  .title { font-size: 36px; font-weight: 900; color: #1a1a1a; line-height: 1.15; margin-bottom: 4px; text-align: center; letter-spacing: -0.5px; flex-shrink: 0; }
   .title-line { display: block; width: 100%; }
 
-  .quote { font-size: 20px; font-weight: 400; color: #5a5a5a; margin: 16px 0 18px; text-align: center; line-height: 1.55; flex-shrink: 0; }
+  .quote { font-size: 18px; font-weight: 400; color: #5a5a5a; margin: 12px 0 16px; text-align: center; line-height: 1.5; flex-shrink: 0; width: 90%; }
   .quote strong { color: #3a3a3a; font-weight: 700; }
 
-  .divider { width: 100%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 12px 0; flex-shrink: 0; }
+  .divider { width: 90%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 8px 0 10px; flex-shrink: 0; }
 
-  .core-conflict { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0; font-size: 22px; color: #3a3a3a; text-align: center; flex-shrink: 0; }
-  .core-conflict .item { padding: 12px 22px; background: #fefcf5; border: 1.5px solid #ede6d4; border-radius: 10px; min-width: 160px; flex-shrink: 0; }
+  .core-conflict { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0; font-size: 20px; color: #3a3a3a; text-align: center; flex-shrink: 0; width: 90%; }
+  .core-conflict .item { padding: 10px 18px; background: #fefcf5; border: 1.5px solid #ede6d4; border-radius: 9px; min-width: 140px; flex-shrink: 0; }
   .core-conflict .item.green { background: #fafff8; border-color: #e8c547; color: #3a3a3a; }
-  .core-conflict .arrow { font-size: 26px; color: #999; flex-shrink: 0; line-height: 1.4; }
+  .core-conflict .arrow { font-size: 24px; color: #999; flex-shrink: 0; line-height: 1.4; text-align: center; display: block; width: 40px; }
 
-  .golden-line { background: linear-gradient(90deg, rgba(232,197,71,0.15), transparent); padding: 16px 22px; border-left: 4px solid #e8c547; margin-top: 16px; font-size: 18px; line-height: 1.65; color: #3a3a3a; text-align: left; width: 100%; border-radius: 0 10px 10px 0; flex-shrink: 0; }
+  .golden-line { background: linear-gradient(90deg, rgba(232,197,71,0.15), transparent); padding: 14px 20px; border-left: 4px solid #e8c547; margin-top: auto; font-size: 16px; line-height: 1.6; color: #3a3a3a; text-align: left; width: 90%; border-radius: 0 10px 10px 0; flex-shrink: 0; }
   .golden-line strong { color: #1a1a1a; font-weight: 700; }
 
-  .bottom-section { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 14px; border-top: 1px solid #ede6d4; width: 100%; flex-shrink: 0; }
-  .fan-chai { display: flex; align-items: center; gap: 5px; }
-  .stars { font-size: 20px; letter-spacing: 3px; }
-
+  .bottom-section { display: flex; justify-content: center; align-items: center; padding-top: 12px; border-top: 1px solid #ede6d4; width: 90%; margin-bottom: 4px; flex-shrink: 0; }
+  
 </style>
 </head>
 <body>
@@ -73,17 +70,17 @@
   <div class="top-bar"></div>
   <div class="content">
     <div class="series-tag">S1E3 · AI 算得没错——是我们默认了它懂</div>
-    <h1 class="title"><span class="title-line" style="font-size:1em;">搞定了</span><br><span class="title-line" style="font-size:0.8em;color:#999;font-weight:400;">=</span><span class="title-line" style="font-size:1em;">做对了？</span></h1>
+    <h1 class="title"><span class="title-line" style="font-size:0.95em;">搞定了</span><br><span class="title-line" style="font-size:0.78em;color:#999;font-weight:400;">=</span><span class="title-line" style="font-size:0.95em;">做对了？</span></h1>
     <p class="quote"><strong>"已完成汇总，数据一致性良好。"</strong><br>听上去多靠谱啊！<br>但事实是——<br><strong>一致，是因为错得很一致。</strong></p>
     <div class="divider"></div>
     <div class="core-conflict">
-      <span class="item green">✅ 数据一致性良好</span>
-      <span class="arrow"><br>≠<br></span>
-      <span class="item" style="color:#c0813d;">📦 存量 ≠ 流量</span>
+      <span class="item green" style="text-align:center;">✅ 数据一致性良好</span>
+      <span class="arrow">≠</span>
+      <span class="item" style="color:#c0813d; text-align:center;">📦 存量 ≠ 流量</span>
     </div>
     <div class="golden-line">它算得一点没错——<strong>错的是我们</strong><br>默认了 AI 懂"存量"和"流量"的区别。<br>它不懂，除非你把它定义清楚。</div>
     <div class="bottom-section">
-      <div class="fan-chai"><span class="stars">★★★★</span><span style="font-size:13px;color:#aaa;">翻车指数</span></div>
+      <span style="font-size:16px; letter-spacing:2.5px;">★★★★ <span style="font-size:12px;color:#aaa;margin-left:4px;">翻车指数</span></span>
     </div>
   </div>
 </div>

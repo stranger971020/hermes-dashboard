@@ -7,184 +7,99 @@
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
-
+  
+  html, body { height: 100%; }
+  
   body {
     font-family: 'Noto Sans SC', -apple-system, 'Helvetica Neue', sans-serif;
     background: #f5f2ed;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    padding: 16px 20px;          /* 从40缩到16 */
+    height: 100vh;                    /* 精确一屏 */
+    padding: 36px 24px;               /* 上下各留36，左右24 — 不铺满 */
   }
 
   .poster {
-    width: 680px;
-    max-height: 780px;            /* 限制最大高度 */
+    width: 640px;                     /* 从680缩到640，更紧凑 */
+    height: calc(100vh - 72px);       /* 精确占满可用高度（减去padding） */
     background: #fffef9;
-    border-radius: 20px;          /* 从24缩到20 */
-    box-shadow: 0 3px 24px rgba(0,0,0,0.06);
-    overflow: hidden;
-    display: flex;                /* 弹性布局，自动压缩 */
+    border-radius: 18px;              /* 适当缩小圆角省空间 */
+    box-shadow: 0 3px 20px rgba(0,0,0,0.06);
+    display: flex;
     flex-direction: column;
+    overflow: hidden;                 /* 关键：不溢出 */
+    max-width: 95vw;                  /* 确保小屏也不超 */
+    min-height: 620px;                /* 不低于这个值，太小字挤 */
   }
 
   .top-bar { height: 8px; background: linear-gradient(to right, #e8c547, #f4a261); flex-shrink: 0; }
 
   .content {
-    padding: 28px 36px 24px;      /* 从48+36缩到28+24 */
+    padding: 20px 28px 16px;          /* 从上到下：20+28+16 = 64 */
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 1;
-    min-height: 0;                /* 防止子元素溢出 */
+    flex: 1;                          /* 占满剩余空间 */
+    min-height: 0;                    /* 允许收缩 */
   }
 
   .series-tag {
-    display: inline-block;
     background: linear-gradient(135deg, #e8c547, #f4a261);
-    color: #fff;
-    font-size: 12px;              /* 从13缩到12 */
-    font-weight: 500;
-    padding: 5px 14px;            /* 从6+16缩到5+14 */
-    border-radius: 18px;
-    letter-spacing: 0.5px;
-    margin-bottom: 18px;          /* 从28缩到18 */
-    flex-shrink: 0;
+    color: #fff; font-size: 11px; font-weight: 500; 
+    padding: 4px 12px; border-radius: 16px; letter-spacing: 0.5px; 
+    margin-bottom: 12px; flex-shrink: 0;
   }
 
-  .title {
-    font-size: 40px;              /* 从42缩到40 */
-    font-weight: 900;
-    color: #1a1a1a;
-    line-height: 1.25;            /* 更紧凑 */
-    margin-bottom: 6px;           /* 从8缩到6 */
-    letter-spacing: -0.5px;
-    flex-shrink: 0;
-  }
+  .title { font-size: 38px; font-weight: 900; color: #1a1a1a; line-height: 1.2; margin-bottom: 4px; text-align: center; letter-spacing: -0.5px; flex-shrink: 0; }
 
   .subtitle {
-    font-size: 17px;              /* 从20缩到17 */
-    font-weight: 400;
-    color: #6b6b6b;
-    margin-bottom: 20px;          /* 从32缩到20 */
-    line-height: 1.5;
-    text-align: center;           /* 居中，更紧凑 */
-    flex-shrink: 0;
+    font-size: 16px; color: #6b6b6b; margin-bottom: 14px; line-height: 1.45; 
+    text-align: center; flex-shrink: 0;
   }
 
-  .divider {
-    height: 1px;
-    background: linear-gradient(to right, #e8c547, transparent);
-    margin: 16px 0;               /* 从28缩到16 */
-    flex-shrink: 0;
-  }
+  .divider { width: 90%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 10px 0 12px; flex-shrink: 0; }
 
-  .conflict {
-    display: flex;
-    align-items: center;
-    gap: 16px;                    /* 从20缩到16 */
-    margin-bottom: 18px;          /* 从32缩到18 */
-    flex-shrink: 0;
-  }
-
+  .conflict { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; flex-shrink: 0; width: 90%; justify-content: center; }
+  
   .green-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;                   /* 从8缩到7 */
-    background: #f0faf0;
-    border: 1.5px solid #a8e6a0;
-    border-radius: 10px;          /* 从12缩到10 */
-    padding: 10px 18px;         /* 从14+24缩到10+18 */
-    font-size: 15px;            /* 从17缩到15 */
-    font-weight: 500;
-    color: #3d8b3d;
-    white-space: nowrap;
-    flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 6px; background: #f0faf0;
+    border: 1.5px solid #a8e6a0; border-radius: 9px; padding: 7px 14px;
+    font-size: 13.5px; font-weight: 500; color: #3d8b3d; white-space: nowrap;
   }
+  
+  .green-badge .dot { width: 8px; height: 8px; background: #6cc84c; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px rgba(108,200,76,0.5); }
+  
+  .question-mark { font-size: 30px; color: #e8c547; font-weight: 900; flex-shrink: 0; }
 
-  .green-badge .dot {
-    width: 9px; height: 9px;      /* 从10缩到9 */
-    background: #6cc84c;
-    border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 0 7px rgba(108,200,76,0.5);
-  }
-
-  .question-mark {
-    font-size: 32px;            /* 从36缩到32 */
-    color: #e8c547;
-    font-weight: 900;
-    flex-shrink: 0;
-  }
-
-  .body-text {
-    font-size: 16px;              /* 从17.5缩到16 */
-    line-height: 1.7;            /* 从1.85缩到1.7 */
-    color: #3a3a3a;
-    margin-bottom: 4px;          /* 从6缩到4 */
-    flex-shrink: 0;
-  }
-
+  .body-text { font-size: 15px; line-height: 1.6; color: #3a3a3a; margin-bottom: 3px; flex-shrink: 0; width: 90%; text-align: left; }
+  
   .highlight-line {
     background: linear-gradient(90deg, rgba(232,197,71,0.15), transparent);
-    padding-left: 12px;          /* 从14缩到12 */
-    border-left: 3px solid #e8c547;
-    margin: 16px 0;              /* 从24缩到16 */
-    font-size: 15.5px;           /* 从17缩到15.5 */
-    line-height: 1.75;
-    color: #3a3a3a;
-    flex-shrink: 0;
-    padding-top: 6px;            /* 新增：内边距 */
-    padding-bottom: 6px;         /* 新增 */
+    padding-left: 10px; border-left: 3px solid #e8c547;
+    margin: 8px 0 10px; font-size: 14.5px; line-height: 1.65; color: #3a3a3a;
+    flex-shrink: 0; width: 90%; padding-top: 5px; padding-bottom: 5px;
   }
-
+  
   .highlight-line strong { color: #1a1a1a; font-weight: 700; }
 
   .metaphor-card {
-    background: #fefcf5;
-    border: 1px solid #ede6d4;
-    border-radius: 14px;          /* 从16缩到14 */
-    padding: 20px 24px;           /* 从28+30缩到20+24 */
-    margin: 16px 0;               /* 从28缩到16 */
-    text-align: center;
-    flex-shrink: 0;
+    background: #fefcf5; border: 1px solid #ede6d4; border-radius: 12px;
+    padding: 16px 20px; margin: 8px 0 14px; text-align: center; flex-shrink: 0; width: 90%;
   }
-
-  .metaphor-icon { font-size: 38px;  /* 从44缩到38 */ margin-bottom: 10px; display: block; flex-shrink: 0; }
-
-  .metaphor-text {
-    font-size: 15.5px;            /* 从16.5缩到15.5 */
-    line-height: 1.7;            /* 从1.8缩到1.7 */
-    color: #5a5a5a;
-  }
-
+  
+  .metaphor-icon { font-size: 32px; margin-bottom: 6px; display: block; flex-shrink: 0; }
+  
+  .metaphor-text { font-size: 14.5px; line-height: 1.6; color: #5a5a5a; text-align: center; }
   .metaphor-text strong { color: #3a3a3a; font-weight: 600; }
 
-  .bottom-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: auto;             /* 自动贴底 */
-    padding-top: 16px;            /* 从24缩到16 */
-    border-top: 1px solid #ede6d4;
-    width: 100%;                  /* 确保占满 */
-    flex-shrink: 0;
-  }
-
-  .fan-chai { display: flex; align-items: center; gap: 7px; }
+  .bottom-section { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 12px; border-top: 1px solid #ede6d4; width: 90%; flex-shrink: 0; }
+  
+  .fan-chai { display: flex; align-items: center; gap: 5px; }
   .stars { font-size: 18px; letter-spacing: 2px; }
-  .label-small { font-size: 13px; color: #999; margin-top: 6px; line-height: 1.5; max-width: 400px;}
-  .action-hint {
-    background: linear-gradient(135deg, #e8c547, #f4a261);
-    color: #fff;
-    font-size: 13px;
-    font-weight: 500;
-    padding: 8px 16px;           /* 从10+20缩到8+16 */
-    border-radius: 9px;
-    letter-spacing: 0.3px;
-    flex-shrink: 0;
-  }
+  .label-small { font-size: 12.5px; color: #999; margin-top: 4px; line-height: 1.45; max-width: 360px; text-align: left; }
+  
+  .action-hint { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 12.5px; font-weight: 500; padding: 7px 14px; border-radius: 8px; flex-shrink: 0; }
 
 </style>
 </head>
@@ -194,23 +109,23 @@
   <div class="content">
     <div class="series-tag">S1E2 · 没有报错，才是最大的报错</div>
     <h1 class="title">没报错<br>= 没问题？</h1>
-    <p class="subtitle">最让我后背发凉的，不是系统崩了，而是它给了我们一份看起来全对、实则全是兜出来的旧数据。</p>
+    <p class="subtitle">不是系统崩了——是给了我们一份看起来全对、实则全是兜出来的旧数据。</p>
     <div class="divider"></div>
     <div class="conflict">
-      <span class="green-badge"><span class="dot"></span> 运行正常 · 耗时 0.3s · 全部成功</span>
+      <span class="green-badge"><span class="dot"></span> 运行正常 · 全部成功</span>
       <span class="question-mark">?</span>
     </div>
-    <p class="body-text">因为一切绿灯，没报错就是没问题。可问题是——那些数字真的吗？还是 fallback（兜底）出来的历史存量，或者是压根没走真实产出的占位符？</p>
+    <p class="body-text">因为一切绿灯，没报错就是没问题。可问题是——那些数字真的吗？还是兜底出来的历史存量？还是压根没走真实产出的占位符？</p>
     <p class="body-text">上游的数据源出了状况，可兜底逻辑照常跑了。<strong>要么用旧数据顶上（假活），要么吐出占位符（假值）。</strong></p>
     <div class="highlight-line"><strong>"任务完成"和"结果正确"是两件事。</strong></div>
     <div class="metaphor-card">
       <span class="metaphor-icon">📦</span>
-      <p class="metaphor-text">快递员把空箱仔仔细细包好，准时送到家门口。<br><strong>状态显示"已签收"。</strong><br>你以为是宝贝——其实里面什么也没有。</p>
+      <p class="metaphor-text">快递员把空箱包好，准时送到家门口。<br><strong>状态显示"已签收"</strong><br>你以为是宝贝——里面其实什么也没有。</p>
     </div>
     <div class="bottom-section">
       <div>
-        <div class="fan-chai"><span class="stars">★★★★</span><span style="font-size:13px;color:#aaa;">翻车指数</span></div>
-        <p class="label-small" style="margin-top:6px;">看似内核都一样。真正不一样的，是外面那层体系：喂什么、给多大权限、由谁盯着。</p>
+        <div class="fan-chai"><span class="stars">★★★★</span><span style="font-size:12.5px;color:#aaa;">翻车指数</span></div>
+        <p class="label-small" style="margin-top:4px;">看似内核都一样。真正不一样的，是外面那层体系：喂什么、给多大权限、由谁盯着。</p>
       </div>
       <div class="action-hint">今天就能试：给你每天依赖的报表定一个「最低常识线」</div>
     </div>
