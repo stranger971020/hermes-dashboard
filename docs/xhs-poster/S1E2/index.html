@@ -2,117 +2,121 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
   
-  html, body { height: 100%; }
+  html, body { height: auto; min-height: 100%; }
   
+  /* Chrome Mobile 地址栏兼容 */
+  @supports (height: 1dvh) {
+    .body-wrap {
+      height: 96dvh;       /* dvh = dynamic viewport height，自动排除浏览器UI */
+    }
+  }
+
   body {
     font-family: 'Noto Sans SC', -apple-system, 'Helvetica Neue', sans-serif;
     background: #f5f2ed;
     display: flex;
     justify-content: center;
-    align-items: center;
-    height: 100vh;                    /* 精确一屏 */
-    padding: 36px 24px;               /* 上下各留36，左右24 — 不铺满 */
+    align-items: start;       /* top-align，底部不留白 */
+    min-height: 100%;         /* 不强制占满，auto就够 */
+    padding: 20px 16px;       /* body层：上下20，左右16（小屏紧凑）*/
   }
 
   .poster {
-    width: 640px;                     /* 从680缩到640，更紧凑 */
-    height: calc(100vh - 72px);       /* 精确占满可用高度（减去padding） */
+    width: 380px;             /* iPhone标准视口~375-430，留margin */
+    max-height: none;         /* 不锁高度！内容自然撑开但不溢出 */
     background: #fffef9;
-    border-radius: 18px;              /* 适当缩小圆角省空间 */
-    box-shadow: 0 3px 20px rgba(0,0,0,0.06);
+    border-radius: 16px;      /* 更小的圆角省空间 */
+    box-shadow: 0 2px 14px rgba(0,0,0,0.05);
     display: flex;
     flex-direction: column;
-    overflow: hidden;                 /* 关键：不溢出 */
-    max-width: 95vw;                  /* 确保小屏也不超 */
-    min-height: 620px;                /* 不低于这个值，太小字挤 */
+    overflow: hidden;         /* clip overflow，不撑开 */
+    max-width: 96vw;          /* 确保任何宽度下都不溢出 */
+    
+    /* 核心：用flex-basis + min/max-height让内容自动适配 */
+    min-height: fit-content;
+    height: auto;             /* 关键！auto = 不强制固定高度，但overflow:hidden会clip掉溢出 */
   }
 
-  .top-bar { height: 8px; background: linear-gradient(to right, #e8c547, #f4a261); flex-shrink: 0; }
+  .top-bar { height: 6px; background: linear-gradient(to right, #e8c547, #f4a261); flex-shrink: 0; }
 
   .content {
-    padding: 20px 28px 16px;          /* 从上到下：20+28+16 = 64 */
+    padding: 14px 18px 12px;  /* 总padding = 28px — 很紧凑 */
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 1;                          /* 占满剩余空间 */
-    min-height: 0;                    /* 允许收缩 */
+    flex: 1; min-height: 0;
   }
 
-  .series-tag {
-    background: linear-gradient(135deg, #e8c547, #f4a261);
-    color: #fff; font-size: 11px; font-weight: 500; 
-    padding: 4px 12px; border-radius: 16px; letter-spacing: 0.5px; 
-    margin-bottom: 12px; flex-shrink: 0;
-  }
+  .series-tag { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 9.5px; font-weight: 500; padding: 3px 10px; border-radius: 14px; letter-spacing: 0.4px; margin-bottom: 8px; flex-shrink: 0; }
 
-  .title { font-size: 38px; font-weight: 900; color: #1a1a1a; line-height: 1.2; margin-bottom: 4px; text-align: center; letter-spacing: -0.5px; flex-shrink: 0; }
+  .title { font-size: 28px; font-weight: 900; color: #1a1a1a; line-height: 1.15; margin-bottom: 3px; text-align: center; letter-spacing: -0.4px; flex-shrink: 0; }
 
   .subtitle {
-    font-size: 16px; color: #6b6b6b; margin-bottom: 14px; line-height: 1.45; 
-    text-align: center; flex-shrink: 0;
+    font-size: 12.5px; color: #6b6b6b; margin-bottom: 8px; line-height: 1.35; 
+    text-align: center; flex-shrink: 0; padding: 0 4px;
   }
 
-  .divider { width: 90%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 10px 0 12px; flex-shrink: 0; }
+  .divider { width: 85%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 6px auto; flex-shrink: 0; }
 
-  .conflict { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; flex-shrink: 0; width: 90%; justify-content: center; }
+  .conflict { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-shrink: 0; width: 92%; justify-content: center; }
   
   .green-badge {
-    display: inline-flex; align-items: center; gap: 6px; background: #f0faf0;
-    border: 1.5px solid #a8e6a0; border-radius: 9px; padding: 7px 14px;
-    font-size: 13.5px; font-weight: 500; color: #3d8b3d; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 5px; background: #f0faf0;
+    border: 1.5px solid #a8e6a0; border-radius: 7px; padding: 5px 12px;
+    font-size: 11px; font-weight: 500; color: #3d8b3d; white-space: nowrap;
   }
   
-  .green-badge .dot { width: 8px; height: 8px; background: #6cc84c; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px rgba(108,200,76,0.5); }
+  .green-badge .dot { width: 6px; height: 6px; background: #6cc84c; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px rgba(108,200,76,0.5); }
   
-  .question-mark { font-size: 30px; color: #e8c547; font-weight: 900; flex-shrink: 0; }
+  .question-mark { font-size: 24px; color: #e8c547; font-weight: 900; flex-shrink: 0; }
 
-  .body-text { font-size: 15px; line-height: 1.6; color: #3a3a3a; margin-bottom: 3px; flex-shrink: 0; width: 90%; text-align: left; }
+  .body-text { font-size: 12px; line-height: 1.5; color: #3a3a3a; margin-bottom: 2px; flex-shrink: 0; width: 92%; text-align: left; }
   
   .highlight-line {
     background: linear-gradient(90deg, rgba(232,197,71,0.15), transparent);
-    padding-left: 10px; border-left: 3px solid #e8c547;
-    margin: 8px 0 10px; font-size: 14.5px; line-height: 1.65; color: #3a3a3a;
-    flex-shrink: 0; width: 90%; padding-top: 5px; padding-bottom: 5px;
+    padding-left: 8px; border-left: 2.5px solid #e8c547;
+    margin: 6px auto 6px; font-size: 11.5px; line-height: 1.5; color: #3a3a3a; width: 92%;
+    flex-shrink: 0; padding-top: 4px; padding-bottom: 4px; text-align: left; border-radius: 0 8px 8px 0;
   }
   
   .highlight-line strong { color: #1a1a1a; font-weight: 700; }
 
   .metaphor-card {
-    background: #fefcf5; border: 1px solid #ede6d4; border-radius: 12px;
-    padding: 16px 20px; margin: 8px 0 14px; text-align: center; flex-shrink: 0; width: 90%;
+    background: #fefcf5; border: 1px solid #ede6d4; border-radius: 10px;
+    padding: 12px 16px; margin: 6px auto 10px; text-align: center; flex-shrink: 0; width: 92%;
   }
   
-  .metaphor-icon { font-size: 32px; margin-bottom: 6px; display: block; flex-shrink: 0; }
+  .metaphor-icon { font-size: 28px; margin-bottom: 4px; display: block; flex-shrink: 0; }
   
-  .metaphor-text { font-size: 14.5px; line-height: 1.6; color: #5a5a5a; text-align: center; }
+  .metaphor-text { font-size: 11.5px; line-height: 1.5; color: #5a5a5a; text-align: center; }
   .metaphor-text strong { color: #3a3a3a; font-weight: 600; }
 
-  .bottom-section { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 12px; border-top: 1px solid #ede6d4; width: 90%; flex-shrink: 0; }
+  .bottom-section { display: flex; justify-content: space-between; align-items: start; margin-top: auto; padding-top: 10px; border-top: 1px solid #ede6d4; width: 92%; flex-shrink: 0; gap: 10px; }
   
-  .fan-chai { display: flex; align-items: center; gap: 5px; }
-  .stars { font-size: 18px; letter-spacing: 2px; }
-  .label-small { font-size: 12.5px; color: #999; margin-top: 4px; line-height: 1.45; max-width: 360px; text-align: left; }
+  .fan-chai { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .stars { font-size: 16px; letter-spacing: 2px; line-height: 1; }
+  .label-small { font-size: 11px; color: #999; margin-top: 2px; line-height: 1.35; flex-shrink: 1; min-width: 0; word-break: break-word; text-align: left; }
   
-  .action-hint { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 12.5px; font-weight: 500; padding: 7px 14px; border-radius: 8px; flex-shrink: 0; }
+  .action-hint { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 11px; font-weight: 500; padding: 6px 12px; border-radius: 7px; flex-shrink: 0; white-space: nowrap; }
 
 </style>
 </head>
-<body>
+<body class="body-wrap">
 <div class="poster">
   <div class="top-bar"></div>
   <div class="content">
     <div class="series-tag">S1E2 · 没有报错，才是最大的报错</div>
-    <h1 class="title">没报错<br>= 没问题？</h1>
+    <h1 class="title">没<br>报错<br><span style="font-size:0.8em;color:#999;">= 没问题？</span></h1>
     <p class="subtitle">不是系统崩了——是给了我们一份看起来全对、实则全是兜出来的旧数据。</p>
     <div class="divider"></div>
     <div class="conflict">
-      <span class="green-badge"><span class="dot"></span> 运行正常 · 全部成功</span>
+      <span class="green-badge"><span class="dot"></span> 运行正常</span>
       <span class="question-mark">?</span>
     </div>
     <p class="body-text">因为一切绿灯，没报错就是没问题。可问题是——那些数字真的吗？还是兜底出来的历史存量？还是压根没走真实产出的占位符？</p>
@@ -124,8 +128,8 @@
     </div>
     <div class="bottom-section">
       <div>
-        <div class="fan-chai"><span class="stars">★★★★</span><span style="font-size:12.5px;color:#aaa;">翻车指数</span></div>
-        <p class="label-small" style="margin-top:4px;">看似内核都一样。真正不一样的，是外面那层体系：喂什么、给多大权限、由谁盯着。</p>
+        <div class="fan-chai"><span class="stars">★★★★</span><span style="font-size:10.5px;color:#aaa;">翻车指数</span></div>
+        <p class="label-small" style="margin-top:2px;">看似内核都一样。真正不一样的，是外面那层体系：喂什么、给多大权限、由谁盯着。</p>
       </div>
       <div class="action-hint">今天就能试：给你每天依赖的报表定一个「最低常识线」</div>
     </div>
