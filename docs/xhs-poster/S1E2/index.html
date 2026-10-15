@@ -8,106 +8,102 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
   
-  html, body { height: auto; min-height: 100%; }
-  
-  /* Chrome Mobile 地址栏兼容 */
-  @supports (height: 1dvh) {
-    .body-wrap {
-      height: 96dvh;       /* dvh = dynamic viewport height，自动排除浏览器UI */
-    }
-  }
+  html, body { height: auto; min-height: 100%; overflow-x: hidden; width: 100%; }
 
   body {
     font-family: 'Noto Sans SC', -apple-system, 'Helvetica Neue', sans-serif;
     background: #f5f2ed;
     display: flex;
     justify-content: center;
-    align-items: start;       /* top-align，底部不留白 */
-    min-height: 100%;         /* 不强制占满，auto就够 */
-    padding: 20px 16px;       /* body层：上下20，左右16（小屏紧凑）*/
+    align-items: start;
+    min-height: 100%;
+    padding: 18px 6px;          /* body左右padding缩小到6，避免整体过宽 */
+    width: 100vw;               /* 占满宽度 */
+    overflow-x: hidden;         /* 关键：body层也不溢出 */
   }
 
   .poster {
-    width: 380px;             /* iPhone标准视口~375-430，留margin */
-    max-height: none;         /* 不锁高度！内容自然撑开但不溢出 */
+    width: 354px;               /* iPhone视口(393) - body左右padding(6*2=12) - margin各8 ≈ 370 → 取354 */
+    max-width: calc(100vw - 16px); /* 安全宽度：不超过可用空间 */
     background: #fffef9;
-    border-radius: 16px;      /* 更小的圆角省空间 */
+    border-radius: 14px;
     box-shadow: 0 2px 14px rgba(0,0,0,0.05);
     display: flex;
     flex-direction: column;
-    overflow: hidden;         /* clip overflow，不撑开 */
-    max-width: 96vw;          /* 确保任何宽度下都不溢出 */
-    
-    /* 核心：用flex-basis + min/max-height让内容自动适配 */
+    overflow: hidden;           /* clip子元素溢出 */
+    margin-left: auto;          /* auto margin + max-width = 水平居中且安全 */
+    margin-right: auto;         /* 确保始终居中不贴边 */
     min-height: fit-content;
-    height: auto;             /* 关键！auto = 不强制固定高度，但overflow:hidden会clip掉溢出 */
+    height: auto;
   }
 
   .top-bar { height: 6px; background: linear-gradient(to right, #e8c547, #f4a261); flex-shrink: 0; }
 
   .content {
-    padding: 14px 18px 12px;  /* 总padding = 28px — 很紧凑 */
+    padding: 12px 14px 10px;    /* 进一步缩小padding */
     display: flex;
     flex-direction: column;
     align-items: center;
     flex: 1; min-height: 0;
   }
 
-  .series-tag { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 9.5px; font-weight: 500; padding: 3px 10px; border-radius: 14px; letter-spacing: 0.4px; margin-bottom: 8px; flex-shrink: 0; }
+  .series-tag { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 9px; font-weight: 500; padding: 3px 10px; border-radius: 14px; letter-spacing: 0.3px; margin-bottom: 8px; flex-shrink: 0; }
 
-  .title { font-size: 28px; font-weight: 900; color: #1a1a1a; line-height: 1.15; margin-bottom: 3px; text-align: center; letter-spacing: -0.4px; flex-shrink: 0; }
+  .title { font-size: 26px; font-weight: 900; color: #1a1a1a; line-height: 1.15; margin-bottom: 3px; text-align: center; letter-spacing: -0.4px; flex-shrink: 0; }
+
+  .title-line { display: block; width: 100%; }
 
   .subtitle {
-    font-size: 12.5px; color: #6b6b6b; margin-bottom: 8px; line-height: 1.35; 
-    text-align: center; flex-shrink: 0; padding: 0 4px;
+    font-size: 12px; color: #6b6b6b; margin-bottom: 8px; line-height: 1.35; 
+    text-align: center; flex-shrink: 0; padding: 0 4px; word-break: break-word; /* 防止长词溢出 */
   }
 
-  .divider { width: 85%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 6px auto; flex-shrink: 0; }
+  .divider { width: 90%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 6px auto; flex-shrink: 0; }
 
-  .conflict { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-shrink: 0; width: 92%; justify-content: center; }
+  .conflict { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-shrink: 0; width: 95%; justify-content: center; max-width: 100%; /* 不超poster宽度 */ }
   
   .green-badge {
-    display: inline-flex; align-items: center; gap: 5px; background: #f0faf0;
-    border: 1.5px solid #a8e6a0; border-radius: 7px; padding: 5px 12px;
-    font-size: 11px; font-weight: 500; color: #3d8b3d; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px; background: #f0faf0;
+    border: 1.5px solid #a8e6a0; border-radius: 7px; padding: 5px 10px;
+    font-size: 10.5px; font-weight: 500; color: #3d8b3d; white-space: nowrap;
   }
   
   .green-badge .dot { width: 6px; height: 6px; background: #6cc84c; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px rgba(108,200,76,0.5); }
   
   .question-mark { font-size: 24px; color: #e8c547; font-weight: 900; flex-shrink: 0; }
 
-  .body-text { font-size: 12px; line-height: 1.5; color: #3a3a3a; margin-bottom: 2px; flex-shrink: 0; width: 92%; text-align: left; }
+  .body-text { font-size: 11.5px; line-height: 1.5; color: #3a3a3a; margin-bottom: 2px; flex-shrink: 0; width: 95%; text-align: left; max-width: 100%; word-break: break-word; }
   
   .highlight-line {
     background: linear-gradient(90deg, rgba(232,197,71,0.15), transparent);
     padding-left: 8px; border-left: 2.5px solid #e8c547;
-    margin: 6px auto 6px; font-size: 11.5px; line-height: 1.5; color: #3a3a3a; width: 92%;
-    flex-shrink: 0; padding-top: 4px; padding-bottom: 4px; text-align: left; border-radius: 0 8px 8px 0;
+    margin: 6px auto 6px; font-size: 11px; line-height: 1.5; color: #3a3a3a; width: 90%; max-width: 100%;
+    flex-shrink: 0; padding-top: 4px; padding-bottom: 4px; text-align: left; border-radius: 0 8px 8px 0; word-break: break-word;
   }
   
   .highlight-line strong { color: #1a1a1a; font-weight: 700; }
 
   .metaphor-card {
     background: #fefcf5; border: 1px solid #ede6d4; border-radius: 10px;
-    padding: 12px 16px; margin: 6px auto 10px; text-align: center; flex-shrink: 0; width: 92%;
+    padding: 10px 14px; margin: 6px auto 10px; text-align: center; flex-shrink: 0; width: 95%; max-width: 100%; word-break: break-word;
   }
   
-  .metaphor-icon { font-size: 28px; margin-bottom: 4px; display: block; flex-shrink: 0; }
+  .metaphor-icon { font-size: 26px; margin-bottom: 4px; display: block; flex-shrink: 0; }
   
-  .metaphor-text { font-size: 11.5px; line-height: 1.5; color: #5a5a5a; text-align: center; }
+  .metaphor-text { font-size: 11px; line-height: 1.5; color: #5a5a5a; text-align: center; }
   .metaphor-text strong { color: #3a3a3a; font-weight: 600; }
 
-  .bottom-section { display: flex; justify-content: space-between; align-items: start; margin-top: auto; padding-top: 10px; border-top: 1px solid #ede6d4; width: 92%; flex-shrink: 0; gap: 10px; }
+  .bottom-section { display: flex; justify-content: space-between; align-items: start; margin-top: auto; padding-top: 10px; border-top: 1px solid #ede6d4; width: 95%; max-width: 100%; flex-shrink: 0; gap: 8px; }
   
-  .fan-chai { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-  .stars { font-size: 16px; letter-spacing: 2px; line-height: 1; }
-  .label-small { font-size: 11px; color: #999; margin-top: 2px; line-height: 1.35; flex-shrink: 1; min-width: 0; word-break: break-word; text-align: left; }
+  .fan-chai { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  .stars { font-size: 16px; letter-spacing: 2px; line-height: 1; white-space: nowrap; }
+  .label-small { font-size: 10.5px; color: #999; margin-top: 2px; line-height: 1.35; flex-shrink: 1; min-width: 0; word-break: break-word; text-align: left; max-width: calc(100% - 80px); }
   
-  .action-hint { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 11px; font-weight: 500; padding: 6px 12px; border-radius: 7px; flex-shrink: 0; white-space: nowrap; }
+  .action-hint { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 10.5px; font-weight: 500; padding: 6px 12px; border-radius: 7px; flex-shrink: 0; white-space: nowrap; }
 
 </style>
 </head>
-<body class="body-wrap">
+<body>
 <div class="poster">
   <div class="top-bar"></div>
   <div class="content">
@@ -128,7 +124,7 @@
     </div>
     <div class="bottom-section">
       <div>
-        <div class="fan-chai"><span class="stars">★★★★</span><span style="font-size:10.5px;color:#aaa;">翻车指数</span></div>
+        <div class="fan-chai"><span class="stars">★★★★</span><span style="font-size:10px;color:#aaa;">翻车指数</span></div>
         <p class="label-small" style="margin-top:2px;">看似内核都一样。真正不一样的，是外面那层体系：喂什么、给多大权限、由谁盯着。</p>
       </div>
       <div class="action-hint">今天就能试：给你每天依赖的报表定一个「最低常识线」</div>

@@ -8,73 +8,74 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
   
-  html, body { height: auto; min-height: 100%; }
-  
-  @supports (height: 1dvh) {
-    .body-wrap { height: 96dvh; }
-  }
+  html, body { height: auto; min-height: 100%; overflow-x: hidden; width: 100%; }
 
   body {
     font-family: 'Noto Sans SC', -apple-system, 'Helvetica Neue', sans-serif;
     background: #f5f2ed;
     display: flex;
     justify-content: center;
-    align-items: start;       /* top-align，底部不留白 */
+    align-items: start;
     min-height: 100%;
-    padding: 20px 16px;
+    padding: 18px 6px;
+    width: 100vw;
+    overflow-x: hidden;
   }
 
   .poster {
-    width: 380px;
+    width: 354px;
+    max-width: calc(100vw - 16px);
     background: #fffef9;
-    border-radius: 16px;
+    border-radius: 14px;
     box-shadow: 0 2px 14px rgba(0,0,0,0.05);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    max-width: 96vw;
+    margin-left: auto;
+    margin-right: auto;
     min-height: fit-content;
-    height: auto;             /* auto，不锁高度 */
+    height: auto;
   }
 
   .top-bar { height: 6px; background: linear-gradient(to right, #e8c547, #f4a261); flex-shrink: 0; }
 
   .content {
-    padding: 14px 18px 12px;
+    padding: 12px 14px 10px;
     display: flex;
     flex-direction: column;
     align-items: center;
     flex: 1; min-height: 0;
   }
 
-  .series-tag { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 9.5px; font-weight: 500; padding: 3px 10px; border-radius: 14px; letter-spacing: 0.4px; margin-bottom: 8px; flex-shrink: 0; }
+  .series-tag { background: linear-gradient(135deg, #e8c547, #f4a261); color: #fff; font-size: 9px; font-weight: 500; padding: 3px 10px; border-radius: 14px; letter-spacing: 0.3px; margin-bottom: 8px; flex-shrink: 0; }
 
   .title { font-size: 26px; font-weight: 900; color: #1a1a1a; line-height: 1.15; margin-bottom: 3px; text-align: center; letter-spacing: -0.4px; flex-shrink: 0; }
   
   .title-line { display: block; width: 100%; }
 
-  .quote { font-size: 16px; font-weight: 400; color: #5a5a5a; margin: 8px 0 12px; text-align: center; line-height: 1.5; flex-shrink: 0; width: 92%; }
+  .quote { font-size: 16px; font-weight: 400; color: #5a5a5a; margin: 8px 0 12px; text-align: center; line-height: 1.5; flex-shrink: 0; width: 92%; max-width: 100%; word-break: break-word; }
+  
   .quote strong { color: #3a3a3a; font-weight: 700; }
 
-  .divider { width: 85%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 6px auto; flex-shrink: 0; }
+  .divider { width: 90%; height: 1px; background: linear-gradient(to right, transparent, #e8c547, transparent); margin: 6px auto; flex-shrink: 0; }
 
-  .core-conflict { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 6px 0; font-size: 18px; color: #3a3a3a; text-align: center; flex-shrink: 0; width: 92%; }
+  .core-conflict { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 6px 0; font-size: 18px; color: #3a3a3a; text-align: center; flex-shrink: 0; width: 92%; max-width: 100%; }
   
-  .core-conflict .item { padding: 8px 14px; background: #fefcf5; border: 1.5px solid #ede6d4; border-radius: 7px; min-width: 120px; flex-shrink: 0; text-align: center; }
+  .core-conflict .item { padding: 8px 14px; background: #fefcf5; border: 1.5px solid #ede6d4; border-radius: 7px; min-width: 110px; flex-shrink: 0; text-align: center; max-width: 100%; word-break: break-word; }
   
   .core-conflict .item.green { background: #fafff8; border-color: #e8c547; color: #3a3a3a; }
   
-  .core-conflict .arrow { font-size: 22px; color: #999; flex-shrink: 0; line-height: 1.4; display: block; width: 36px; }
+  .core-conflict .arrow { font-size: 22px; color: #999; flex-shrink: 0; line-height: 1.4; display: block; width: auto; white-space: nowrap; margin: 0 2px; }
 
-  .golden-line { background: linear-gradient(90deg, rgba(232,197,71,0.15), transparent); padding: 12px 18px; border-left: 3px solid #e8c547; margin-top: auto; font-size: 14px; line-height: 1.55; color: #3a3a3a; text-align: left; width: 92%; border-radius: 0 8px 8px 0; flex-shrink: 0; }
+  .golden-line { background: linear-gradient(90deg, rgba(232,197,71,0.15), transparent); padding: 12px 18px; border-left: 3px solid #e8c547; margin-top: auto; font-size: 14px; line-height: 1.55; color: #3a3a3a; text-align: left; width: 92%; max-width: calc(100% - 6px); border-radius: 0 8px 8px 0; flex-shrink: 0; word-break: break-word; }
   
   .golden-line strong { color: #1a1a1a; font-weight: 700; }
 
-  .bottom-section { display: flex; justify-content: center; align-items: center; padding-top: 10px; border-top: 1px solid #ede6d4; width: 92%; margin-bottom: 4px; flex-shrink: 0; }
+  .bottom-section { display: flex; justify-content: center; align-items: center; padding-top: 10px; border-top: 1px solid #ede6d4; width: 92%; max-width: calc(100% - 6px); margin-bottom: 4px; flex-shrink: 0; }
   
 </style>
 </head>
-<body class="body-wrap">
+<body>
 <div class="poster">
   <div class="top-bar"></div>
   <div class="content">
