@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>健康看板</title>
+<style>
+:root{--bg:#0e1116;--card:#161a22;--line:#242a36;--fg:#e8eaf0;--muted:#8d95a8;--accent:#4f8cff;--ok:#2e9e6b;--warn:#c9a227;--hot:#c0563a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.65 -apple-system,"PingFang SC","Helvetica Neue",sans-serif;padding:18px}
+.wrap{max-width:860px;margin:0 auto}
+header{padding:6px 0 14px}
+h1{font-size:21px;margin:0 0 4px;letter-spacing:.01em}
+.meta{color:var(--muted);font-size:12px}
+h2{font-size:13px;color:var(--accent);letter-spacing:.04em;margin:26px 0 10px;font-weight:600}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.kpi{background:#11161f;border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+.kpi.good{border-color:#1f5c42} .kpi.warn{border-color:#5c4b1f}
+.kv{font-size:21px;font-weight:600;font-variant-numeric:tabular-nums}
+.kl{color:var(--muted);font-size:11px;margin-top:2px}
+.ks{color:#5f6779;font-size:10px;margin-top:3px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:500;font-size:11px}
+.n{text-align:right;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+ul{margin:6px 0 0 18px;padding:0} li{margin:5px 0}
+.tag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:6px;background:#232a37;color:#aab3c5}
+.tag.ok{background:#1b3a2b;color:#8fe0b4}
+.rx{border-left:2px solid var(--line);padding:6px 0 6px 12px;margin:12px 0}
+.rx.hot{border-left-color:var(--hot)}
+.rh{color:var(--muted);font-size:11px;letter-spacing:.03em}
+.rv{font-size:16px;font-weight:600;margin:2px 0}
+.rn{color:#7d859a;font-size:12px}
+.spark{width:100%;height:44px;display:block;margin-top:6px}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+footer{color:#5f6779;font-size:11px;text-align:center;margin:24px 0 6px;line-height:1.7}
+@media(max-width:520px){body{padding:12px}section{padding:13px}.kv{font-size:19px}.hide-sm{display:none}th,td{padding:6px 5px;font-size:12px}}
+</style></head><body><div class="wrap">
+<header><h1>健康看板</h1>
+<div class="meta">分析计划 v1.2 · 数据 2026-11-08 · 35 岁 · 男 · hash 5565f3187888</div></header>
+
+<section><div class="grid"><div class="kpi "><div class="kv">60.0 kg</div><div class="kl">体重</div><div class="ks">2026-11-08</div></div><div class="kpi good"><div class="kv">22.9</div><div class="kl">BMI</div><div class="ks">中国标准 <24 正常</div></div><div class="kpi "><div class="kv">18.8%</div><div class="kl">体脂率</div><div class="ks">实测 2026-08-15</div></div><div class="kpi "><div class="kv">21.1%</div><div class="kl">推算体脂</div><div class="ks">按当前体重 + 最近 LBM</div></div><div class="kpi "><div class="kv">47.3 kg</div><div class="kl">去脂体重</div><div class="ks">2026-08-15</div></div><div class="kpi "><div class="kv">1968 kcal</div><div class="kl">TDEE</div><div class="ks">静息 + 活动（56 日均值）</div></div><div class="kpi warn"><div class="kv">38.9</div><div class="kl">VO₂max</div><div class="ks">分档：一般</div></div><div class="kpi "><div class="kv">60 bpm</div><div class="kl">静息心率</div><div class="ks">28 日 62</div></div><div class="kpi "><div class="kv">8336</div><div class="kl">步数/日</div><div class="ks">56 日中位</div></div><div class="kpi warn"><div class="kv">6.9 h</div><div class="kl">睡眠</div><div class="ks">覆盖 32%</div></div></div></section>
+
+<section><h2>关键判断</h2><ul><li><b>不属于超重，问题是体成分。</b>BMI 22.9、腰围 83 cm 均在安全区；90 日体重 +2.2 kg，去脂体重 +0.3 kg。 推算脂肪量 +1.9 kg。</li><li><b>结构性缺口是抗阻训练。</b>近 180 天 7 次，单次中位 6 分钟，&lt;20 分钟占 100%。</li><li><b>有氧能力是当前最低的一项。</b>VO₂max 38.9，分档「一般」。</li><li><b>睡眠数据不足。</b>覆盖率 32%（18/56 夜）。</li></ul></section>
+
+<section><h2>趋势（鲁棒 z / MDC）</h2>
+<div class="tscroll"><table><thead><tr><th>指标</th><th class="n">基线</th><th class="n">近 7 日</th><th class="n">Δ</th><th class="n hide-sm">z</th><th class="n hide-sm">MDC</th><th>判定</th></tr></thead><tbody><tr><td>静息心率</td><td class='n'>62.00</td><td class='n'>60.00</td><td class='n'>-2.00</td><td class='n hide-sm'>-1.35</td><td class='n hide-sm'>1.93</td><td><span class='tag'>未见显著</span></td></tr><tr><td>HRV</td><td class='n'>41.74</td><td class='n'>42.57</td><td class='n'>+0.83</td><td class='n hide-sm'>0.10</td><td class='n hide-sm'>10.85</td><td><span class='tag'>未见显著</span></td></tr><tr><td>步数</td><td class='n'>10316.00</td><td class='n'>11069.00</td><td class='n'>+753.00</td><td class='n hide-sm'>0.13</td><td class='n hide-sm'>7257.55</td><td><span class='tag'>未见显著</span></td></tr><tr><td>锻炼分钟</td><td class='n'>17.00</td><td class='n'>10.00</td><td class='n'>-7.00</td><td class='n hide-sm'>-0.36</td><td class='n hide-sm'>25.06</td><td><span class='tag'>未见显著</span></td></tr><tr><td>体重</td><td colspan='6' class='muted'>体成分数据过期</td></tr></tbody></table></div>
+<div class="muted" style="font-size:11px;margin-top:8px">z 与 MDC 需同时超过阈值才判为“变化显著”；单日极值不判。</div></section>
+
+<section><h2>处方</h2><div class='rx'><div class='rh'>能量</div><div class='rv'>1670 kcal/天</div><div class='rn'>TDEE 1968 − 缺口 300；预期 0.27 kg/周</div></div><div class='rx'><div class='rh'>蛋白质</div><div class='rv'>96–120 g/天</div><div class='rn'>1.6–2.0 g/kg，分 3–4 餐</div></div><div class='rx hot'><div class='rh'>抗阻（最高优先级）</div><div class='rv'>2-3 次/周，每次 30-40 分钟，覆盖蹲/髋/推/拉</div><div class='rn'>当前单次中位 6 分钟</div></div><div class='rx'><div class='rh'>有氧</div><div class='rv'>达标</div><div class='rn'>不加有氧量；每周 1 次较高强度抬 VO2max</div></div><div class='rx'><div class='rh'>睡眠</div><div class='rv'>数据不足</div><div class='rn'>佩戴率 32%（18/56 夜）→ 先提到 7/7，否则无法验证</div></div></section>
+
+<section><h2>验证点</h2><div class="tscroll"><table><thead><tr><th>时点</th><th class="n">体重目标</th><th>力量</th></tr></thead><tbody><tr><td>第 2 周</td><td class='n'>59.5 kg</td><td>力量每周 ≥2 次（累计 ≥4）</td></tr><tr><td>第 4 周</td><td class='n'>58.9 kg</td><td>力量每周 ≥2 次（累计 ≥8）</td></tr><tr><td>第 8 周</td><td class='n'>57.8 kg</td><td>力量每周 ≥2 次（累计 ≥16）</td></tr><tr><td>第 12 周</td><td class='n'>56.8 kg</td><td>力量每周 ≥2 次（累计 ≥24）</td></tr></tbody></table></div></section>
+
+<section><h2>盲区</h2><ul><li>饮食摄入：近 90 天 0 条 → 无法验证摄入，也算不了自适应 TDEE</li><li>体成分：最后测量距今 85 天 → 当前体脂为推算值</li><li>睡眠：覆盖率 32%（18/56 夜）→ 只能描述，不代表全部</li><li>心理状态：无 State of Mind 记录</li><li>代谢风险：无血压/血脂/血糖 → 不能做健康风险分层</li></ul></section>
+
+<footer>健康参考，不替代就医；不构成诊断。<br>数据仅本地处理，本页不含姓名/设备/文件路径。</footer>
+</div></body></html>
