@@ -582,6 +582,8 @@ def main():
     print(f"✅ 历史归档已保存至 {hist_path}")
 
     # 供 run 脚本/cron 判断是否推送
+    with open(os.path.join(DASHBOARD_PATH, "quant_push_signal.txt"), 'w') as f:
+        f.write(signals['push_line'] if signals['triggered_count'] else "(无触发)")
     if signals['triggered_count'] > 0:
         print(f"SIGNAL_PUSH: {signals['push_line']}")
     else:
