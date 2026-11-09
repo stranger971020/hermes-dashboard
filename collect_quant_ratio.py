@@ -392,6 +392,27 @@ def collect_flows():
 
 
 # ---------------- 今日财经要闻（复用 Sina News digest） ----------------
+def dedupe_tiers(scan):
+    """同族层级去重: 成分股集合完全相同的板块只保留最短名（基础层）"""
+    groups = {}
+    for name, res in scan.items():
+        key = frozenset(res['codes'])
+        groups.setdefault(key, []).append(name)
+    keep = set()
+    dup_count = 0
+    for names in groups.values():
+        if len(names) == 1:
+            keep.add(names[0])
+        else:
+            rep = min(names, key=len)
+            keep.add(rep)
+            dup_count += 1
+            print(f"   🧹 层级去重 {names} → {rep}")
+    if dup_count:
+        print(f"   (共去除{dup_count}组同族重复板块)")
+    return {n: r for n, r in scan.items() if n in keep}
+
+
 def collect_news_digest():
     result = {'date': None, 'themes_points': [], 'items': []}
     if not os.path.isdir(VAULT_DIGEST_DIR):
@@ -399,7 +420,6 @@ def collect_news_digest():
         return result
     today_iso = date.today().strftime('%Y%m%d')
     files = sorted([f for f in os.listdir(VAULT_DIGEST_DIR) if re.match(r'^\d{8}_.+\.md$', f)], reverse=True)
-    # 优先今日, 否则最新
     chosen = next((f for f in files if f.startswith(today_iso)), files[0] if files else None)
     if not chosen:
         return result
@@ -412,21 +432,33 @@ def collect_news_digest():
         return result
     result['date'] = chosen[:8]
 
-    # 🧠 AI归纳要点（每个主题第一条）+ 条目链接
-    cur_theme = None
-    for line in text.splitlines():
-        m = re.match(r'^##\s+(.+?)\s*(?:\(\d+\))?\s*$', line)
-        if m:
-            cur_theme = m.group(1).strip()
+    lines = text.splitlines()
+    i, cur_theme = 0, None
+    seen_urls = set()
+    while i < len(lines):
+        line = lines[i]
+        hm = re.match(r'^#{2,4}\s+(.+?)\s*(?:\(\d+\s*条\))?\s*$', line)
+        if hm:
+            cur_theme = hm.group(1).strip()
+            i += 1
             continue
-        if '🧠' in line and cur_theme:
-            rest = line.split(':', 1)[-1].split(':', 1)[-1].strip()
-            if not rest:
-                continue
-            result['themes_points'].append({'theme': cur_theme, 'point': rest[:200]})
-        m2 = re.match(r'^•\s*\[(.+?)\]\((https?://[^)]+)\)', line.strip())
-        if m2 and len(result['items']) < 15:
-            result['items'].append({'title': m2.group(1)[:80], 'url': m2.group(2)})
+        if '🧠 AI 归纳要点' in line and cur_theme:      # **🧠 AI 归纳要点**: 后跟 - bullet 行（中间可能空行）
+            j = i + 1
+            while j < len(lines) and lines[j].strip() == "":   # 跳过标记后的空行
+                j += 1
+            while j < len(lines):
+                lm = re.match(r'^\s*[-•]\s+(.+?)\s*$', lines[j])
+                if not lm:
+                    break
+                result['themes_points'].append({'theme': cur_theme, 'point': lm.group(1)[:200]})
+                j += 1
+            i = j
+            continue
+        im = re.search(r'\[([^\]]+)\]\((https?://[^)]+)\)', line)   # markdown表格/链接行
+        if im and len(result['items']) < 15 and im.group(2) not in seen_urls:
+            seen_urls.add(im.group(2))
+            result['items'].append({'title': im.group(1).strip()[:80], 'url': im.group(2)})
+        i += 1
     print(f"✅ 财经要闻: {chosen} | AI要点{len(result['themes_points'])}条, 条目{len(result['items'])}条")
     return result
 
@@ -482,8 +514,9 @@ def main():
     trading_dates = get_trading_dates()
     print(f"→ 交易日窗口: {trading_dates[0]} → {trading_dates[-1]} ({len(trading_dates)}个交易日)")
     scan = scan_all_sectors(today_iso)
+    scan = dedupe_tiers(scan)   # 同族层级去重（银行/银行Ⅱ 等成分股相同的只留基础层）
 
-    # [2] 排名（成分股≥MIN_SECTOR_STOCKS）
+    # [2] 排名（成分股≥MIN_SECTOR_STOCKS, 去重后板块池）
     eligible = {n: r for n, r in scan.items() if r['n_stocks'] >= MIN_SECTOR_STOCKS}
     ranked = sorted(eligible.items(), key=lambda kv: (kv[1]['active_ratio_pct'] or 0), reverse=True)
     top10_names = [n for n, _ in ranked[:10]]

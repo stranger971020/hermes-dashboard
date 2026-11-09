@@ -1,127 +1,472 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>我的投资看板 · 量化集中度</title>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>投资看板 · 2026-11-09</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-.container { max-width: 960px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
-.header { background: #1a1a2e; color: white; padding: 20px 24px; }
+.container { max-width: 1080px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+.header { background: #1a1a2e; color: white; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; }
 .header h1 { margin: 0 0 6px 0; font-size: 20px; }
 .header .meta { font-size: 13px; opacity: 0.75; }
+.sig-badge { display:inline-block; padding: 4px 12px; border-radius: 14px; font-size: 13px; font-weight:600; }
+.sig-on { background:#e8f5e9; color:#fff; } .sig-off { background:#eceff1; color:#607d8b; }
 .section { padding: 20px 24px; border-bottom: 1px solid #eee; }
-.section h2 { font-size: 16px; margin: 0 0 14px 0; color: #333; }
+.section h2 { font-size: 16px; margin: 0 0 4px 0; color: #333; }
+.section .sub { font-size: 12px; color:#999; margin-bottom: 12px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }
 th { background: #fafafa; color: #666; font-weight: 600; white-space: nowrap; }
 tr:hover td { background: #f9f9ff; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-.badge-high { background: #e8f5e9; color: #2e7d32; }
-.badge-mid { background: #fff8e1; color: #f57f17; }
-.badge-low { background: #fafafa; color: #757575; }
+.b-on { background:#e8f5e9; color:#2e7d32; } .b-off { background:#fafafa; color:#9e9e9e; }
+.up { color:#c62828; font-weight:600; } .down { color:#2e7d32; font-weight:600; } .flat { color:#757575; }
 input.tab-radio { display: none; }
-.tab-labels { display: flex; gap: 4px; margin-bottom: 0; border-bottom: 2px solid #e8e8e8; }
-.tab-labels label { display: inline-block; padding: 8px 16px; cursor: pointer; background: #f5f5f5; font-size: 13px; color: #666; border-radius: 6px 6px 0 0; margin-right: 2px; }
-.panes .tab-pane { display: none; padding: 14px 4px; }
-#tab-0:checked ~ .tab-labels label[for="tab-0"],
-#tab-1:checked ~ .tab-labels label[for="tab-1"],
-#tab-2:checked ~ .tab-labels label[for="tab-2"],
-#tab-3:checked ~ .tab-labels label[for="tab-3"] { background: white; color: #1a73e8; font-weight: 600; }
-#tab-0:checked ~ .panes #pane-0,
-#tab-1:checked ~ .panes #pane-1,
-#tab-2:checked ~ .panes #pane-2,
-#tab-3:checked ~ .panes #pane-3 { display: block; }
-.methodology { font-size: 12px; color: #888; line-height: 1.7; }
-.methodology code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px; }
+.tabs { border-bottom: 2px solid #e8e8e8; margin-bottom: 14px; display:flex; gap:4px; flex-wrap:wrap; }
+.tabs label { padding: 8px 16px; cursor: pointer; background:#f5f5f5; font-size:13px; color:#666; border-radius:6px 6px 0 0; }
+.pane { display:none; }
+#tab-a:checked ~ .tabs label[for="tab-a"], #tab-b:checked ~ .tabs label[for="tab-b"], #tab-c:checked ~ .tabs label[for="tab-c"] { background:white; color:#1a73e8; font-weight:600; border-bottom:2px solid #1a73e8; }
+#tab-a:checked ~ .panes #pane-a, #tab-b:checked ~ .panes #pane-b, #tab-c:checked ~ .panes #pane-c { display:block; }
+.sector-card { border:1px solid #eee; border-radius:8px; padding:12px 16px; margin-bottom:14px; }
+.sector-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+.sector-name { font-size:15px; font-weight:700; color:#263238; }
+.kpi-row { display:flex; gap:18px; flex-wrap:wrap; font-size:12.5px; color:#455a64; margin-bottom:8px; }
+.kpi b { font-size:14px; color:#263238; }
+.spark { vertical-align:middle; }
+.stock-sub { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:6px; }
+.stock-sub th, .stock-sub td { padding:4px 8px; border-bottom:1px solid #f5f5f5; }
+.news-item { display:block; text-decoration:none; color:#1a73e8; font-size:13.5px; line-height:1.6; padding:3px 0; }
+.news-item:hover { text-decoration:underline; }
+.theme-point { font-size:13.5px; color:#37474f; margin:6px 0; line-height:1.55; }
+.theme-point .tname { display:inline-block; background:#e3f2fd; color:#1565c0; border-radius:4px; padding:1px 8px; font-size:12px; margin-right:8px; font-weight:600; }
+.methodology { font-size: 12px; color: #888; line-height: 1.75; }
+.methodology code { background:#f5f5f5; padding:1px 4px; border-radius:3px; }
 .footer { padding: 16px 24px; font-size: 12px; color: #999; text-align: center; }
 .dash { color: #bbb; }
-</style>
-</head>
-<body>
+.big-num { font-size:26px; font-weight:700; color:#263238; font-variant-numeric:tabular-nums; }
+.flow-grid { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+.flow-box { border:1px solid #eee; border-radius:8px; padding:10px 16px; min-width:200px; flex:1; }
+</style></head><body>
 <div class="container">
-    <div class="header">
-        <h1>📊 我的投资看板 · AI相关板块量化集中度</h1>
-        <div class="meta">数据日期: 2026-11-09 | 生成时间: 2026-11-09 00:00 | 日更（每日16:15盘后）| AI相关ETF(去重): 158只</div>
-    </div>
-    <div class="section">
-        <h2>① 量化集中度排名（AI相关板块）</h2>
-        <table>
-            <thead><tr><th>板块</th><th class="num">成分股</th><th class="num">量化活跃占比</th><th class="num">板块换手率(3日均)</th><th>趋势</th><th class="num">相关ETF/成交</th><th class="num">综合评分</th><th>评级</th></tr></thead>
-            <tbody><tr>
-            <td><strong>电子</strong></td>
-            <td class="num">523只</td>
-            <td class="num">43.2% (226只)</td>
-            <td class="num">3.01%</td>
-            <td>📉 -11.3%</td>
-            <td class="num">34只 / 41.98亿</td>
-            <td class="num"><strong>88.1</strong></td>
-            <td><span class="badge badge-high">高</span></td>
-        </tr><tr>
-            <td><strong>通信设备</strong></td>
-            <td class="num">94只</td>
-            <td class="num">50.0% (47只)</td>
-            <td class="num">3.58%</td>
-            <td>📉 -6.8%</td>
-            <td class="num">19只 / 62.06亿</td>
-            <td class="num"><strong>87.8</strong></td>
-            <td><span class="badge badge-high">高</span></td>
-        </tr><tr>
-            <td><strong>半导体</strong></td>
-            <td class="num">188只</td>
-            <td class="num">41.5% (78只)</td>
-            <td class="num">3.67%</td>
-            <td>→ -4.8%</td>
-            <td class="num">15只 / 222.82亿</td>
-            <td class="num"><strong>87.0</strong></td>
-            <td><span class="badge badge-high">高</span></td>
-        </tr><tr>
-            <td><strong>计算机</strong></td>
-            <td class="num">360只</td>
-            <td class="num">25.6% (92只)</td>
-            <td class="num">2.54%</td>
-            <td>📉 -14.2%</td>
-            <td class="num">90只 / 50.7亿</td>
-            <td class="num"><strong>74.5</strong></td>
-            <td><span class="badge badge-high">高</span></td>
-        </tr></tbody>
-        </table>
-    </div><div class="section">
-        <h2>② 近5日换手率趋势（%）</h2>
-        <table>
-            <thead><tr><th>板块</th><th class="num">11-03</th><th class="num">11-04</th><th class="num">11-05</th><th class="num">11-06</th><th class="num">11-09</th></tr></thead>
-            <tbody><tr><td><strong>电子</strong></td><td class="num">3.03%</td><td class="num">3.92%</td><td class="num">3.68%</td><td class="num">2.85%</td><td class="num">2.5%</td></tr><tr><td><strong>通信设备</strong></td><td class="num">3.4%</td><td class="num">4.48%</td><td class="num">4.19%</td><td class="num">3.22%</td><td class="num">3.32%</td></tr><tr><td><strong>半导体</strong></td><td class="num">3.38%</td><td class="num">4.73%</td><td class="num">4.69%</td><td class="num">3.63%</td><td class="num">2.68%</td></tr><tr><td><strong>计算机</strong></td><td class="num">2.57%</td><td class="num">2.99%</td><td class="num">3.1%</td><td class="num">2.44%</td><td class="num">2.09%</td></tr></tbody>
-        </table>
-    </div><div class="section">
-        <h2>③ 个股活跃度明细</h2>
-        <input class="tab-radio" type="radio" name="stk" id="tab-0" checked><label for="tab-0">电子</label><input class="tab-radio" type="radio" name="stk" id="tab-1" ><label for="tab-1">通信设备</label><input class="tab-radio" type="radio" name="stk" id="tab-2" ><label for="tab-2">半导体</label><input class="tab-radio" type="radio" name="stk" id="tab-3" ><label for="tab-3">计算机</label>
-        <div class="tab-labels"></div>
-        <div class="panes"><div class="tab-pane" id="pane-0">
-            <h3 style='font-size:14px;margin:8px 0'>🔥 Top 5 最活跃（当日换手率）</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>新亚制程 <span style='color:#aaa;font-size:11px'>002388</span></td><td class='num'><strong>31.94%</strong></td><td class='num'>11.29亿</td></tr><tr><td>托伦斯 <span style='color:#aaa;font-size:11px'>301583</span></td><td class='num'><strong>25.2%</strong></td><td class='num'>7.96亿</td></tr><tr><td>国光电器 <span style='color:#aaa;font-size:11px'>002045</span></td><td class='num'><strong>19.58%</strong></td><td class='num'>11.25亿</td></tr><tr><td>燧原科技-U <span style='color:#aaa;font-size:11px'>688801</span></td><td class='num'><strong>17.21%</strong></td><td class='num'>12.55亿</td></tr><tr><td>先导基电 <span style='color:#aaa;font-size:11px'>600641</span></td><td class='num'><strong>16.73%</strong></td><td class='num'>50.46亿</td></tr></tbody></table>
-            <h3 style='font-size:14px;margin:8px 0'>🔥 Bottom 5 低活跃参考</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>*ST清越 <span style='color:#aaa;font-size:11px'>688496</span></td><td class='num'><strong>0.0%</strong></td><td class='num'>0.0亿</td></tr><tr><td>深纺织Ｂ <span style='color:#aaa;font-size:11px'>200045</span></td><td class='num'><strong>0.01%</strong></td><td class='num'>0.0亿</td></tr><tr><td>深华发Ｂ <span style='color:#aaa;font-size:11px'>200020</span></td><td class='num'><strong>0.04%</strong></td><td class='num'>0.0亿</td></tr><tr><td>龙腾光电 <span style='color:#aaa;font-size:11px'>688055</span></td><td class='num'><strong>0.21%</strong></td><td class='num'>0.21亿</td></tr><tr><td>京东方Ｂ <span style='color:#aaa;font-size:11px'>200725</span></td><td class='num'><strong>0.31%</strong></td><td class='num'>0.1亿</td></tr></tbody></table>
-        </div><div class="tab-pane" id="pane-1">
-            <h3 style='font-size:14px;margin:8px 0'>🔥 Top 5 最活跃（当日换手率）</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>通则康威 <span style='color:#aaa;font-size:11px'>301718</span></td><td class='num'><strong>46.49%</strong></td><td class='num'>8.78亿</td></tr><tr><td>宇特光电 <span style='color:#aaa;font-size:11px'>920157</span></td><td class='num'><strong>24.52%</strong></td><td class='num'>1.36亿</td></tr><tr><td>文峰光电 <span style='color:#aaa;font-size:11px'>920296</span></td><td class='num'><strong>18.98%</strong></td><td class='num'>0.96亿</td></tr><tr><td>长盈通 <span style='color:#aaa;font-size:11px'>688143</span></td><td class='num'><strong>12.61%</strong></td><td class='num'>17.56亿</td></tr><tr><td>通宇通讯 <span style='color:#aaa;font-size:11px'>002792</span></td><td class='num'><strong>10.7%</strong></td><td class='num'>10.26亿</td></tr></tbody></table>
-            <h3 style='font-size:14px;margin:8px 0'>🔥 Bottom 5 低活跃参考</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>*ST天喻 <span style='color:#aaa;font-size:11px'>300205</span></td><td class='num'><strong>0.16%</strong></td><td class='num'>0.03亿</td></tr><tr><td>宁通信B <span style='color:#aaa;font-size:11px'>200468</span></td><td class='num'><strong>0.22%</strong></td><td class='num'>0.01亿</td></tr><tr><td>东信Ｂ股 <span style='color:#aaa;font-size:11px'>900941</span></td><td class='num'><strong>0.51%</strong></td><td class='num'>0.01亿</td></tr><tr><td>大唐电信 <span style='color:#aaa;font-size:11px'>600198</span></td><td class='num'><strong>0.53%</strong></td><td class='num'>0.45亿</td></tr><tr><td>ST路通 <span style='color:#aaa;font-size:11px'>300555</span></td><td class='num'><strong>0.54%</strong></td><td class='num'>0.12亿</td></tr></tbody></table>
-        </div><div class="tab-pane" id="pane-2">
-            <h3 style='font-size:14px;margin:8px 0'>🔥 Top 5 最活跃（当日换手率）</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>托伦斯 <span style='color:#aaa;font-size:11px'>301583</span></td><td class='num'><strong>25.2%</strong></td><td class='num'>7.96亿</td></tr><tr><td>燧原科技-U <span style='color:#aaa;font-size:11px'>688801</span></td><td class='num'><strong>17.21%</strong></td><td class='num'>12.55亿</td></tr><tr><td>先导基电 <span style='color:#aaa;font-size:11px'>600641</span></td><td class='num'><strong>16.73%</strong></td><td class='num'>50.46亿</td></tr><tr><td>粤芯半导-U <span style='color:#aaa;font-size:11px'>301660</span></td><td class='num'><strong>14.82%</strong></td><td class='num'>10.04亿</td></tr><tr><td>敏芯股份 <span style='color:#aaa;font-size:11px'>688286</span></td><td class='num'><strong>14.61%</strong></td><td class='num'>8.37亿</td></tr></tbody></table>
-            <h3 style='font-size:14px;margin:8px 0'>🔥 Bottom 5 低活跃参考</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>格科微 <span style='color:#aaa;font-size:11px'>688728</span></td><td class='num'><strong>0.54%</strong></td><td class='num'>1.95亿</td></tr><tr><td>唯捷创芯 <span style='color:#aaa;font-size:11px'>688153</span></td><td class='num'><strong>0.54%</strong></td><td class='num'>0.5亿</td></tr><tr><td>龙芯中科 <span style='color:#aaa;font-size:11px'>688047</span></td><td class='num'><strong>0.56%</strong></td><td class='num'>2.1亿</td></tr><tr><td>华润微 <span style='color:#aaa;font-size:11px'>688396</span></td><td class='num'><strong>0.63%</strong></td><td class='num'>4.07亿</td></tr><tr><td>晶合集成 <span style='color:#aaa;font-size:11px'>688249</span></td><td class='num'><strong>0.69%</strong></td><td class='num'>3.89亿</td></tr></tbody></table>
-        </div><div class="tab-pane" id="pane-3">
-            <h3 style='font-size:14px;margin:8px 0'>🔥 Top 5 最活跃（当日换手率）</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>华是科技 <span style='color:#aaa;font-size:11px'>301218</span></td><td class='num'><strong>22.55%</strong></td><td class='num'>14.49亿</td></tr><tr><td>万兴科技 <span style='color:#aaa;font-size:11px'>300624</span></td><td class='num'><strong>20.52%</strong></td><td class='num'>18.99亿</td></tr><tr><td>丝路视觉 <span style='color:#aaa;font-size:11px'>300556</span></td><td class='num'><strong>14.41%</strong></td><td class='num'>2.93亿</td></tr><tr><td>海天瑞声 <span style='color:#aaa;font-size:11px'>688787</span></td><td class='num'><strong>13.33%</strong></td><td class='num'>10.62亿</td></tr><tr><td>索辰科技 <span style='color:#aaa;font-size:11px'>688507</span></td><td class='num'><strong>12.63%</strong></td><td class='num'>21.5亿</td></tr></tbody></table>
-            <h3 style='font-size:14px;margin:8px 0'>🔥 Bottom 5 低活跃参考</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>ST智知 <span style='color:#aaa;font-size:11px'>603869</span></td><td class='num'><strong>0.15%</strong></td><td class='num'>0.06亿</td></tr><tr><td>宝信Ｂ <span style='color:#aaa;font-size:11px'>900926</span></td><td class='num'><strong>0.16%</strong></td><td class='num'>0.01亿</td></tr><tr><td>云赛Ｂ股 <span style='color:#aaa;font-size:11px'>900901</span></td><td class='num'><strong>0.16%</strong></td><td class='num'>0.0亿</td></tr><tr><td>曙光数创 <span style='color:#aaa;font-size:11px'>920808</span></td><td class='num'><strong>0.41%</strong></td><td class='num'>0.36亿</td></tr><tr><td>*ST网达 <span style='color:#aaa;font-size:11px'>603189</span></td><td class='num'><strong>0.42%</strong></td><td class='num'>0.1亿</td></tr></tbody></table>
-        </div></div>
-    </div><div class="section">
-        <h2>口径说明</h2>
-        <div class="methodology">
-            • <strong>量化活跃股占比</strong> = 成分股中当日换手率 &gt; 3.0% 的个股比例（数据源: stock_board_industry_cons_em，东方财富）<br>
-            • <strong>板块换手率(3日均)</strong> = 近3个交易日均值；趋势 = 近3日均 vs 前3日均变化（数据源: stock_board_industry_hist_em 真实历史）<br>
-            • <strong>相关ETF</strong> = ETF名称含板块关键词的基金数与当日成交额合计（计算机=人工智能/AI/算力/大数据/云计算/软件；电子=芯片；通信设备=通信/5G；半导体=半导体），按代码去重<br>
-            • <strong>综合评分(0-100)</strong> = 40×min(1,活跃占比/35%) + 30×min(1,板块换手率/5%) + 20×min(1,ETF成交亿/20) + 10×min(1,ETF数/30)<br>
-            • <strong>评级</strong>: ≥60 高 / 40-60 中 / &lt;40 低<br>
-            • 综合评分为透明公式的代理指标（非直接持仓数据），用于板块间横向对比，绝对值参考意义有限
-        </div>
-    </div>
-    <div class="footer">quant-ratio v2 · 数据源: akshare (东方财富) · 所有数值为真实接口返回值</div>
+<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">2026-11-09 · 生成于 2026-11-09 19:27</div></div><span class="sig-badge sig-on">📢 3个信号触发</span></div>
+<section class="section">
+<h2>① 量化集中度 <span style="font-size:12px;color:#90a4ae;font-weight:400">（成分股换手率&gt;3.0%占比 · 历史趋势为该指标本身）</span></h2>
+<div class="sub">排名门槛：成分股≥20只 | 全市场 457 个行业板块参与扫描</div>
+<input type="radio" name="mtab" id="tab-a" checked><input type="radio" name="mtab" id="tab-b"><input type="radio" name="mtab" id="tab-c">
+<div class="tabs"><label for="tab-a">AI相关板块</label><label for="tab-b">Top10 高量化集中板块</label><label for="tab-c">Bottom10 低量化集中板块</label></div>
+<div class="panes"><div id="pane-a" class="pane">
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">计算机 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 360只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,35.4 17.6,29.7 31.2,36.1 44.8,31.8 58.4,34.3 72.0,31.9 85.6,28.4 99.2,26.8 112.8,27.8 126.4,9.9 140.0,23.2 153.6,26.0 167.2,27.5 180.8,28.9 194.4,19.7 208.0,14.9 221.6,28.5 235.2,23.4 248.8,22.3 262.4,30.4 276.0,34.8" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="34.8" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>25.6%</b></span>
+    <span>上一交易日 32.7% (环比 <span class="down">-7.1</span> pct)</span>
+    <span>近5日均值 <b>36.8%</b></span>
+    <span>近10日均值 40.4%</span>
+    <span>近20日均值 38.5%</span>
+    <span>相关ETF <b>90</b>只 / 50.7亿</span>
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>华是科技</td><td class="num">22.55%</td><td class="num">21.97%</td><td class="num">27.47%</td><td class="num">23.8%</td><td class="num">22.84%</td></tr><tr><td>万兴科技</td><td class="num">20.52%</td><td class="num">5.24%</td><td class="num">9.0%</td><td class="num">7.72%</td><td class="num">6.97%</td></tr><tr><td>丝路视觉</td><td class="num">14.41%</td><td class="num">12.44%</td><td class="num">17.41%</td><td class="num">15.53%</td><td class="num">15.09%</td></tr><tr><td>海天瑞声</td><td class="num">13.33%</td><td class="num">10.96%</td><td class="num">12.74%</td><td class="num">13.71%</td><td class="num">12.13%</td></tr><tr><td>索辰科技</td><td class="num">12.63%</td><td class="num">10.22%</td><td class="num">11.44%</td><td class="num">13.43%</td><td class="num">15.32%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>ST智知</td><td class="num">0.15%</td><td class="num">0.07%</td><td class="num">0.09%</td><td class="num">0.09%</td><td class="num">0.1%</td></tr><tr><td>云赛Ｂ股</td><td class="num">0.16%</td><td class="num"><span class="dash">—</span></td><td class="num">0.16%</td><td class="num">0.16%</td><td class="num">0.16%</td></tr><tr><td>宝信Ｂ</td><td class="num">0.16%</td><td class="num"><span class="dash">—</span></td><td class="num">0.16%</td><td class="num">0.16%</td><td class="num">0.16%</td></tr><tr><td>曙光数创</td><td class="num">0.41%</td><td class="num">0.59%</td><td class="num">0.66%</td><td class="num">0.69%</td><td class="num">0.7%</td></tr><tr><td>ST华铭</td><td class="num">0.42%</td><td class="num">0.34%</td><td class="num">0.49%</td><td class="num">0.54%</td><td class="num">0.67%</td></tr></tbody></table></div>
 </div>
-</body>
-</html>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">电子 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 523只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,31.3 17.6,23.4 31.2,36.1 44.8,25.5 58.4,29.7 72.0,29.7 85.6,28.1 99.2,33.8 112.8,28.8 126.4,11.4 140.0,24.3 153.6,28.1 167.2,21.2 180.8,23.5 194.4,18.4 208.0,17.2 221.6,20.6 235.2,9.9 248.8,11.8 262.4,21.9 276.0,29.4" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="29.4" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>43.2%</b></span>
+    <span>上一交易日 54.2% (环比 <span class="down">-11.0</span> pct)</span>
+    <span>近5日均值 <b>58.9%</b></span>
+    <span>近10日均值 56.7%</span>
+    <span>近20日均值 51.7%</span>
+    <span>相关ETF <b>34</b>只 / 41.98亿</span>
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>新亚制程</td><td class="num">31.94%</td><td class="num">19.95%</td><td class="num">17.07%</td><td class="num">17.04%</td><td class="num">16.73%</td></tr><tr><td>托伦斯</td><td class="num">25.2%</td><td class="num">30.45%</td><td class="num">30.12%</td><td class="num">21.59%</td><td class="num">21.31%</td></tr><tr><td>国光电器</td><td class="num">19.58%</td><td class="num">21.31%</td><td class="num">11.07%</td><td class="num">7.87%</td><td class="num">5.37%</td></tr><tr><td>燧原科技-U</td><td class="num">17.21%</td><td class="num">13.06%</td><td class="num">14.73%</td><td class="num">14.44%</td><td class="num">13.18%</td></tr><tr><td>先导基电</td><td class="num">16.73%</td><td class="num">17.98%</td><td class="num">10.25%</td><td class="num">9.14%</td><td class="num">7.78%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>*ST清越</td><td class="num">0.0%</td><td class="num"><span class="dash">—</span></td><td class="num">0.0%</td><td class="num">0.0%</td><td class="num">0.0%</td></tr><tr><td>深纺织Ｂ</td><td class="num">0.01%</td><td class="num">0.02%</td><td class="num">0.04%</td><td class="num">0.07%</td><td class="num">0.07%</td></tr><tr><td>深华发Ｂ</td><td class="num">0.04%</td><td class="num">0.05%</td><td class="num">0.05%</td><td class="num">0.06%</td><td class="num">0.07%</td></tr><tr><td>龙腾光电</td><td class="num">0.21%</td><td class="num">0.18%</td><td class="num">0.21%</td><td class="num">0.2%</td><td class="num">0.21%</td></tr><tr><td>京东方Ｂ</td><td class="num">0.31%</td><td class="num">0.52%</td><td class="num">0.58%</td><td class="num">0.67%</td><td class="num">0.52%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">通信设备 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 94只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,32.4 17.6,22.9 31.2,36.1 44.8,29.9 58.4,32.9 72.0,30.6 85.6,31.4 99.2,27.8 112.8,19.9 126.4,9.9 140.0,24.0 153.6,23.3 167.2,23.3 180.8,19.5 194.4,14.3 208.0,17.3 221.6,18.7 235.2,12.0 248.8,14.3 262.4,17.3 276.0,23.6" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="23.6" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>50.0%</b></span>
+    <span>上一交易日 59.1% (环比 <span class="down">-9.1</span> pct)</span>
+    <span>近5日均值 <b>59.2%</b></span>
+    <span>近10日均值 57.6%</span>
+    <span>近20日均值 51.7%</span>
+    <span>相关ETF <b>19</b>只 / 62.06亿</span>
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>通则康威</td><td class="num">46.49%</td><td class="num">30.99%</td><td class="num">38.93%</td><td class="num">38.14%</td><td class="num">43.95%</td></tr><tr><td>宇特光电</td><td class="num">24.52%</td><td class="num">22.14%</td><td class="num">26.21%</td><td class="num">26.46%</td><td class="num">36.22%</td></tr><tr><td>文峰光电</td><td class="num">18.98%</td><td class="num">17.82%</td><td class="num">23.56%</td><td class="num">26.07%</td><td class="num">38.15%</td></tr><tr><td>长盈通</td><td class="num">12.61%</td><td class="num">8.74%</td><td class="num">10.78%</td><td class="num">10.43%</td><td class="num">10.06%</td></tr><tr><td>通宇通讯</td><td class="num">10.7%</td><td class="num">5.95%</td><td class="num">8.98%</td><td class="num">9.66%</td><td class="num">9.36%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>*ST天喻</td><td class="num">0.16%</td><td class="num">0.39%</td><td class="num">0.23%</td><td class="num">0.24%</td><td class="num">0.34%</td></tr><tr><td>宁通信B</td><td class="num">0.22%</td><td class="num">0.21%</td><td class="num">0.35%</td><td class="num">0.3%</td><td class="num">0.21%</td></tr><tr><td>东信Ｂ股</td><td class="num">0.51%</td><td class="num"><span class="dash">—</span></td><td class="num">0.51%</td><td class="num">0.51%</td><td class="num">0.51%</td></tr><tr><td>大唐电信</td><td class="num">0.53%</td><td class="num">0.62%</td><td class="num">0.8%</td><td class="num">0.88%</td><td class="num">0.82%</td></tr><tr><td>ST路通</td><td class="num">0.54%</td><td class="num">0.34%</td><td class="num">0.41%</td><td class="num">0.37%</td><td class="num">0.39%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">半导体 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 188只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,29.6 17.6,24.3 31.2,36.1 44.8,25.6 58.4,28.8 72.0,29.8 85.6,26.8 99.2,34.9 112.8,28.6 126.4,16.0 140.0,24.7 153.6,26.8 167.2,21.3 180.8,24.7 194.4,22.2 208.0,19.5 221.6,23.8 235.2,9.9 248.8,13.3 262.4,21.7 276.0,32.5" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="32.5" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>41.5%</b></span>
+    <span>上一交易日 60.6% (环比 <span class="down">-19.1</span> pct)</span>
+    <span>近5日均值 <b>63.2%</b></span>
+    <span>近10日均值 60.8%</span>
+    <span>近20日均值 55.5%</span>
+    <span>相关ETF <b>15</b>只 / 222.82亿</span>
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>托伦斯</td><td class="num">25.2%</td><td class="num">30.45%</td><td class="num">30.12%</td><td class="num">21.59%</td><td class="num">21.31%</td></tr><tr><td>燧原科技-U</td><td class="num">17.21%</td><td class="num">13.06%</td><td class="num">14.73%</td><td class="num">14.44%</td><td class="num">13.18%</td></tr><tr><td>先导基电</td><td class="num">16.73%</td><td class="num">17.98%</td><td class="num">10.25%</td><td class="num">9.14%</td><td class="num">7.78%</td></tr><tr><td>粤芯半导-U</td><td class="num">14.82%</td><td class="num">19.08%</td><td class="num">26.05%</td><td class="num">25.35%</td><td class="num">32.77%</td></tr><tr><td>敏芯股份</td><td class="num">14.61%</td><td class="num">14.19%</td><td class="num">14.68%</td><td class="num">17.34%</td><td class="num">14.0%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>唯捷创芯</td><td class="num">0.54%</td><td class="num">0.76%</td><td class="num">0.82%</td><td class="num">0.89%</td><td class="num">0.81%</td></tr><tr><td>格科微</td><td class="num">0.54%</td><td class="num">0.96%</td><td class="num">1.05%</td><td class="num">0.93%</td><td class="num">0.79%</td></tr><tr><td>龙芯中科</td><td class="num">0.56%</td><td class="num">0.74%</td><td class="num">0.91%</td><td class="num">0.88%</td><td class="num">0.8%</td></tr><tr><td>华润微</td><td class="num">0.63%</td><td class="num">0.9%</td><td class="num">1.1%</td><td class="num">1.09%</td><td class="num">1.11%</td></tr><tr><td>晶合集成</td><td class="num">0.69%</td><td class="num">1.28%</td><td class="num">1.16%</td><td class="num">1.04%</td><td class="num">0.91%</td></tr></tbody></table></div>
+</div></div><div id="pane-b" class="pane">
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">印制电路板 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 48只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,32.1 17.6,19.5 31.2,35.3 44.8,29.1 58.4,32.1 72.0,32.1 85.6,32.1 99.2,35.3 112.8,32.1 126.4,13.1 140.0,20.0 153.6,36.1 167.2,26.3 180.8,32.9 194.4,16.6 208.0,19.5 221.6,13.1 235.2,9.9 248.8,16.3 262.4,16.3 276.0,25.9" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="25.9" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>83.3%</b></span>
+    <span>上一交易日 89.6% (环比 <span class="down">-6.3</span> pct)</span>
+    <span>近5日均值 <b>89.6%</b></span>
+    <span>近10日均值 86.3%</span>
+    <span>近20日均值 84.1%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>满坤科技</td><td class="num">16.72%</td><td class="num">13.68%</td><td class="num">18.36%</td><td class="num">15.73%</td><td class="num">15.79%</td></tr><tr><td>超声电子</td><td class="num">14.81%</td><td class="num">14.55%</td><td class="num">18.21%</td><td class="num">18.53%</td><td class="num">19.83%</td></tr><tr><td>澳弘电子</td><td class="num">12.51%</td><td class="num">9.61%</td><td class="num">14.65%</td><td class="num">13.7%</td><td class="num">13.96%</td></tr><tr><td>崇达技术</td><td class="num">12.47%</td><td class="num">7.84%</td><td class="num">9.6%</td><td class="num">9.19%</td><td class="num">11.17%</td></tr><tr><td>金禄电子</td><td class="num">11.17%</td><td class="num">9.9%</td><td class="num">12.82%</td><td class="num">12.4%</td><td class="num">12.52%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>鹏鼎控股</td><td class="num">1.54%</td><td class="num">1.42%</td><td class="num">1.72%</td><td class="num">1.43%</td><td class="num">1.2%</td></tr><tr><td>生益电子</td><td class="num">1.78%</td><td class="num">2.22%</td><td class="num">2.15%</td><td class="num">1.99%</td><td class="num">1.73%</td></tr><tr><td>深南电路</td><td class="num">1.79%</td><td class="num">2.41%</td><td class="num">2.16%</td><td class="num">1.81%</td><td class="num">1.6%</td></tr><tr><td>中富电路</td><td class="num">2.28%</td><td class="num">3.03%</td><td class="num">3.0%</td><td class="num">2.83%</td><td class="num">2.67%</td></tr><tr><td>奥士康</td><td class="num">2.55%</td><td class="num">2.85%</td><td class="num">3.52%</td><td class="num">4.37%</td><td class="num">4.49%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">元件 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 67只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,35.4 17.6,19.8 31.2,35.4 44.8,27.7 58.4,33.6 72.0,31.6 85.6,31.6 99.2,35.4 112.8,35.4 126.4,11.9 140.0,20.2 153.6,36.1 167.2,26.1 180.8,26.1 194.4,18.2 208.0,21.8 221.6,17.8 235.2,9.9 248.8,11.9 262.4,15.8 276.0,27.7" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="27.7" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>74.6%</b></span>
+    <span>上一交易日 83.6% (环比 <span class="down">-9.0</span> pct)</span>
+    <span>近5日均值 <b>83.0%</b></span>
+    <span>近10日均值 79.6%</span>
+    <span>近20日均值 76.9%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>满坤科技</td><td class="num">16.72%</td><td class="num">13.68%</td><td class="num">18.36%</td><td class="num">15.73%</td><td class="num">15.79%</td></tr><tr><td>超声电子</td><td class="num">14.81%</td><td class="num">14.55%</td><td class="num">18.21%</td><td class="num">18.53%</td><td class="num">19.83%</td></tr><tr><td>澳弘电子</td><td class="num">12.51%</td><td class="num">9.61%</td><td class="num">14.65%</td><td class="num">13.7%</td><td class="num">13.96%</td></tr><tr><td>崇达技术</td><td class="num">12.47%</td><td class="num">7.84%</td><td class="num">9.6%</td><td class="num">9.19%</td><td class="num">11.17%</td></tr><tr><td>奥迪威</td><td class="num">11.7%</td><td class="num">8.26%</td><td class="num">5.5%</td><td class="num">4.61%</td><td class="num">3.66%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>ST惠伦</td><td class="num">0.6%</td><td class="num">0.75%</td><td class="num">0.87%</td><td class="num">0.89%</td><td class="num">0.98%</td></tr><tr><td>东晶电子</td><td class="num">1.35%</td><td class="num">2.22%</td><td class="num">2.27%</td><td class="num">1.81%</td><td class="num">1.71%</td></tr><tr><td>法拉电子</td><td class="num">1.39%</td><td class="num">1.9%</td><td class="num">2.45%</td><td class="num">2.06%</td><td class="num">1.69%</td></tr><tr><td>高华科技</td><td class="num">1.48%</td><td class="num">1.11%</td><td class="num">1.49%</td><td class="num">1.72%</td><td class="num">1.42%</td></tr><tr><td>鹏鼎控股</td><td class="num">1.54%</td><td class="num">1.42%</td><td class="num">1.72%</td><td class="num">1.43%</td><td class="num">1.2%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">营销代理 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 27只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,15.2 17.6,9.9 31.2,9.9 44.8,15.2 58.4,15.2 72.0,20.4 85.6,25.6 99.2,30.8 112.8,15.2 126.4,9.9 140.0,20.4 153.6,30.8 167.2,30.8 180.8,36.1 194.4,15.2 208.0,9.9 221.6,15.2 235.2,9.9 248.8,9.9 262.4,9.9 276.0,20.4" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="20.4" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>74.1%</b></span>
+    <span>上一交易日 81.5% (环比 <span class="down">-7.4</span> pct)</span>
+    <span>近5日均值 <b>79.3%</b></span>
+    <span>近10日均值 75.2%</span>
+    <span>近20日均值 75.8%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>思美传媒</td><td class="num">29.66%</td><td class="num">8.2%</td><td class="num">12.29%</td><td class="num">9.33%</td><td class="num">7.62%</td></tr><tr><td>海看股份</td><td class="num">25.55%</td><td class="num">27.78%</td><td class="num">34.19%</td><td class="num">24.28%</td><td class="num">21.61%</td></tr><tr><td>引力传媒</td><td class="num">20.86%</td><td class="num">24.21%</td><td class="num">13.78%</td><td class="num">11.35%</td><td class="num">13.21%</td></tr><tr><td>易点天下</td><td class="num">17.54%</td><td class="num">22.54%</td><td class="num">15.99%</td><td class="num">11.87%</td><td class="num">9.8%</td></tr><tr><td>元隆雅图</td><td class="num">16.09%</td><td class="num">7.83%</td><td class="num">10.35%</td><td class="num">11.12%</td><td class="num">11.21%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>ST华扬</td><td class="num">0.37%</td><td class="num">0.43%</td><td class="num">0.44%</td><td class="num">0.41%</td><td class="num">0.43%</td></tr><tr><td>国脉文化</td><td class="num">1.2%</td><td class="num">1.55%</td><td class="num">1.52%</td><td class="num">1.67%</td><td class="num">1.92%</td></tr><tr><td>ST龙韵</td><td class="num">1.47%</td><td class="num">1.75%</td><td class="num">1.49%</td><td class="num">1.49%</td><td class="num">1.6%</td></tr><tr><td>纵横通信</td><td class="num">1.65%</td><td class="num">2.0%</td><td class="num">2.51%</td><td class="num">2.8%</td><td class="num">3.49%</td></tr><tr><td>国旅联合</td><td class="num">1.71%</td><td class="num">2.5%</td><td class="num">3.52%</td><td class="num">2.58%</td><td class="num">1.87%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">广告营销 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 30只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,14.2 17.6,14.2 31.2,14.2 44.8,18.7 58.4,23.0 72.0,23.0 85.6,27.3 99.2,27.3 112.8,14.2 126.4,9.9 140.0,18.7 153.6,27.3 167.2,27.3 180.8,36.1 194.4,18.7 208.0,14.2 221.6,18.7 235.2,14.2 248.8,14.2 262.4,14.2 276.0,23.0" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="23.0" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>70.0%</b></span>
+    <span>上一交易日 76.7% (环比 <span class="down">-6.7</span> pct)</span>
+    <span>近5日均值 <b>74.7%</b></span>
+    <span>近10日均值 71.7%</span>
+    <span>近20日均值 72.3%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>思美传媒</td><td class="num">29.66%</td><td class="num">8.2%</td><td class="num">12.29%</td><td class="num">9.33%</td><td class="num">7.62%</td></tr><tr><td>海看股份</td><td class="num">25.55%</td><td class="num">27.78%</td><td class="num">34.19%</td><td class="num">24.28%</td><td class="num">21.61%</td></tr><tr><td>引力传媒</td><td class="num">20.86%</td><td class="num">24.21%</td><td class="num">13.78%</td><td class="num">11.35%</td><td class="num">13.21%</td></tr><tr><td>易点天下</td><td class="num">17.54%</td><td class="num">22.54%</td><td class="num">15.99%</td><td class="num">11.87%</td><td class="num">9.8%</td></tr><tr><td>元隆雅图</td><td class="num">16.09%</td><td class="num">7.83%</td><td class="num">10.35%</td><td class="num">11.12%</td><td class="num">11.21%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>ST华扬</td><td class="num">0.37%</td><td class="num">0.43%</td><td class="num">0.44%</td><td class="num">0.41%</td><td class="num">0.43%</td></tr><tr><td>国脉文化</td><td class="num">1.2%</td><td class="num">1.55%</td><td class="num">1.52%</td><td class="num">1.67%</td><td class="num">1.92%</td></tr><tr><td>分众传媒</td><td class="num">1.24%</td><td class="num">1.02%</td><td class="num">1.43%</td><td class="num">1.37%</td><td class="num">1.5%</td></tr><tr><td>ST龙韵</td><td class="num">1.47%</td><td class="num">1.75%</td><td class="num">1.49%</td><td class="num">1.49%</td><td class="num">1.6%</td></tr><tr><td>纵横通信</td><td class="num">1.65%</td><td class="num">2.0%</td><td class="num">2.51%</td><td class="num">2.8%</td><td class="num">3.49%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">通信网络设备及器件 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 38只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,28.3 17.6,13.8 31.2,32.7 44.8,20.6 58.4,27.5 72.0,24.0 85.6,36.1 99.2,24.0 112.8,13.8 126.4,10.4 140.0,19.9 153.6,19.9 167.2,16.6 180.8,16.6 194.4,11.6 208.0,14.9 221.6,16.6 235.2,9.9 248.8,14.9 262.4,13.3 276.0,14.9" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="14.9" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>65.8%</b></span>
+    <span>上一交易日 68.4% (环比 <span class="down">-2.6</span> pct)</span>
+    <span>近5日均值 <b>67.4%</b></span>
+    <span>近10日均值 65.8%</span>
+    <span>近20日均值 60.0%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>宇特光电</td><td class="num">24.52%</td><td class="num">22.14%</td><td class="num">26.21%</td><td class="num">26.46%</td><td class="num">36.22%</td></tr><tr><td>通宇通讯</td><td class="num">10.7%</td><td class="num">5.95%</td><td class="num">8.98%</td><td class="num">9.66%</td><td class="num">9.36%</td></tr><tr><td>蘅东光</td><td class="num">8.68%</td><td class="num">9.47%</td><td class="num">10.01%</td><td class="num">8.44%</td><td class="num">6.72%</td></tr><tr><td>烽火通信</td><td class="num">7.87%</td><td class="num">3.15%</td><td class="num">4.96%</td><td class="num">4.26%</td><td class="num">3.99%</td></tr><tr><td>太辰光</td><td class="num">7.74%</td><td class="num">9.14%</td><td class="num">10.5%</td><td class="num">9.65%</td><td class="num">8.66%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>大富科技</td><td class="num">0.76%</td><td class="num">0.92%</td><td class="num">1.07%</td><td class="num">1.14%</td><td class="num">1.06%</td></tr><tr><td>辉煌科技</td><td class="num">0.84%</td><td class="num">1.07%</td><td class="num">1.37%</td><td class="num">1.6%</td><td class="num">1.84%</td></tr><tr><td>中兴通讯</td><td class="num">0.97%</td><td class="num">1.33%</td><td class="num">1.53%</td><td class="num">1.55%</td><td class="num">1.44%</td></tr><tr><td>鼎信通讯</td><td class="num">1.04%</td><td class="num">1.11%</td><td class="num">1.39%</td><td class="num">1.48%</td><td class="num">1.65%</td></tr><tr><td>灿勤科技</td><td class="num">1.15%</td><td class="num">1.5%</td><td class="num">1.52%</td><td class="num">1.54%</td><td class="num">1.27%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">光伏设备 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 69只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,28.4 17.6,29.8 31.2,35.4 44.8,32.6 58.4,32.6 72.0,35.4 85.6,36.1 99.2,36.1 112.8,35.4 126.4,29.1 140.0,34.7 153.6,35.4 167.2,31.2 180.8,32.6 194.4,27.7 208.0,26.7 221.6,27.2 235.2,20.0 248.8,9.9 262.4,9.9 276.0,15.1" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="15.1" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>60.9%</b></span>
+    <span>上一交易日 71.6% (环比 <span class="down">-10.7</span> pct)</span>
+    <span>近5日均值 <b>58.1%</b></span>
+    <span>近10日均值 43.3%</span>
+    <span>近20日均值 32.8%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>贝特利</td><td class="num">71.14%</td><td class="num">40.68%</td><td class="num">37.13%</td><td class="num">25.05%</td><td class="num">22.66%</td></tr><tr><td>永臻股份</td><td class="num">31.23%</td><td class="num">5.29%</td><td class="num">11.28%</td><td class="num">7.17%</td><td class="num">4.61%</td></tr><tr><td>艾能聚</td><td class="num">27.32%</td><td class="num">34.0%</td><td class="num">25.69%</td><td class="num">13.78%</td><td class="num">8.23%</td></tr><tr><td>东方日升</td><td class="num">26.43%</td><td class="num">24.02%</td><td class="num">17.08%</td><td class="num">10.18%</td><td class="num">6.41%</td></tr><tr><td>首航新能</td><td class="num">25.59%</td><td class="num">29.16%</td><td class="num">27.98%</td><td class="num">18.84%</td><td class="num">18.07%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>TCL中环</td><td class="num">0.0%</td><td class="num"><span class="dash">—</span></td><td class="num">0.0%</td><td class="num">2.53%</td><td class="num">2.17%</td></tr><tr><td>亚玛顿</td><td class="num">0.0%</td><td class="num"><span class="dash">—</span></td><td class="num">0.0%</td><td class="num">5.99%</td><td class="num">5.64%</td></tr><tr><td>大全能源</td><td class="num">0.4%</td><td class="num">0.66%</td><td class="num">0.65%</td><td class="num">0.56%</td><td class="num">0.51%</td></tr><tr><td>联泓新科</td><td class="num">0.64%</td><td class="num">0.69%</td><td class="num">0.72%</td><td class="num">0.72%</td><td class="num">0.61%</td></tr><tr><td>晶盛机电</td><td class="num">0.76%</td><td class="num">1.19%</td><td class="num">1.15%</td><td class="num">0.9%</td><td class="num">0.82%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">传媒 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 128只</span></span>
+    <div><span class="flat">→</span> <svg class="spark" width="280" height="46"><polyline points="4.0,26.1 17.6,26.6 31.2,17.4 44.8,18.4 58.4,21.6 72.0,28.0 85.6,36.1 99.2,32.5 112.8,27.1 126.4,17.1 140.0,23.5 153.6,28.0 167.2,28.9 180.8,32.5 194.4,22.5 208.0,9.9 221.6,20.8 235.2,18.9 248.8,17.1 262.4,25.3 276.0,27.1" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="27.1" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>59.4%</b></span>
+    <span>上一交易日 60.9% (环比 <span class="down">-1.5</span> pct)</span>
+    <span>近5日均值 <b>63.9%</b></span>
+    <span>近10日均值 62.8%</span>
+    <span>近20日均值 62.1%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>凡拓数创</td><td class="num">43.63%</td><td class="num">29.85%</td><td class="num">34.98%</td><td class="num">33.89%</td><td class="num">33.47%</td></tr><tr><td>大晟文化</td><td class="num">35.18%</td><td class="num">24.95%</td><td class="num">20.9%</td><td class="num">18.34%</td><td class="num">15.96%</td></tr><tr><td>果麦文化</td><td class="num">34.15%</td><td class="num">38.37%</td><td class="num">41.44%</td><td class="num">40.37%</td><td class="num">39.9%</td></tr><tr><td>慈文传媒</td><td class="num">30.15%</td><td class="num">40.4%</td><td class="num">37.96%</td><td class="num">37.08%</td><td class="num">33.27%</td></tr><tr><td>思美传媒</td><td class="num">29.66%</td><td class="num">8.2%</td><td class="num">12.29%</td><td class="num">9.33%</td><td class="num">7.62%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>ST华闻</td><td class="num">0.28%</td><td class="num">0.28%</td><td class="num">0.39%</td><td class="num">0.39%</td><td class="num">0.41%</td></tr><tr><td>ST华扬</td><td class="num">0.37%</td><td class="num">0.43%</td><td class="num">0.44%</td><td class="num">0.41%</td><td class="num">0.43%</td></tr><tr><td>凤凰传媒</td><td class="num">0.62%</td><td class="num">0.64%</td><td class="num">0.78%</td><td class="num">0.68%</td><td class="num">0.71%</td></tr><tr><td>*ST三六</td><td class="num">0.72%</td><td class="num">0.68%</td><td class="num">0.85%</td><td class="num">1.05%</td><td class="num">1.13%</td></tr><tr><td>江苏有线</td><td class="num">0.74%</td><td class="num">1.25%</td><td class="num">0.85%</td><td class="num">0.76%</td><td class="num">0.81%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">光伏电池组件 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 22只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,28.6 17.6,28.6 31.2,32.3 44.8,32.3 58.4,28.6 72.0,34.2 85.6,36.1 99.2,36.1 112.8,34.2 126.4,26.7 140.0,30.5 153.6,34.2 167.2,32.3 180.8,32.3 194.4,28.6 208.0,30.5 221.6,30.5 235.2,21.1 248.8,9.9 262.4,13.7 276.0,17.4" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="17.4" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>59.1%</b></span>
+    <span>上一交易日 68.2% (环比 <span class="down">-9.1</span> pct)</span>
+    <span>近5日均值 <b>56.4%</b></span>
+    <span>近10日均值 40.5%</span>
+    <span>近20日均值 32.0%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>艾能聚</td><td class="num">27.32%</td><td class="num">34.0%</td><td class="num">25.69%</td><td class="num">13.78%</td><td class="num">8.23%</td></tr><tr><td>东方日升</td><td class="num">26.43%</td><td class="num">24.02%</td><td class="num">17.08%</td><td class="num">10.18%</td><td class="num">6.41%</td></tr><tr><td>钧达股份</td><td class="num">25.09%</td><td class="num">25.56%</td><td class="num">20.17%</td><td class="num">18.17%</td><td class="num">12.04%</td></tr><tr><td>泽润新能</td><td class="num">12.64%</td><td class="num">15.59%</td><td class="num">9.91%</td><td class="num">6.86%</td><td class="num">6.78%</td></tr><tr><td>国晟科技</td><td class="num">12.63%</td><td class="num">15.05%</td><td class="num">14.06%</td><td class="num">9.44%</td><td class="num">7.15%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>横店东磁</td><td class="num">1.09%</td><td class="num">1.64%</td><td class="num">1.49%</td><td class="num">1.18%</td><td class="num">1.01%</td></tr><tr><td>易成新能</td><td class="num">1.1%</td><td class="num">1.93%</td><td class="num">1.31%</td><td class="num">1.06%</td><td class="num">0.92%</td></tr><tr><td>晶科能源</td><td class="num">1.12%</td><td class="num">1.47%</td><td class="num">1.42%</td><td class="num">1.08%</td><td class="num">0.94%</td></tr><tr><td>通灵股份</td><td class="num">1.29%</td><td class="num">2.23%</td><td class="num">2.42%</td><td class="num">2.15%</td><td class="num">2.01%</td></tr><tr><td>晶澳科技</td><td class="num">1.59%</td><td class="num">2.57%</td><td class="num">2.11%</td><td class="num">1.56%</td><td class="num">1.26%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">医疗研发外包 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 29只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,27.3 17.6,18.7 31.2,33.1 44.8,27.3 58.4,9.9 72.0,12.9 85.6,24.5 99.2,33.1 112.8,36.1 126.4,21.5 140.0,27.3 153.6,30.3 167.2,15.7 180.8,27.3 194.4,9.9 208.0,15.7 221.6,24.5 235.2,9.9 248.8,15.7 262.4,24.5 276.0,30.3" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="30.3" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>58.6%</b></span>
+    <span>上一交易日 65.5% (环比 <span class="down">-6.9</span> pct)</span>
+    <span>近5日均值 <b>69.7%</b></span>
+    <span>近10日均值 70.4%</span>
+    <span>近20日均值 67.9%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>万邦医药</td><td class="num">31.15%</td><td class="num">23.46%</td><td class="num">34.24%</td><td class="num">33.61%</td><td class="num">30.18%</td></tr><tr><td>百花医药</td><td class="num">18.89%</td><td class="num">19.02%</td><td class="num">23.78%</td><td class="num">21.11%</td><td class="num">19.84%</td></tr><tr><td>泓博医药</td><td class="num">9.38%</td><td class="num">11.4%</td><td class="num">12.05%</td><td class="num">12.36%</td><td class="num">14.21%</td></tr><tr><td>博济医药</td><td class="num">8.69%</td><td class="num">10.26%</td><td class="num">12.69%</td><td class="num">12.49%</td><td class="num">10.98%</td></tr><tr><td>百诚医药</td><td class="num">7.92%</td><td class="num">4.58%</td><td class="num">4.39%</td><td class="num">4.27%</td><td class="num">3.92%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>阳光诺和</td><td class="num">1.08%</td><td class="num">1.54%</td><td class="num">1.79%</td><td class="num">1.97%</td><td class="num">1.77%</td></tr><tr><td>泰格医药</td><td class="num">1.11%</td><td class="num">1.64%</td><td class="num">2.0%</td><td class="num">2.04%</td><td class="num">1.87%</td></tr><tr><td>药明康德</td><td class="num">1.16%</td><td class="num">1.9%</td><td class="num">1.93%</td><td class="num">1.86%</td><td class="num">1.83%</td></tr><tr><td>九洲药业</td><td class="num">1.25%</td><td class="num">1.95%</td><td class="num">2.29%</td><td class="num">2.18%</td><td class="num">2.24%</td></tr><tr><td>皓元医药</td><td class="num">1.67%</td><td class="num">2.51%</td><td class="num">2.56%</td><td class="num">2.72%</td><td class="num">2.38%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">种植业 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 21只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,9.9 17.6,15.7 31.2,18.6 44.8,18.6 58.4,24.4 72.0,21.6 85.6,33.2 99.2,33.2 112.8,27.4 126.4,24.4 140.0,30.2 153.6,30.2 167.2,33.2 180.8,36.1 194.4,33.2 208.0,33.2 221.6,30.2 235.2,21.6 248.8,24.4 262.4,15.7 276.0,21.6" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="21.6" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>57.1%</b></span>
+    <span>上一交易日 66.7% (环比 <span class="down">-9.6</span> pct)</span>
+    <span>近5日均值 <b>55.2%</b></span>
+    <span>近10日均值 46.7%</span>
+    <span>近20日均值 49.3%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>万向德农</td><td class="num">32.78%</td><td class="num">22.78%</td><td class="num">21.36%</td><td class="num">14.37%</td><td class="num">13.07%</td></tr><tr><td>新赛股份</td><td class="num">31.55%</td><td class="num">18.24%</td><td class="num">14.42%</td><td class="num">9.72%</td><td class="num">8.47%</td></tr><tr><td>神农种业</td><td class="num">22.7%</td><td class="num">28.98%</td><td class="num">21.44%</td><td class="num">14.46%</td><td class="num">13.15%</td></tr><tr><td>敦煌种业</td><td class="num">21.03%</td><td class="num">28.58%</td><td class="num">19.68%</td><td class="num">13.61%</td><td class="num">12.86%</td></tr><tr><td>秋乐种业</td><td class="num">10.64%</td><td class="num">13.41%</td><td class="num">9.94%</td><td class="num">6.65%</td><td class="num">6.23%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>ST荃银</td><td class="num">0.73%</td><td class="num">1.31%</td><td class="num">0.85%</td><td class="num">0.69%</td><td class="num">0.65%</td></tr><tr><td>北大荒</td><td class="num">0.75%</td><td class="num">1.16%</td><td class="num">1.11%</td><td class="num">1.1%</td><td class="num">1.24%</td></tr><tr><td>苏垦农发</td><td class="num">1.09%</td><td class="num">1.57%</td><td class="num">1.24%</td><td class="num">1.02%</td><td class="num">1.02%</td></tr><tr><td>隆平高科</td><td class="num">1.41%</td><td class="num">2.03%</td><td class="num">1.52%</td><td class="num">1.34%</td><td class="num">1.38%</td></tr><tr><td>宏辉果蔬</td><td class="num">1.42%</td><td class="num">1.58%</td><td class="num">1.72%</td><td class="num">1.91%</td><td class="num">2.38%</td></tr></tbody></table></div>
+</div></div><div id="pane-c" class="pane">
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">钢铁 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 46只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,36.1 17.6,22.7 31.2,22.7 44.8,36.1 58.4,22.7 72.0,36.1 85.6,36.1 99.2,36.1 112.8,36.1 126.4,36.1 140.0,22.7 153.6,36.1 167.2,36.1 180.8,36.1 194.4,36.1 208.0,36.1 221.6,22.7 235.2,36.1 248.8,22.7 262.4,9.9 276.0,23.9" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="23.9" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>6.5%</b></span>
+    <span>上一交易日 8.9% (环比 <span class="down">-2.4</span> pct)</span>
+    <span>近5日均值 <b>6.6%</b></span>
+    <span>近10日均值 5.5%</span>
+    <span>近20日均值 5.4%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>马矿股份</td><td class="num">16.37%</td><td class="num">20.86%</td><td class="num">24.97%</td><td class="num">15.96%</td><td class="num">13.07%</td></tr><tr><td>金洲管道</td><td class="num">3.94%</td><td class="num">4.74%</td><td class="num">4.66%</td><td class="num">4.68%</td><td class="num">4.86%</td></tr><tr><td>安阳钢铁</td><td class="num">3.05%</td><td class="num">4.58%</td><td class="num">3.5%</td><td class="num">2.27%</td><td class="num">1.47%</td></tr><tr><td>甬金股份</td><td class="num">2.79%</td><td class="num">0.9%</td><td class="num">1.48%</td><td class="num">1.42%</td><td class="num">1.55%</td></tr><tr><td>久立特材</td><td class="num">1.88%</td><td class="num">3.15%</td><td class="num">1.74%</td><td class="num">1.47%</td><td class="num">1.1%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>本钢板Ｂ</td><td class="num">0.15%</td><td class="num">0.11%</td><td class="num">0.12%</td><td class="num">0.15%</td><td class="num">0.11%</td></tr><tr><td>鄂资Ｂ股</td><td class="num">0.15%</td><td class="num"><span class="dash">—</span></td><td class="num">0.15%</td><td class="num">0.15%</td><td class="num">0.15%</td></tr><tr><td>中信特钢</td><td class="num">0.19%</td><td class="num">0.2%</td><td class="num">0.27%</td><td class="num">0.31%</td><td class="num">0.32%</td></tr><tr><td>重庆钢铁</td><td class="num">0.24%</td><td class="num">0.49%</td><td class="num">0.46%</td><td class="num">0.45%</td><td class="num">0.59%</td></tr><tr><td>*ST八钢</td><td class="num">0.25%</td><td class="num">0.42%</td><td class="num">0.39%</td><td class="num">0.48%</td><td class="num">0.51%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">住宅开发 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 63只</span></span>
+    <div><span class="flat">→</span> <svg class="spark" width="280" height="46"><polyline points="4.0,22.5 17.6,19.7 31.2,29.3 44.8,19.7 58.4,9.9 72.0,26.1 85.6,32.5 99.2,26.1 112.8,26.1 126.4,16.5 140.0,26.1 153.6,32.5 167.2,26.1 180.8,32.5 194.4,16.5 208.0,22.9 221.6,32.5 235.2,19.7 248.8,22.9 262.4,35.7 276.0,36.1" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="36.1" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>6.3%</b></span>
+    <span>上一交易日 6.5% (环比 <span class="down">-0.2</span> pct)</span>
+    <span>近5日均值 <b>9.7%</b></span>
+    <span>近10日均值 10.5%</span>
+    <span>近20日均值 11.6%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>粤宏远Ａ</td><td class="num">5.28%</td><td class="num">4.13%</td><td class="num">4.21%</td><td class="num">5.19%</td><td class="num">6.73%</td></tr><tr><td>万通发展</td><td class="num">3.83%</td><td class="num">4.31%</td><td class="num">4.77%</td><td class="num">4.29%</td><td class="num">3.8%</td></tr><tr><td>深物业A</td><td class="num">3.74%</td><td class="num">4.47%</td><td class="num">5.39%</td><td class="num">6.28%</td><td class="num">9.45%</td></tr><tr><td>京投发展</td><td class="num">3.17%</td><td class="num">5.67%</td><td class="num">2.84%</td><td class="num">2.18%</td><td class="num">1.93%</td></tr><tr><td>香江控股</td><td class="num">2.77%</td><td class="num">2.49%</td><td class="num">2.73%</td><td class="num">2.14%</td><td class="num">2.01%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>深物业B</td><td class="num">0.02%</td><td class="num">0.03%</td><td class="num">0.06%</td><td class="num">0.07%</td><td class="num">0.13%</td></tr><tr><td>大名城B</td><td class="num">0.03%</td><td class="num"><span class="dash">—</span></td><td class="num">0.03%</td><td class="num">0.03%</td><td class="num">0.03%</td></tr><tr><td>深深房Ｂ</td><td class="num">0.06%</td><td class="num">0.13%</td><td class="num">0.11%</td><td class="num">0.09%</td><td class="num">0.08%</td></tr><tr><td>中华企业</td><td class="num">0.33%</td><td class="num">0.41%</td><td class="num">0.41%</td><td class="num">0.4%</td><td class="num">0.49%</td></tr><tr><td>光明地产</td><td class="num">0.35%</td><td class="num">0.46%</td><td class="num">0.54%</td><td class="num">0.53%</td><td class="num">0.59%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">航运港口 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 37只</span></span>
+    <div><span class="flat">→</span> <svg class="spark" width="280" height="46"><polyline points="4.0,14.2 17.6,9.9 31.2,27.4 44.8,23.0 58.4,23.0 72.0,36.1 85.6,31.7 99.2,22.5 112.8,31.5 126.4,26.9 140.0,31.5 153.6,26.9 167.2,26.9 180.8,26.9 194.4,18.0 208.0,22.5 221.6,26.9 235.2,23.0 248.8,27.4 262.4,31.7 276.0,32.0" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="32.0" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>5.4%</b></span>
+    <span>上一交易日 5.6% (环比 <span class="down">-0.2</span> pct)</span>
+    <span>近5日均值 <b>7.8%</b></span>
+    <span>近10日均值 9.1%</span>
+    <span>近20日均值 9.0%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>锦江航运</td><td class="num">5.38%</td><td class="num">5.8%</td><td class="num">9.49%</td><td class="num">9.06%</td><td class="num">7.11%</td></tr><tr><td>国航远洋</td><td class="num">3.16%</td><td class="num">4.47%</td><td class="num">6.53%</td><td class="num">6.24%</td><td class="num">4.97%</td></tr><tr><td>招商南油</td><td class="num">2.8%</td><td class="num">2.71%</td><td class="num">3.41%</td><td class="num">3.66%</td><td class="num">3.52%</td></tr><tr><td>盛航股份</td><td class="num">1.95%</td><td class="num">1.74%</td><td class="num">2.43%</td><td class="num">2.21%</td><td class="num">2.23%</td></tr><tr><td>中远海能</td><td class="num">1.68%</td><td class="num">1.94%</td><td class="num">1.88%</td><td class="num">1.65%</td><td class="num">1.7%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>海科B</td><td class="num">0.03%</td><td class="num"><span class="dash">—</span></td><td class="num">0.03%</td><td class="num">0.03%</td><td class="num">0.03%</td></tr><tr><td>招港B</td><td class="num">0.13%</td><td class="num">0.13%</td><td class="num">0.11%</td><td class="num">0.11%</td><td class="num">0.14%</td></tr><tr><td>招商港口</td><td class="num">0.14%</td><td class="num">0.16%</td><td class="num">0.15%</td><td class="num">0.16%</td><td class="num">0.17%</td></tr><tr><td>青岛港</td><td class="num">0.17%</td><td class="num">0.2%</td><td class="num">0.24%</td><td class="num">0.26%</td><td class="num">0.26%</td></tr><tr><td>辽港股份</td><td class="num">0.18%</td><td class="num">0.5%</td><td class="num">0.46%</td><td class="num">0.48%</td><td class="num">0.49%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">房地产开发 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 89只</span></span>
+    <div><span class="flat">→</span> <svg class="spark" width="280" height="46"><polyline points="4.0,24.9 17.6,17.6 31.2,30.3 44.8,17.6 58.4,9.9 72.0,25.1 85.6,32.8 99.2,25.1 112.8,27.8 126.4,17.6 140.0,27.8 153.6,32.8 167.2,27.8 180.8,32.8 194.4,17.6 208.0,22.6 221.6,30.3 235.2,20.1 248.8,22.6 262.4,32.8 276.0,36.1" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="36.1" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>4.5%</b></span>
+    <span>上一交易日 6.1% (环比 <span class="down">-1.6</span> pct)</span>
+    <span>近5日均值 <b>8.2%</b></span>
+    <span>近10日均值 8.6%</span>
+    <span>近20日均值 9.7%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>粤宏远Ａ</td><td class="num">5.28%</td><td class="num">4.13%</td><td class="num">4.21%</td><td class="num">5.19%</td><td class="num">6.73%</td></tr><tr><td>万通发展</td><td class="num">3.83%</td><td class="num">4.31%</td><td class="num">4.77%</td><td class="num">4.29%</td><td class="num">3.8%</td></tr><tr><td>深物业A</td><td class="num">3.74%</td><td class="num">4.47%</td><td class="num">5.39%</td><td class="num">6.28%</td><td class="num">9.45%</td></tr><tr><td>京投发展</td><td class="num">3.17%</td><td class="num">5.67%</td><td class="num">2.84%</td><td class="num">2.18%</td><td class="num">1.93%</td></tr><tr><td>香江控股</td><td class="num">2.77%</td><td class="num">2.49%</td><td class="num">2.73%</td><td class="num">2.14%</td><td class="num">2.01%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>外高Ｂ股</td><td class="num">0.01%</td><td class="num"><span class="dash">—</span></td><td class="num">0.01%</td><td class="num">0.01%</td><td class="num">0.01%</td></tr><tr><td>临港B股</td><td class="num">0.02%</td><td class="num"><span class="dash">—</span></td><td class="num">0.02%</td><td class="num">0.02%</td><td class="num">0.02%</td></tr><tr><td>市北B股</td><td class="num">0.02%</td><td class="num"><span class="dash">—</span></td><td class="num">0.02%</td><td class="num">0.02%</td><td class="num">0.02%</td></tr><tr><td>深物业B</td><td class="num">0.02%</td><td class="num">0.03%</td><td class="num">0.06%</td><td class="num">0.07%</td><td class="num">0.13%</td></tr><tr><td>陆家Ｂ股</td><td class="num">0.03%</td><td class="num"><span class="dash">—</span></td><td class="num">0.03%</td><td class="num">0.03%</td><td class="num">0.03%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">普钢 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 24只</span></span>
+    <div><span class="flat">→</span> <svg class="spark" width="280" height="46"><polyline points="4.0,36.1 17.6,36.1 31.2,36.1 44.8,36.1 58.4,36.1 72.0,36.1 85.6,36.1 99.2,36.1 112.8,36.1 126.4,36.1 140.0,36.1 153.6,36.1 167.2,36.1 180.8,36.1 194.4,36.1 208.0,36.1 221.6,9.9 235.2,36.1 248.8,9.9 262.4,9.9 276.0,9.9" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="9.9" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>4.2%</b></span>
+    <span>上一交易日 4.2% (环比 <span class="flat">0.0</span> pct)</span>
+    <span>近5日均值 <b>3.4%</b></span>
+    <span>近10日均值 1.7%</span>
+    <span>近20日均值 0.8%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>安阳钢铁</td><td class="num">3.05%</td><td class="num">4.58%</td><td class="num">3.5%</td><td class="num">2.27%</td><td class="num">1.47%</td></tr><tr><td>武进不锈</td><td class="num">1.57%</td><td class="num">1.84%</td><td class="num">1.79%</td><td class="num">1.7%</td><td class="num">1.7%</td></tr><tr><td>新钢股份</td><td class="num">0.9%</td><td class="num">0.81%</td><td class="num">1.16%</td><td class="num">1.02%</td><td class="num">0.99%</td></tr><tr><td>马钢股份</td><td class="num">0.79%</td><td class="num">0.76%</td><td class="num">0.88%</td><td class="num">0.81%</td><td class="num">0.83%</td></tr><tr><td>华菱钢铁</td><td class="num">0.71%</td><td class="num">0.79%</td><td class="num">1.06%</td><td class="num">0.96%</td><td class="num">0.95%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>本钢板Ｂ</td><td class="num">0.15%</td><td class="num">0.11%</td><td class="num">0.12%</td><td class="num">0.15%</td><td class="num">0.11%</td></tr><tr><td>重庆钢铁</td><td class="num">0.24%</td><td class="num">0.49%</td><td class="num">0.46%</td><td class="num">0.45%</td><td class="num">0.59%</td></tr><tr><td>*ST八钢</td><td class="num">0.25%</td><td class="num">0.42%</td><td class="num">0.39%</td><td class="num">0.48%</td><td class="num">0.51%</td></tr><tr><td>首钢股份</td><td class="num">0.27%</td><td class="num">0.3%</td><td class="num">0.39%</td><td class="num">0.42%</td><td class="num">0.35%</td></tr><tr><td>鞍钢股份</td><td class="num">0.28%</td><td class="num">0.26%</td><td class="num">0.42%</td><td class="num">0.44%</td><td class="num">0.44%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">食品及饲料添加剂 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 25只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,13.7 17.6,9.9 31.2,17.4 44.8,17.4 58.4,13.7 72.0,9.9 85.6,21.1 99.2,28.6 112.8,28.6 126.4,17.4 140.0,28.6 153.6,28.6 167.2,28.6 180.8,24.9 194.4,21.1 208.0,21.1 221.6,21.1 235.2,17.4 248.8,17.4 262.4,28.6 276.0,36.1" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="36.1" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>4.0%</b></span>
+    <span>上一交易日 12.0% (环比 <span class="down">-8.0</span> pct)</span>
+    <span>近5日均值 <b>16.8%</b></span>
+    <span>近10日均值 16.4%</span>
+    <span>近20日均值 19.2%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>金丹科技</td><td class="num">10.17%</td><td class="num">11.82%</td><td class="num">13.55%</td><td class="num">15.45%</td><td class="num">15.46%</td></tr><tr><td>华业香料</td><td class="num">3.0%</td><td class="num">3.43%</td><td class="num">3.41%</td><td class="num">3.82%</td><td class="num">4.15%</td></tr><tr><td>美农生物</td><td class="num">2.77%</td><td class="num">2.66%</td><td class="num">3.54%</td><td class="num">3.39%</td><td class="num">5.5%</td></tr><tr><td>醋化股份</td><td class="num">2.29%</td><td class="num">2.93%</td><td class="num">3.69%</td><td class="num">4.35%</td><td class="num">8.62%</td></tr><tr><td>华恒生物</td><td class="num">1.82%</td><td class="num">3.01%</td><td class="num">3.01%</td><td class="num">2.74%</td><td class="num">2.57%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>天新药业</td><td class="num">0.1%</td><td class="num">0.08%</td><td class="num">0.1%</td><td class="num">0.12%</td><td class="num">0.12%</td></tr><tr><td>百龙创园</td><td class="num">0.43%</td><td class="num">0.71%</td><td class="num">0.71%</td><td class="num">0.82%</td><td class="num">0.75%</td></tr><tr><td>ST嘉必优</td><td class="num">0.68%</td><td class="num">0.46%</td><td class="num">0.72%</td><td class="num">0.7%</td><td class="num">0.64%</td></tr><tr><td>润普食品</td><td class="num">0.73%</td><td class="num">0.95%</td><td class="num">0.96%</td><td class="num">1.12%</td><td class="num">1.19%</td></tr><tr><td>金禾实业</td><td class="num">0.75%</td><td class="num">1.15%</td><td class="num">1.09%</td><td class="num">1.08%</td><td class="num">1.26%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">银行 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 42只</span></span>
+    <div><span class="flat">→</span> <svg class="spark" width="280" height="46"><polyline points="4.0,36.1 17.6,36.1 31.2,36.1 44.8,23.0 58.4,36.1 72.0,36.1 85.6,36.1 99.2,36.1 112.8,36.1 126.4,36.1 140.0,36.1 153.6,36.1 167.2,36.1 180.8,23.0 194.4,9.9 208.0,36.1 221.6,36.1 235.2,23.0 248.8,36.1 262.4,36.1 276.0,36.1" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="36.1" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>0.0%</b></span>
+    <span>上一交易日 0.0% (环比 <span class="flat">0.0</span> pct)</span>
+    <span>近5日均值 <b>0.5%</b></span>
+    <span>近10日均值 1.0%</span>
+    <span>近20日均值 0.6%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>紫金银行</td><td class="num">2.21%</td><td class="num">1.96%</td><td class="num">2.12%</td><td class="num">2.0%</td><td class="num">1.95%</td></tr><tr><td>苏农银行</td><td class="num">2.12%</td><td class="num">2.26%</td><td class="num">2.48%</td><td class="num">2.35%</td><td class="num">1.99%</td></tr><tr><td>常熟银行</td><td class="num">2.11%</td><td class="num">1.76%</td><td class="num">1.94%</td><td class="num">1.88%</td><td class="num">1.69%</td></tr><tr><td>兰州银行</td><td class="num">1.85%</td><td class="num">1.55%</td><td class="num">1.99%</td><td class="num">1.85%</td><td class="num">1.71%</td></tr><tr><td>无锡银行</td><td class="num">1.82%</td><td class="num">1.71%</td><td class="num">1.84%</td><td class="num">1.87%</td><td class="num">1.46%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>农业银行</td><td class="num">0.09%</td><td class="num">0.11%</td><td class="num">0.12%</td><td class="num">0.12%</td><td class="num">0.12%</td></tr><tr><td>中信银行</td><td class="num">0.11%</td><td class="num">0.11%</td><td class="num">0.11%</td><td class="num">0.11%</td><td class="num">0.12%</td></tr><tr><td>工商银行</td><td class="num">0.13%</td><td class="num">0.18%</td><td class="num">0.2%</td><td class="num">0.18%</td><td class="num">0.16%</td></tr><tr><td>浦发银行</td><td class="num">0.16%</td><td class="num">0.19%</td><td class="num">0.22%</td><td class="num">0.23%</td><td class="num">0.21%</td></tr><tr><td>中国银行</td><td class="num">0.16%</td><td class="num">0.15%</td><td class="num">0.17%</td><td class="num">0.17%</td><td class="num">0.17%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">证券Ⅱ <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 48只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,25.5 17.6,15.2 31.2,20.5 44.8,15.2 58.4,20.5 72.0,25.5 85.6,20.5 99.2,25.5 112.8,25.5 126.4,20.5 140.0,25.3 153.6,30.8 167.2,25.5 180.8,20.5 194.4,25.5 208.0,15.2 221.6,15.2 235.2,9.9 248.8,25.5 262.4,30.8 276.0,36.1" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="36.1" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>0.0%</b></span>
+    <span>上一交易日 2.1% (环比 <span class="down">-2.1</span> pct)</span>
+    <span>近5日均值 <b>5.0%</b></span>
+    <span>近10日均值 5.0%</span>
+    <span>近20日均值 5.4%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>锦龙股份</td><td class="num">2.73%</td><td class="num">3.43%</td><td class="num">5.11%</td><td class="num">5.16%</td><td class="num">8.15%</td></tr><tr><td>太平洋</td><td class="num">1.75%</td><td class="num">2.69%</td><td class="num">4.66%</td><td class="num">3.5%</td><td class="num">2.62%</td></tr><tr><td>华鑫股份</td><td class="num">1.44%</td><td class="num">1.51%</td><td class="num">2.14%</td><td class="num">3.04%</td><td class="num">4.46%</td></tr><tr><td>华林证券</td><td class="num">1.23%</td><td class="num">1.9%</td><td class="num">2.04%</td><td class="num">1.82%</td><td class="num">1.69%</td></tr><tr><td>华安证券</td><td class="num">1.11%</td><td class="num">1.89%</td><td class="num">2.32%</td><td class="num">2.42%</td><td class="num">1.92%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>中信建投</td><td class="num">0.12%</td><td class="num">0.16%</td><td class="num">0.21%</td><td class="num">0.21%</td><td class="num">0.21%</td></tr><tr><td>国信证券</td><td class="num">0.13%</td><td class="num">0.19%</td><td class="num">0.22%</td><td class="num">0.3%</td><td class="num">0.28%</td></tr><tr><td>申万宏源</td><td class="num">0.15%</td><td class="num">0.23%</td><td class="num">0.28%</td><td class="num">0.31%</td><td class="num">0.29%</td></tr><tr><td>红塔证券</td><td class="num">0.17%</td><td class="num">0.23%</td><td class="num">0.33%</td><td class="num">0.33%</td><td class="num">0.36%</td></tr><tr><td>中国银河</td><td class="num">0.21%</td><td class="num">0.25%</td><td class="num">0.32%</td><td class="num">0.36%</td><td class="num">0.37%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">非银金融 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 78只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,25.2 17.6,9.9 31.2,18.6 44.8,18.6 58.4,18.6 72.0,23.2 85.6,23.2 99.2,27.5 112.8,25.3 126.4,16.8 140.0,27.4 153.6,29.5 167.2,25.3 180.8,25.3 194.4,25.3 208.0,21.0 221.6,21.0 235.2,18.8 248.8,27.5 262.4,31.7 276.0,36.1" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="36.1" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>0.0%</b></span>
+    <span>上一交易日 2.6% (环比 <span class="down">-2.6</span> pct)</span>
+    <span>近5日均值 <b>5.4%</b></span>
+    <span>近10日均值 5.9%</span>
+    <span>近20日均值 7.5%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>锦龙股份</td><td class="num">2.73%</td><td class="num">3.43%</td><td class="num">5.11%</td><td class="num">5.16%</td><td class="num">8.15%</td></tr><tr><td>浙江东方</td><td class="num">2.38%</td><td class="num">1.82%</td><td class="num">1.54%</td><td class="num">1.24%</td><td class="num">0.98%</td></tr><tr><td>新力金融</td><td class="num">2.2%</td><td class="num">2.46%</td><td class="num">3.25%</td><td class="num">3.3%</td><td class="num">6.13%</td></tr><tr><td>拉卡拉</td><td class="num">2.19%</td><td class="num">2.93%</td><td class="num">3.46%</td><td class="num">3.9%</td><td class="num">4.46%</td></tr><tr><td>仁东控股</td><td class="num">1.82%</td><td class="num">3.01%</td><td class="num">2.64%</td><td class="num">2.69%</td><td class="num">3.13%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>中国人寿</td><td class="num">0.06%</td><td class="num">0.07%</td><td class="num">0.11%</td><td class="num">0.1%</td><td class="num">0.1%</td></tr><tr><td>中信建投</td><td class="num">0.12%</td><td class="num">0.16%</td><td class="num">0.21%</td><td class="num">0.21%</td><td class="num">0.21%</td></tr><tr><td>国信证券</td><td class="num">0.13%</td><td class="num">0.19%</td><td class="num">0.22%</td><td class="num">0.3%</td><td class="num">0.28%</td></tr><tr><td>申万宏源</td><td class="num">0.15%</td><td class="num">0.23%</td><td class="num">0.28%</td><td class="num">0.31%</td><td class="num">0.29%</td></tr><tr><td>中国人保</td><td class="num">0.16%</td><td class="num">0.15%</td><td class="num">0.18%</td><td class="num">0.19%</td><td class="num">0.18%</td></tr></tbody></table></div>
+</div>
+<div class="sector-card">
+  <div class="sector-head">
+    <span class="sector-name">多元金融 <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 25只</span></span>
+    <div><span class="down">📉</span> <svg class="spark" width="280" height="46"><polyline points="4.0,26.3 17.6,9.9 31.2,19.7 44.8,23.0 58.4,19.7 72.0,23.5 85.6,26.7 99.2,29.8 112.8,26.7 126.4,17.2 140.0,29.8 153.6,29.8 167.2,26.7 180.8,29.8 194.4,26.7 208.0,26.7 221.6,26.7 235.2,26.7 248.8,29.8 262.4,32.9 276.0,36.1" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="36.1" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg></div>
+  </div>
+  <div class="kpi-row">
+    <span>量化集中度(今日) <b>0.0%</b></span>
+    <span>上一交易日 4.0% (环比 <span class="down">-4.0</span> pct)</span>
+    <span>近5日均值 <b>7.2%</b></span>
+    <span>近10日均值 8.8%</span>
+    <span>近20日均值 13.0%</span>
+    
+  </div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Top5 高活跃个股（按今日换手率）</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>浙江东方</td><td class="num">2.38%</td><td class="num">1.82%</td><td class="num">1.54%</td><td class="num">1.24%</td><td class="num">0.98%</td></tr><tr><td>新力金融</td><td class="num">2.2%</td><td class="num">2.46%</td><td class="num">3.25%</td><td class="num">3.3%</td><td class="num">6.13%</td></tr><tr><td>拉卡拉</td><td class="num">2.19%</td><td class="num">2.93%</td><td class="num">3.46%</td><td class="num">3.9%</td><td class="num">4.46%</td></tr><tr><td>仁东控股</td><td class="num">1.82%</td><td class="num">3.01%</td><td class="num">2.64%</td><td class="num">2.69%</td><td class="num">3.13%</td></tr><tr><td>翠微股份</td><td class="num">1.79%</td><td class="num">2.64%</td><td class="num">2.25%</td><td class="num">2.31%</td><td class="num">2.79%</td></tr></tbody></table></div>
+  <div style="margin-top:8px"><strong style="font-size:12.5px;color:#607d8b">Bottom5 低活跃个股</strong><table class="stock-sub"><thead><tr><th>个股</th><th class="num">今日换手%</th><th class="num">上一交易日</th><th class="num">近5日均值</th><th class="num">近10日均值</th><th class="num">近20日均值</th></tr></thead><tbody><tr><td>*ST九鼎</td><td class="num">0.19%</td><td class="num">0.33%</td><td class="num">0.31%</td><td class="num">0.34%</td><td class="num">0.29%</td></tr><tr><td>国网英大</td><td class="num">0.23%</td><td class="num">0.32%</td><td class="num">0.35%</td><td class="num">0.44%</td><td class="num">0.38%</td></tr><tr><td>越秀资本</td><td class="num">0.27%</td><td class="num">0.35%</td><td class="num">0.39%</td><td class="num">0.4%</td><td class="num">0.38%</td></tr><tr><td>中油资本</td><td class="num">0.29%</td><td class="num">0.31%</td><td class="num">0.41%</td><td class="num">0.43%</td><td class="num">0.44%</td></tr><tr><td>永安期货</td><td class="num">0.33%</td><td class="num">0.37%</td><td class="num">0.48%</td><td class="num">0.52%</td><td class="num">0.42%</td></tr></tbody></table></div>
+</div></div></div>
+</section>
+<section class="section">
+<h2>② 国家队资金动向</h2>
+<div class="sub">宽基ETF成交额 = 国家队入市代理指标（沪深300/上证50/中证500 ETF，去重后按成交额Top40口径）</div>
+<div class="flow-grid">
+  <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日成交（全口径 88只）</div>
+    <span class="big-num">148.92亿</span><br><svg class="spark" width="280" height="46"><polyline points="4.0,36.1 17.6,34.8 31.2,35.5 44.8,23.9 58.4,27.2 72.0,33.0 85.6,29.1 99.2,33.6 112.8,20.1 126.4,19.3 140.0,21.7 153.6,32.7 167.2,33.6 180.8,29.5 194.4,31.0 208.0,26.2 221.6,9.9 235.2,22.8 248.8,30.4 262.4,33.5 276.0,34.3" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="34.3" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg><span style="font-size:10px;color:#bbb">趋势图=Top40口径</span></div>
+  <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">主力资金今日净流入</div>
+    <span class="big-num">128.57亿</span><br><svg class="spark" width="280" height="46"><line x1="0" y1="23.0" x2="280" y2="23.0" stroke="#ddd" stroke-dasharray="4,3"/></svg></div>
+  <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">北向今日净买额（2026-11-09）</div>
+    <span class="big-num">0.0亿</span> <span style="font-size:11px;color:#90a4ae">(北向实时净买额（披露规则调整后部分日期为0）)</span></div>
+  <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">AI相关ETF（union）</div>
+    <span class="big-num">377.56亿</span><br>
+    <span style="font-size:12px;color:#90a4ae">158只（去重）</span></div>
+</div>
+<table><thead><tr><th>日期</th><th class="num">宽基ETF成交(亿)</th><th class="num">主力净流入(亿)</th></tr></thead><tbody><tr><td>2026-11-09</td><td class="num">147.7</td><td class="num">128.57</td></tr><tr><td>2026-11-06</td><td class="num">164.9</td><td class="num">-524.97</td></tr><tr><td>2026-11-05</td><td class="num">233.23</td><td class="num">85.39</td></tr><tr><td>2026-11-04</td><td class="num">399.16</td><td class="num">500.28</td></tr><tr><td>2026-11-03</td><td class="num">682.66</td><td class="num">-571.43</td></tr><tr><td>2026-11-02</td><td class="num">324.37</td><td class="num">117.43</td></tr><tr><td>2026-10-30</td><td class="num">220.31</td><td class="num">-396.66</td></tr><tr><td>2026-10-29</td><td class="num">252.21</td><td class="num">-698.36</td></tr><tr><td>2026-10-28</td><td class="num">162.76</td><td class="num">230.3</td></tr><tr><td>2026-10-27</td><td class="num">182.51</td><td class="num">-471.14</td></tr></tbody></table>
+</section>
+<section class="section"><h2>③ 今日财经要闻 <span style="font-size:12px;color:#90a4ae;font-weight:400">2026-11-09 · Sina News AI归纳</span></h2><a class="news-item" href="https://www.cls.cn/detail/2528453" target="_blank">• 黄仁勋发文承认婚外情</a><a class="news-item" href="https://www.cls.cn/detail/2528449" target="_blank">• 财联社11月9日电，日经225指数涨幅扩大，现涨2.0%，最新报58586.45点。</a><a class="news-item" href="https://www.cls.cn/detail/2528445" target="_blank">• 国内多型船舶集中交付</a><a class="news-item" href="https://www.cls.cn/detail/2528435" target="_blank">• 财联社11月9日电，日经225指数涨幅扩大，现涨1.0%，最新报58164.95点。</a><a class="news-item" href="https://www.cls.cn/detail/2528395" target="_blank">• 财联社11月9日电，布伦特原油期货跌幅扩大至1%，报97.169美元/桶。</a><a class="news-item" href="https://www.cls.cn/detail/2528390" target="_blank">• 消息称伊朗格什姆岛遭美军袭击</a><a class="news-item" href="https://www.cls.cn/detail/2528378" target="_blank">• 财联社11月9日电，伊拉克库尔德地区豪尔穆尔气田遭到无人机袭击，气田附近可见浓烟升起。</a><a class="news-item" href="https://www.cls.cn/detail/2528377" target="_blank">• 加沙中部流离失所者营地发生沙土塌方 已致5人死亡</a><a class="news-item" href="https://www.cls.cn/detail/2528376" target="_blank">• 伊朗格什姆岛附近传出爆炸声</a></section>
+<section class="section"><h2>④ 投资信号 <span style="font-size:12px;color:#90a4ae;font-weight:400">阈值触发制 · 3/4 已触发</span></h2><table><thead><tr><th>信号</th><th class="num">当前值</th><th class="num">阈值</th><th>状态</th></tr></thead><tbody><tr><td>宽基ETF单日成交额 <span style="color:#c62828;font-size:12px">国家队资金大幅流入</span></td><td class="num">148.92亿</td><td class="num" style="color:#888">阈值 30亿</td><td><span class="badge b-on">已触发</span></td></tr><tr><td>主力净流入 <span style="color:#c62828;font-size:12px">主力资金加仓</span></td><td class="num">128.57亿</td><td class="num" style="color:#888">阈值 ≥+30亿</td><td><span class="badge b-on">已触发</span></td></tr><tr><td>北向单日净买额</td><td class="num">0.0亿</td><td class="num" style="color:#888">阈值 |≥5|亿</td><td><span class="badge b-off">未触发</span></td></tr><tr><td>AI板块量化活跃度 <span style="color:#c62828;font-size:12px">通信设备板块活跃占比 50.0% ≥ 35%</span></td><td class="num">50.0%</td><td class="num" style="color:#888">阈值 ≥35%</td><td><span class="badge b-on">已触发</span></td></tr></tbody></table><p style="font-size:12px;color:#888;margin-top:8px">📢 国家队资金大幅流入 (当前148.92亿) | 📢 主力资金加仓 (当前128.57亿) | 📢 通信设备板块活跃占比 50.0% ≥ 35% (当前50.0%)</p></section>
+<section class="section">
+<h2>口径说明</h2>
+<div class="methodology">
+<p><b>量化集中度（板块）</b> = 成分股中当日换手率 &gt; 3.0% 的个股占比。换手率是量化资金高频交易的公开代理指标（skill标准阈值，非精确识别）。</p>
+<p><b>历史趋势</b> = 上述集中度指标在历史交易日的逐日值 + 近5/10/20日均值对比；成分股名单取当前口径（历史成员变动为近似）。</p>
+<p><b>全市场排名</b> = 457个行业板块中成分股≥20只者参与，按今日集中度排序取 Top10/Bottom10。</p>
+<p><b>国家队资金</b> = 宽基ETF（沪深300/上证50/中证500）成交合计为入市代理；主力资金来自全市场主力净流入；北向为参考值（披露规则调整后部分日期净买额为0）。</p>
+<p><b>数据源</b>：东方财富公开接口（akshare免费源），盘后 16:15 自动刷新。历史窗口 2026-10-12 → 2026-11-09。</p>
+<p><b>局限</b>：换手率代理无法区分量化/非量化资金；ETF成交额含机构与散户；个股历史为逐股回填（新板块首日可能缺早期点）。</p>
+</div></section>
+<div class="footer">quant-ratio v3 · akshare 免费数据源 · 盘后自动刷新</div>
+</div></body></html>
