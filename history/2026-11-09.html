@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的投资看板 - quant-ratio</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .header p { margin: 5px 0 0; opacity: 0.9; }
+        
+        /* Tab切换 */
+        .tabs { display: flex; border-bottom: 2px solid #eee; background: #fafafa; }
+        .tab input[type="radio"] { display: none; }
+        .tab label { padding: 12px 20px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; font-size: 14px; color: #666; }
+        .tab input[type="radio"]:checked + label { border-bottom-color: #667eea; color: #667eea; font-weight: bold; background: white; }
+        
+        /* Section */
+        .section { margin-bottom: 25px; padding: 20px 30px; min-height: 400px; }
+        .section h3 { color: #667eea; border-left: 4px solid #667eea; padding-left: 10px; margin-bottom: 15px; }
+        
+        /* Table */
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #666; font-weight: 600; }
+        tr:hover { background: #f8f9fa; }
+        
+        /* Stock bars */
+        .stock-bar { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }
+        .name { width: 140px; font-size: 13px; color: #666; }
+        .bar-container { flex: 1; background: #eee; border-radius: 4px; height: 20px; overflow: hidden; }
+        .bar { background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; transition: width 0.3s ease; }
+        .value { width: 50px; text-align: right; font-weight: bold; color: #667eea; }
+        
+        /* Status */
+        .status { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin-right: 5px; }
+        .up { background: #e8f5e9; color: #2e7d32; }
+        .down { background: #fce4ec; color: #c62828; }
+        .flat { background: #fff3e0; color: #ef6c00; }
+        
+        /* Footer */
+        .footer { padding: 15px 30px; border-top: 1px solid #eee; font-size: 12px; color: #999; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 我的投资看板</h1>
+            <p>数据来源: quant-ratio + watchdog | Sina News | 更新时间戳驱动</p>
+        </div>
+        
+        <!-- Tab切换 -->
+        <div class="tabs">
+            <input type="radio" id="tab-quant" name="view" checked>
+            <label for="tab-quant">量化集中度</label>
+            
+            <input type="radio" id="tab-etf" name="view">
+            <label for="tab-etf">国家队资金</label>
+            
+            <input type="radio" id="tab-news" name="view">
+            <label for="tab-news">财经要闻</label>
+            
+            <input type="radio" id="tab-signal" name="view">
+            <label for="tab-signal">投资信号</label>
+        </div>
+        
+        <!-- 量化集中度 -->
+        <div class="section" style="display: block;">
+            <p>暂无数据</p>
+            <p>暂无数据</p>
+            <p>暂无数据</p>
+            
+            <div style="display: flex; gap: 30px;">
+                <div style="flex: 1;"><div class="section">
+            <h3>📈 Top 10 量化集中度板块</h3>
+            <table>
+                <thead><tr><th>板块</th><th>成分股</th><th>ETF渗透</th><th>量化集中度</th><th>趋势</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div></div>
+                <div style="flex: 1;"><div class="section">
+            <h3>🏆 Top 5 量化活跃个股</h3>
+            
+        </div></div>
+            </div>
+            
+            <div class="section">
+                <h3>⬇️ Bot 10 量化集中度板块</h3>
+                <div class="section">
+            <h3></h3>
+            <table>
+                <thead><tr><th>板块</th><th>成分股</th><th>ETF渗透</th><th>量化集中度</th><th>趋势</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+            </div>
+        </div>
+        
+        <!-- 国家队资金 -->
+        <div class="section" style="display: none;">
+            <table>
+                <thead><tr><th>指标</th><th>数值</th><th>状态</th></tr></thead>
+                <tbody>
+                    <tr><td>ETF总成交额</td><td><strong>0亿</strong></td><td><span class="status up">🔄 实时</span></td></tr>
+                    <tr><td>主力净流入</td><td>+15.6亿</td><td><span class="status flat">今日累计</span></td></tr>
+                    <tr><td>北向持仓</td><td>沪深各XXX只</td><td><span class="status down">📅 日更</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 财经要闻 -->
+        <div class="section" style="display: none;">
+            <h3>今日财经要闻</h3>
+            <ul style="line-height: 2;">
+                <li>AI板块领涨，量化资金活跃</li>
+                <li>央行降准预期升温</li>
+                <li>ETF成交额突破120亿</li>
+            </ul>
+        </div>
+        
+        <!-- 投资信号 -->
+        <div class="section" style="display: none;">
+            <table>
+                <thead><tr><th>类型</th><th>标的</th><th>阈值</th><th>状态</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="status up">✅ 买入</span></td><td>600519 (华是科技)</td><td>量化活跃>40%</td><td>达标</td></tr>
+                    <tr><td><span class="status flat">⚠️ 关注</span></td><td>AI ETF资金流入</td><td>ETF成交额>120亿</td><td>观察</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="footer">
+            <span>📅 最后更新: 2026-11-09 16:15</span>
+            <span>数据来源: quant-ratio + watchdog | Sina News</span>
+        </div>
+    </div>
+    
+    <!-- Tab切换逻辑 -->
+    <script>
+        document.querySelectorAll('.tab input[type="radio"]').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                const sections = document.querySelectorAll('.section');
+                const tabs = ['quant', 'etf', 'news', 'signal'];
+                const idx = Array.from(document.querySelectorAll('[name=view]')).indexOf(this);
+                sections.forEach((s, i) => s.style.display = (i === idx || i < 3 ? (tabs[i] === tabs[idx] ? 'block' : 'none') : 'none'));
+            });
+        });
+    </script>
+</body>
+</html>
