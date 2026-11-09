@@ -95,7 +95,7 @@ def _sparkline(series, width=280, height=46):
     """series: [{date, active_ratio_pct|amt_yi}] → 内联SVG折线 (None值留空隙)"""
     if not series:
         return '<span class="dash">—</span>'
-    vals = [p.get('active_ratio_pct', p.get('amt_yi')) for p in series]
+    vals = [p.get('active_ratio_pct', p.get('amt_yi', p.get('net_yi'))) for p in series]
     nums = [v for v in vals if v is not None]
     if not nums:
         return f'<svg class="spark" width="{width}" height="{height}"><line x1="0" y1="{height/2}" x2="{width}" y2="{height/2}" stroke="#ddd" stroke-dasharray="4,3"/></svg>'
@@ -183,7 +183,7 @@ def render_module1(d):
     return (f"""<section class="section">
 <h2>① 量化集中度 <span style="font-size:12px;color:#90a4ae;font-weight:400">（成分股换手率&gt;{d.get('active_threshold_pct',3)}%占比 · 历史趋势为该指标本身）</span></h2>
 <div class="sub">排名门槛：成分股≥{d.get('min_sector_stocks','—')}只 | 全市场 {d.get('sector_universe_size','—')} 个行业板块参与扫描</div>
-<input type="radio" name="mtab" id="tab-a" checked><input type="radio" name="mtab" id="tab-b"><input type="radio" name="mtab" id="tab-c">
+<input class="tab-radio" type="radio" name="mtab" id="tab-a" checked><input class="tab-radio" type="radio" name="mtab" id="tab-b"><input class="tab-radio" type="radio" name="mtab" id="tab-c">
 <div class="tabs">{tabs}</div>
 <div class="panes">{panes}</div>
 </section>""")
