@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""quant-ratio AI板块量化集中度 HTML 渲染脚本"""
+"""quant-ratio 投资看板 HTML 渲染 v2（匹配 quant_data.json 新结构）
 
-import sys
-sys.path.insert(0, "/Users/jren/.hermes/skills/quant-ratio/scripts")
-sys.path.insert(0, "/Users/jren/projects/hermes-dashboard")
+页面: dashboard_investment.html + history/{theme}_{date}.html
+无硬编码 fallback — 数据缺失显示 "—"，不伪造数值。
+index.html 是监控页（勿动），投资看板独立成文件。
+"""
 
 import json
 import os
@@ -11,7 +12,8 @@ from datetime import date
 
 DASHBOARD_PATH = "/Users/jren/projects/hermes-dashboard"
 HISTORY_DIR = os.path.join(DASHBOARD_PATH, "history")
-DATA_FILE = os.path.join(DASHBOARD_PATH, "data.json")
+DATA_FILE = os.path.join(DASHBOARD_PATH, "quant_data.json")  # v2: 独立数据文件
+
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -19,270 +21,199 @@ def load_data():
             return json.load(f)
     return {}
 
+
+CSS = """
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+.container { max-width: 960px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+.header { background: #1a1a2e; color: white; padding: 20px 24px; }
+.header h1 { margin: 0 0 6px 0; font-size: 20px; }
+.header .meta { font-size: 13px; opacity: 0.75; }
+.section { padding: 20px 24px; border-bottom: 1px solid #eee; }
+.section h2 { font-size: 16px; margin: 0 0 14px 0; color: #333; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+th { background: #fafafa; color: #666; font-weight: 600; white-space: nowrap; }
+tr:hover td { background: #f9f9ff; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+.badge-high { background: #e8f5e9; color: #2e7d32; }
+.badge-mid { background: #fff8e1; color: #f57f17; }
+.badge-low { background: #fafafa; color: #757575; }
+input.tab-radio { display: none; }
+.tab-labels { display: flex; gap: 4px; margin-bottom: 0; border-bottom: 2px solid #e8e8e8; }
+.tab-labels label { display: inline-block; padding: 8px 16px; cursor: pointer; background: #f5f5f5; font-size: 13px; color: #666; border-radius: 6px 6px 0 0; margin-right: 2px; }
+.panes .tab-pane { display: none; padding: 14px 4px; }
+#tab-0:checked ~ .tab-labels label[for="tab-0"],
+#tab-1:checked ~ .tab-labels label[for="tab-1"],
+#tab-2:checked ~ .tab-labels label[for="tab-2"],
+#tab-3:checked ~ .tab-labels label[for="tab-3"] { background: white; color: #1a73e8; font-weight: 600; }
+#tab-0:checked ~ .panes #pane-0,
+#tab-1:checked ~ .panes #pane-1,
+#tab-2:checked ~ .panes #pane-2,
+#tab-3:checked ~ .panes #pane-3 { display: block; }
+.methodology { font-size: 12px; color: #888; line-height: 1.7; }
+.methodology code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px; }
+.footer { padding: 16px 24px; font-size: 12px; color: #999; text-align: center; }
+.dash { color: #bbb; }
+"""
+
+
+def _fmt(v, suffix="", default="—"):
+    if v is None or v == "":
+        return f'<span class="dash">{default}</span>'
+    return f"{v}{suffix}"
+
+
+def render_sector_table(sectors):
+    rows = ""
+    for s in sorted(sectors, key=lambda x: x.get('综合评分', 0), reverse=True):
+        rating = s.get('评级', '')
+        badge_cls = {'高': 'badge-high', '中': 'badge-mid'}.get(rating, 'badge-low')
+        rows += f"""<tr>
+            <td><strong>{s['板块']}</strong></td>
+            <td class="num">{_fmt(s.get('成分股数'), '只')}</td>
+            <td class="num">{_fmt(s.get('量化活跃占比%'), '%')} ({_fmt(s.get('量化活跃股数'), '只')})</td>
+            <td class="num">{_fmt(s.get('板块换手率%'), '%')}</td>
+            <td>{s.get('趋势', '—')} {_fmt(s.get('换手变化%'), '%')}</td>
+            <td class="num">{_fmt(s.get('ETF数'), '只')} / {_fmt(s.get('ETF成交亿'), '亿')}</td>
+            <td class="num"><strong>{_fmt(s.get('综合评分'))}</strong></td>
+            <td><span class="badge {badge_cls}">{rating or '—'}</span></td>
+        </tr>"""
+    return f"""<div class="section">
+        <h2>① 量化集中度排名（AI相关板块）</h2>
+        <table>
+            <thead><tr><th>板块</th><th class="num">成分股</th><th class="num">量化活跃占比</th><th class="num">板块换手率(3日均)</th><th>趋势</th><th class="num">相关ETF/成交</th><th class="num">综合评分</th><th>评级</th></tr></thead>
+            <tbody>{rows}</tbody>
+        </table>
+    </div>"""
+
+
+def render_trend_table(sectors):
+    # 近5日：日期 × 板块 的换手率透视表（hist_em 真实历史）
+    dates = []
+    for s in sectors:
+        for d in s.get('近5日', []):
+            if d['日期'] not in dates:
+                dates.append(d['日期'])
+    dates.sort()
+
+    if not dates:
+        return ""
+
+    head = "".join(f'<th class="num">{d[-5:]}</th>' for d in dates)
+    rows = ""
+    for s in sorted(sectors, key=lambda x: x.get('综合评分', 0), reverse=True):
+        by_date = {d['日期']: d for d in s.get('近5日', [])}
+        cells = "".join(f'<td class="num">{by_date[d]["换手率%"]}%</td>' if d in by_date else '<td class="num"><span class="dash">—</span></td>' for d in dates)
+        rows += f"<tr><td><strong>{s['板块']}</strong></td>{cells}</tr>"
+
+    return f"""<div class="section">
+        <h2>② 近5日换手率趋势（%）</h2>
+        <table>
+            <thead><tr><th>板块</th>{head}</tr></thead>
+            <tbody>{rows}</tbody>
+        </table>
+    </div>"""
+
+
+def render_stock_tabs(sectors):
+    tabs, panes = [], []
+    ordered = sorted(sectors, key=lambda x: x.get('综合评分', 0), reverse=True)
+    for i, s in enumerate(ordered):
+        checked = "checked" if i == 0 else ""
+        tabs.append(f'<input class="tab-radio" type="radio" name="stk" id="tab-{i}" {checked}><label for="tab-{i}">{s["板块"]}</label>')
+
+        def stock_table(rows, title):
+            body = "".join(
+                f"<tr><td>{r['名称']} <span style='color:#aaa;font-size:11px'>{r['代码']}</span></td>"
+                f"<td class='num'><strong>{r['换手率%']}%</strong></td>"
+                f"<td class='num'>{r['成交额亿']}亿</td></tr>"
+                for r in rows)
+            return (f"<h3 style='font-size:14px;margin:8px 0'>🔥 {title}</h3>"
+                    f"<table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead>"
+                    f"<tbody>{body or '<tr><td colspan=3><span class=dash>—</span></td></tr>'}</tbody></table>")
+
+        panes.append(f"""<div class="tab-pane" id="pane-{i}">
+            {stock_table(s.get('top5_stocks', []), 'Top 5 最活跃（当日换手率）')}
+            {stock_table(s.get('bottom5_stocks', []), 'Bottom 5 低活跃参考')}
+        </div>""")
+
+    return f"""<div class="section">
+        <h2>③ 个股活跃度明细</h2>
+        {''.join(tabs)}
+        <div class="tab-labels"></div>
+        <div class="panes">{''.join(panes)}</div>
+    </div>"""
+
+
+def render_methodology(data):
+    thr = data.get('active_threshold_pct', 3.0)
+    return f"""<div class="section">
+        <h2>口径说明</h2>
+        <div class="methodology">
+            • <strong>量化活跃股占比</strong> = 成分股中当日换手率 &gt; {thr}% 的个股比例（数据源: stock_board_industry_cons_em，东方财富）<br>
+            • <strong>板块换手率(3日均)</strong> = 近3个交易日均值；趋势 = 近3日均 vs 前3日均变化（数据源: stock_board_industry_hist_em 真实历史）<br>
+            • <strong>相关ETF</strong> = ETF名称含板块关键词的基金数与当日成交额合计（计算机=人工智能/AI/算力/大数据/云计算/软件；电子=芯片；通信设备=通信/5G；半导体=半导体），按代码去重<br>
+            • <strong>综合评分(0-100)</strong> = 40×min(1,活跃占比/35%) + 30×min(1,板块换手率/5%) + 20×min(1,ETF成交亿/20) + 10×min(1,ETF数/30)<br>
+            • <strong>评级</strong>: ≥60 高 / 40-60 中 / &lt;40 低<br>
+            • 综合评分为透明公式的代理指标（非直接持仓数据），用于板块间横向对比，绝对值参考意义有限
+        </div>
+    </div>"""
+
+
 def generate_html(data):
-    # 兼容顶层数据和嵌套的 quant_ratio
-    if 'quant_ratio' in data:
-        qr = data['quant_ratio']
+    sectors = data.get('sectors', [])
+
+    if not sectors:
+        body = '<div class="section"><h2>⚠️ 暂无数据</h2><p style="color:#888;font-size:13px">quant_data.json 未生成或为空。请运行 collect_quant_ratio.py。</p></div>'
     else:
-        qr = data
-    
-    trends = qr.get('trends', {})
-    
-    # 如果数据在顶层，直接取；如果在 quant_ratio 下则从 qr 中取
-    top10 = data.get('top10_sectors', []) if 'quant_ratio' not in data else qr.get('top10_sectors', [])
-    bot10 = data.get('bot10_sectors', []) if 'quant_ratio' not in data else qr.get('bot10_sectors', [])
-    top5 = data.get('top5_stocks', []) if 'quant_ratio' not in data else qr.get('top5_stocks', [])
-    bottom5 = data.get('bottom5_stocks', []) if 'quant_ratio' not in data else qr.get('bottom5_stocks', [])
-    
-    # 顶层字段（当数据在顶层时）
-    ai_components = data.get('ai_components') or qr.get('ai_components', 360)
-    ai_etfs_count = data.get('ai_etfs_count') or qr.get('ai_etfs_count', 57)
-    avg_turnover = data.get('avg_turnover') or qr.get('avg_turnover', 5.31)
-    total_etf_amount = data.get('total_etf_amount') or qr.get('total_etf_amount', 41.98)
-    
-    def render_sector_table(sectors, title):
-        rows = ""
-        for s in sectors:
-            rank = len(rows.split('<tr>')) // 2 + 1
-            medal = "🥇" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else f"{rank}"))
-            rows += f"""<tr>
-                <td>{medal} {s['板块']}</td>
-                <td>{s['成分股数']}只</td>
-                <td>{s['ETF渗透率']}只</td>
-                <td><strong>{s['量化集中度%']}%</strong></td>
-                <td>{s['趋势']}</td>
-            </tr>"""
-        return f"""<div class="section">
-            <h3>{title}</h3>
-            <table>
-                <thead><tr><th>板块</th><th>成分股</th><th>ETF渗透</th><th>量化集中度</th><th>趋势</th></tr></thead>
-                <tbody>{rows}</tbody>
-            </table>
-        </div>"""
-    
-    def render_stock_bars(stocks, title):
-        bars = ""
-        for s in stocks:
-            turnover = s.get('换手率', 0) or 0
-            bar_width = min(100, max(5, turnover * 4))
-            code = s.get('代码', '')
-            name = s.get('名称', '')
-            bars += f"""<div class="stock-bar">
-                <span class="name">{code} {name}</span>
-                <div class="bar-container">
-                    <div class="bar" style="width: {bar_width}%"></div>
-                </div>
-                <span class="value">{turnover}%</span>
-            </div>"""
-        return f"""<div class="section">
-            <h3>{title}</h3>
-            {bars}
-        </div>"""
-    
-    def render_trend_comparison(trends, days_label):
-        if not trends:
-            return '<p>暂无数据</p>'
-        
-        rows = ""
-        for t in trends[:5]:
-            date_str = str(t.get('date', ''))
-            ai_comp = t.get('ai_components', '-')
-            avg_tr = t.get('avg_turnover', '-')
-            etf_amt = t.get('etf_amount', '-')
-            
-            vs_prev = ""
-            if t.get('vs_prev'):
-                vp = t['vs_prev']
-                vs_prev = f"<span class='vs'>前日: 成分股{vp['ai_components']}|换手率{vp['avg_turnover']}%|ETF额{vp['etf_amount']}亿</span>"
-            
-            rows += f"""<tr>
-                <td>{date_str}</td>
-                <td>{ai_comp}只</td>
-                <td>{avg_tr}%</td>
-                <td>{etf_amt}亿</td>
-                <td>{vs_prev}</td>
-            </tr>"""
-        
-        return f"""<div class="section">
-            <h3>{days_label}趋势对比</h3>
-            <table>
-                <thead><tr><th>日期</th><th>AI成分股</th><th>平均换手率</th><th>ETF成交额</th><th>前日变化</th></tr></thead>
-                <tbody>{rows}</tbody>
-            </table>
-        </div>"""
-    
-    html = f"""<!DOCTYPE html>
+        body = (render_sector_table(sectors) + render_trend_table(sectors)
+                + render_stock_tabs(sectors) + render_methodology(data))
+
+    return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的投资看板 - quant-ratio</title>
-    <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
-        .container {{ max-width: 900px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }}
-        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; }}
-        .header h1 {{ margin: 0; font-size: 24px; }}
-        .header p {{ margin: 5px 0 0; opacity: 0.9; }}
-        
-        /* Tab切换 */
-        .tabs {{ display: flex; border-bottom: 2px solid #eee; background: #fafafa; }}
-        .tab input[type="radio"] {{ display: none; }}
-        .tab label {{ padding: 12px 20px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; font-size: 14px; color: #666; }}
-        .tab input[type="radio"]:checked + label {{ border-bottom-color: #667eea; color: #667eea; font-weight: bold; background: white; }}
-        
-        /* Section */
-        .section {{ margin-bottom: 25px; padding: 20px 30px; min-height: 400px; }}
-        .section h3 {{ color: #667eea; border-left: 4px solid #667eea; padding-left: 10px; margin-bottom: 15px; }}
-        
-        /* Table */
-        table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
-        th, td {{ padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }}
-        th {{ background: #f8f9fa; color: #666; font-weight: 600; }}
-        tr:hover {{ background: #f8f9fa; }}
-        
-        /* Stock bars */
-        .stock-bar {{ display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }}
-        .name {{ width: 140px; font-size: 13px; color: #666; }}
-        .bar-container {{ flex: 1; background: #eee; border-radius: 4px; height: 20px; overflow: hidden; }}
-        .bar {{ background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; transition: width 0.3s ease; }}
-        .value {{ width: 50px; text-align: right; font-weight: bold; color: #667eea; }}
-        
-        /* Status */
-        .status {{ display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin-right: 5px; }}
-        .up {{ background: #e8f5e9; color: #2e7d32; }}
-        .down {{ background: #fce4ec; color: #c62828; }}
-        .flat {{ background: #fff3e0; color: #ef6c00; }}
-        
-        /* Footer */
-        .footer {{ padding: 15px 30px; border-top: 1px solid #eee; font-size: 12px; color: #999; display: flex; justify-content: space-between; }}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的投资看板 · 量化集中度</title>
+<style>{CSS}</style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📊 我的投资看板</h1>
-            <p>数据来源: quant-ratio + watchdog | Sina News | 更新时间戳驱动</p>
-        </div>
-        
-        <!-- Tab切换 -->
-        <div class="tabs">
-            <input type="radio" id="tab-quant" name="view" checked>
-            <label for="tab-quant">量化集中度</label>
-            
-            <input type="radio" id="tab-etf" name="view">
-            <label for="tab-etf">国家队资金</label>
-            
-            <input type="radio" id="tab-news" name="view">
-            <label for="tab-news">财经要闻</label>
-            
-            <input type="radio" id="tab-signal" name="view">
-            <label for="tab-signal">投资信号</label>
-        </div>
-        
-        <!-- 量化集中度 -->
-        <div class="section" style="display: block;">
-            {render_trend_comparison(trends.get('5d', []), '5日')}
-            {render_trend_comparison(trends.get('10d', []), '10日')}
-            {render_trend_comparison(trends.get('20d', []), '20日')}
-            
-            <div style="display: flex; gap: 30px;">
-                <div style="flex: 1;">{render_sector_table(top10, '📈 Top 10 量化集中度板块')}</div>
-                <div style="flex: 1;">{render_stock_bars(top5, '🏆 Top 5 量化活跃个股')}</div>
-            </div>
-            
-            <div class="section">
-                <h3>⬇️ Bot 10 量化集中度板块</h3>
-                {render_sector_table(bot10, '')}
-            </div>
-        </div>
-        
-        <!-- 国家队资金 -->
-        <div class="section" style="display: none;">
-            <table>
-                <thead><tr><th>指标</th><th>数值</th><th>状态</th></tr></thead>
-                <tbody>
-                    <tr><td>ETF总成交额</td><td><strong>{total_etf_amount}亿</strong></td><td><span class="status up">🔄 实时</span></td></tr>
-                    <tr><td>主力净流入</td><td>+{qr.get('main_flow', 15.6)}亿</td><td><span class="status flat">今日累计</span></td></tr>
-                    <tr><td>北向持仓</td><td>{qr.get('north_hold', '沪深各XXX只')}</td><td><span class="status down">📅 日更</span></td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- 财经要闻 -->
-        <div class="section" style="display: none;">
-            <h3>今日财经要闻</h3>
-            <ul style="line-height: 2;">
-                <li>AI板块领涨，量化资金活跃</li>
-                <li>央行降准预期升温</li>
-                <li>ETF成交额突破120亿</li>
-            </ul>
-        </div>
-        
-        <!-- 投资信号 -->
-        <div class="section" style="display: none;">
-            <table>
-                <thead><tr><th>类型</th><th>标的</th><th>阈值</th><th>状态</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="status up">✅ 买入</span></td><td>600519 (华是科技)</td><td>量化活跃>40%</td><td>达标</td></tr>
-                    <tr><td><span class="status flat">⚠️ 关注</span></td><td>AI ETF资金流入</td><td>ETF成交额>120亿</td><td>观察</td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="footer">
-            <span>📅 最后更新: {str(date.today())} 16:15</span>
-            <span>数据来源: quant-ratio + watchdog | Sina News</span>
-        </div>
+<div class="container">
+    <div class="header">
+        <h1>📊 我的投资看板 · AI相关板块量化集中度</h1>
+        <div class="meta">数据日期: {data.get('date', '—')} | 生成时间: {data.get('generated_at', '—')} | 日更（每日16:15盘后）| AI相关ETF(去重): {_fmt(data.get('ai_etf_union_count'), '只')}</div>
     </div>
-    
-    <!-- Tab切换逻辑 -->
-    <script>
-        document.querySelectorAll('.tab input[type="radio"]').forEach(function(radio) {{
-            radio.addEventListener('change', function() {{
-                const sections = document.querySelectorAll('.section');
-                const tabs = ['quant', 'etf', 'news', 'signal'];
-                const idx = Array.from(document.querySelectorAll('[name=view]')).indexOf(this);
-                sections.forEach((s, i) => s.style.display = (i === idx || i < 3 ? (tabs[i] === tabs[idx] ? 'block' : 'none') : 'none'));
-            }});
-        }});
-    </script>
+    {body}
+    <div class="footer">quant-ratio v2 · 数据源: akshare (东方财富) · 所有数值为真实接口返回值</div>
+</div>
 </body>
 </html>"""
-    
-    return html
+
 
 def render_main_index(data):
+    """投资看板主页面 → dashboard_investment.html（index.html 是监控页，勿动）"""
     html = generate_html(data)
-    filepath = os.path.join(DASHBOARD_PATH, "index.html")
-    
+    filepath = os.path.join(DASHBOARD_PATH, "dashboard_investment.html")
     with open(filepath, 'w') as f:
         f.write(html)
-    
-    print(f"✅ 主看板已更新: {filepath}")
+    print(f"✅ 投资看板已渲染至 {filepath} ({os.path.getsize(filepath)} bytes)")
+
 
 def render_history(data, theme="quant"):
-    """渲染历史归档文件
-    
-    Args:
-        data: 数据字典（顶层或 quant_ratio 嵌套）
-        theme: 主题前缀，如 "quant", "national_team", "news"
-    
-    Returns:
-        filepath: 生成的 HTML 文件路径
-    """
+    """历史归档 → history/{theme}_{date}.html"""
     os.makedirs(HISTORY_DIR, exist_ok=True)
-    
+    html = generate_html(data)
     filename = f"{theme}_{date.today().strftime('%Y-%m-%d')}.html"
     filepath = os.path.join(HISTORY_DIR, filename)
-    
     with open(filepath, 'w') as f:
-        f.write(generate_html(data))
-    
-    print(f"✅ 历史归档已保存: {filepath}")
-    return filepath
+        f.write(html)
+    print(f"✅ 历史归档已渲染至 {filepath}")
+
 
 if __name__ == "__main__":
     data = load_data()
     render_main_index(data)
-    render_history(data)
-    print("\n=== quant-ratio HTML渲染完成 ===")
+    import sys
+    theme = sys.argv[1] if len(sys.argv) > 1 else "quant"
+    render_history(data, theme=theme)

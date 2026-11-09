@@ -1,230 +1,127 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的投资看板 - quant-ratio</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; }
-        .header h1 { margin: 0; font-size: 24px; }
-        .header p { margin: 5px 0 0; opacity: 0.9; }
-        
-        /* Tab切换 */
-        .tabs { display: flex; border-bottom: 2px solid #eee; background: #fafafa; }
-        .tab input[type="radio"] { display: none; }
-        .tab label { padding: 12px 20px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; font-size: 14px; color: #666; }
-        .tab input[type="radio"]:checked + label { border-bottom-color: #667eea; color: #667eea; font-weight: bold; background: white; }
-        
-        /* Section */
-        .section { margin-bottom: 25px; padding: 20px 30px; min-height: 400px; }
-        .section h3 { color: #667eea; border-left: 4px solid #667eea; padding-left: 10px; margin-bottom: 15px; }
-        
-        /* Table */
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #f8f9fa; color: #666; font-weight: 600; }
-        tr:hover { background: #f8f9fa; }
-        
-        /* Stock bars */
-        .stock-bar { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }
-        .name { width: 140px; font-size: 13px; color: #666; }
-        .bar-container { flex: 1; background: #eee; border-radius: 4px; height: 20px; overflow: hidden; }
-        .bar { background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; transition: width 0.3s ease; }
-        .value { width: 50px; text-align: right; font-weight: bold; color: #667eea; }
-        
-        /* Status */
-        .status { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin-right: 5px; }
-        .up { background: #e8f5e9; color: #2e7d32; }
-        .down { background: #fce4ec; color: #c62828; }
-        .flat { background: #fff3e0; color: #ef6c00; }
-        
-        /* Footer */
-        .footer { padding: 15px 30px; border-top: 1px solid #eee; font-size: 12px; color: #999; display: flex; justify-content: space-between; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的投资看板 · 量化集中度</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+.container { max-width: 960px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+.header { background: #1a1a2e; color: white; padding: 20px 24px; }
+.header h1 { margin: 0 0 6px 0; font-size: 20px; }
+.header .meta { font-size: 13px; opacity: 0.75; }
+.section { padding: 20px 24px; border-bottom: 1px solid #eee; }
+.section h2 { font-size: 16px; margin: 0 0 14px 0; color: #333; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+th { background: #fafafa; color: #666; font-weight: 600; white-space: nowrap; }
+tr:hover td { background: #f9f9ff; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+.badge-high { background: #e8f5e9; color: #2e7d32; }
+.badge-mid { background: #fff8e1; color: #f57f17; }
+.badge-low { background: #fafafa; color: #757575; }
+input.tab-radio { display: none; }
+.tab-labels { display: flex; gap: 4px; margin-bottom: 0; border-bottom: 2px solid #e8e8e8; }
+.tab-labels label { display: inline-block; padding: 8px 16px; cursor: pointer; background: #f5f5f5; font-size: 13px; color: #666; border-radius: 6px 6px 0 0; margin-right: 2px; }
+.panes .tab-pane { display: none; padding: 14px 4px; }
+#tab-0:checked ~ .tab-labels label[for="tab-0"],
+#tab-1:checked ~ .tab-labels label[for="tab-1"],
+#tab-2:checked ~ .tab-labels label[for="tab-2"],
+#tab-3:checked ~ .tab-labels label[for="tab-3"] { background: white; color: #1a73e8; font-weight: 600; }
+#tab-0:checked ~ .panes #pane-0,
+#tab-1:checked ~ .panes #pane-1,
+#tab-2:checked ~ .panes #pane-2,
+#tab-3:checked ~ .panes #pane-3 { display: block; }
+.methodology { font-size: 12px; color: #888; line-height: 1.7; }
+.methodology code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px; }
+.footer { padding: 16px 24px; font-size: 12px; color: #999; text-align: center; }
+.dash { color: #bbb; }
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📊 我的投资看板</h1>
-            <p>数据来源: quant-ratio + watchdog | Sina News | 更新时间戳驱动</p>
-        </div>
-        
-        <!-- Tab切换 -->
-        <div class="tabs">
-            <input type="radio" id="tab-quant" name="view" checked>
-            <label for="tab-quant">量化集中度</label>
-            
-            <input type="radio" id="tab-etf" name="view">
-            <label for="tab-etf">国家队资金</label>
-            
-            <input type="radio" id="tab-news" name="view">
-            <label for="tab-news">财经要闻</label>
-            
-            <input type="radio" id="tab-signal" name="view">
-            <label for="tab-signal">投资信号</label>
-        </div>
-        
-        <!-- 量化集中度 -->
-        <div class="section" style="display: block;">
-            <p>暂无数据</p>
-            <p>暂无数据</p>
-            <p>暂无数据</p>
-            
-            <div style="display: flex; gap: 30px;">
-                <div style="flex: 1;"><div class="section">
-            <h3>📈 Top 10 量化集中度板块</h3>
-            <table>
-                <thead><tr><th>板块</th><th>成分股</th><th>ETF渗透</th><th>量化集中度</th><th>趋势</th></tr></thead>
-                <tbody><tr>
-                <td>🥇 电子</td>
-                <td>523只</td>
-                <td>0只</td>
-                <td><strong>92.3%</strong></td>
-                <td>📈</td>
-            </tr><tr>
-                <td>🥈 计算机</td>
-                <td>360只</td>
-                <td>0只</td>
-                <td><strong>76.0%</strong></td>
-                <td>📈</td>
-            </tr><tr>
-                <td>🥈 半导体</td>
-                <td>188只</td>
-                <td>0只</td>
-                <td><strong>58.8%</strong></td>
-                <td>→</td>
-            </tr><tr>
-                <td>🥉 通信设备</td>
-                <td>94只</td>
-                <td>0只</td>
-                <td><strong>49.4%</strong></td>
-                <td>📉</td>
-            </tr></tbody>
-            </table>
+<div class="container">
+    <div class="header">
+        <h1>📊 我的投资看板 · AI相关板块量化集中度</h1>
+        <div class="meta">数据日期: 2026-11-09 | 生成时间: 2026-11-09 00:00 | 日更（每日16:15盘后）| AI相关ETF(去重): 158只</div>
+    </div>
+    <div class="section">
+        <h2>① 量化集中度排名（AI相关板块）</h2>
+        <table>
+            <thead><tr><th>板块</th><th class="num">成分股</th><th class="num">量化活跃占比</th><th class="num">板块换手率(3日均)</th><th>趋势</th><th class="num">相关ETF/成交</th><th class="num">综合评分</th><th>评级</th></tr></thead>
+            <tbody><tr>
+            <td><strong>电子</strong></td>
+            <td class="num">523只</td>
+            <td class="num">43.2% (226只)</td>
+            <td class="num">3.01%</td>
+            <td>📉 -11.3%</td>
+            <td class="num">34只 / 41.98亿</td>
+            <td class="num"><strong>88.1</strong></td>
+            <td><span class="badge badge-high">高</span></td>
+        </tr><tr>
+            <td><strong>通信设备</strong></td>
+            <td class="num">94只</td>
+            <td class="num">50.0% (47只)</td>
+            <td class="num">3.58%</td>
+            <td>📉 -6.8%</td>
+            <td class="num">19只 / 62.06亿</td>
+            <td class="num"><strong>87.8</strong></td>
+            <td><span class="badge badge-high">高</span></td>
+        </tr><tr>
+            <td><strong>半导体</strong></td>
+            <td class="num">188只</td>
+            <td class="num">41.5% (78只)</td>
+            <td class="num">3.67%</td>
+            <td>→ -4.8%</td>
+            <td class="num">15只 / 222.82亿</td>
+            <td class="num"><strong>87.0</strong></td>
+            <td><span class="badge badge-high">高</span></td>
+        </tr><tr>
+            <td><strong>计算机</strong></td>
+            <td class="num">360只</td>
+            <td class="num">25.6% (92只)</td>
+            <td class="num">2.54%</td>
+            <td>📉 -14.2%</td>
+            <td class="num">90只 / 50.7亿</td>
+            <td class="num"><strong>74.5</strong></td>
+            <td><span class="badge badge-high">高</span></td>
+        </tr></tbody>
+        </table>
+    </div><div class="section">
+        <h2>② 近5日换手率趋势（%）</h2>
+        <table>
+            <thead><tr><th>板块</th><th class="num">11-03</th><th class="num">11-04</th><th class="num">11-05</th><th class="num">11-06</th><th class="num">11-09</th></tr></thead>
+            <tbody><tr><td><strong>电子</strong></td><td class="num">3.03%</td><td class="num">3.92%</td><td class="num">3.68%</td><td class="num">2.85%</td><td class="num">2.5%</td></tr><tr><td><strong>通信设备</strong></td><td class="num">3.4%</td><td class="num">4.48%</td><td class="num">4.19%</td><td class="num">3.22%</td><td class="num">3.32%</td></tr><tr><td><strong>半导体</strong></td><td class="num">3.38%</td><td class="num">4.73%</td><td class="num">4.69%</td><td class="num">3.63%</td><td class="num">2.68%</td></tr><tr><td><strong>计算机</strong></td><td class="num">2.57%</td><td class="num">2.99%</td><td class="num">3.1%</td><td class="num">2.44%</td><td class="num">2.09%</td></tr></tbody>
+        </table>
+    </div><div class="section">
+        <h2>③ 个股活跃度明细</h2>
+        <input class="tab-radio" type="radio" name="stk" id="tab-0" checked><label for="tab-0">电子</label><input class="tab-radio" type="radio" name="stk" id="tab-1" ><label for="tab-1">通信设备</label><input class="tab-radio" type="radio" name="stk" id="tab-2" ><label for="tab-2">半导体</label><input class="tab-radio" type="radio" name="stk" id="tab-3" ><label for="tab-3">计算机</label>
+        <div class="tab-labels"></div>
+        <div class="panes"><div class="tab-pane" id="pane-0">
+            <h3 style='font-size:14px;margin:8px 0'>🔥 Top 5 最活跃（当日换手率）</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>新亚制程 <span style='color:#aaa;font-size:11px'>002388</span></td><td class='num'><strong>31.94%</strong></td><td class='num'>11.29亿</td></tr><tr><td>托伦斯 <span style='color:#aaa;font-size:11px'>301583</span></td><td class='num'><strong>25.2%</strong></td><td class='num'>7.96亿</td></tr><tr><td>国光电器 <span style='color:#aaa;font-size:11px'>002045</span></td><td class='num'><strong>19.58%</strong></td><td class='num'>11.25亿</td></tr><tr><td>燧原科技-U <span style='color:#aaa;font-size:11px'>688801</span></td><td class='num'><strong>17.21%</strong></td><td class='num'>12.55亿</td></tr><tr><td>先导基电 <span style='color:#aaa;font-size:11px'>600641</span></td><td class='num'><strong>16.73%</strong></td><td class='num'>50.46亿</td></tr></tbody></table>
+            <h3 style='font-size:14px;margin:8px 0'>🔥 Bottom 5 低活跃参考</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>*ST清越 <span style='color:#aaa;font-size:11px'>688496</span></td><td class='num'><strong>0.0%</strong></td><td class='num'>0.0亿</td></tr><tr><td>深纺织Ｂ <span style='color:#aaa;font-size:11px'>200045</span></td><td class='num'><strong>0.01%</strong></td><td class='num'>0.0亿</td></tr><tr><td>深华发Ｂ <span style='color:#aaa;font-size:11px'>200020</span></td><td class='num'><strong>0.04%</strong></td><td class='num'>0.0亿</td></tr><tr><td>龙腾光电 <span style='color:#aaa;font-size:11px'>688055</span></td><td class='num'><strong>0.21%</strong></td><td class='num'>0.21亿</td></tr><tr><td>京东方Ｂ <span style='color:#aaa;font-size:11px'>200725</span></td><td class='num'><strong>0.31%</strong></td><td class='num'>0.1亿</td></tr></tbody></table>
+        </div><div class="tab-pane" id="pane-1">
+            <h3 style='font-size:14px;margin:8px 0'>🔥 Top 5 最活跃（当日换手率）</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>通则康威 <span style='color:#aaa;font-size:11px'>301718</span></td><td class='num'><strong>46.49%</strong></td><td class='num'>8.78亿</td></tr><tr><td>宇特光电 <span style='color:#aaa;font-size:11px'>920157</span></td><td class='num'><strong>24.52%</strong></td><td class='num'>1.36亿</td></tr><tr><td>文峰光电 <span style='color:#aaa;font-size:11px'>920296</span></td><td class='num'><strong>18.98%</strong></td><td class='num'>0.96亿</td></tr><tr><td>长盈通 <span style='color:#aaa;font-size:11px'>688143</span></td><td class='num'><strong>12.61%</strong></td><td class='num'>17.56亿</td></tr><tr><td>通宇通讯 <span style='color:#aaa;font-size:11px'>002792</span></td><td class='num'><strong>10.7%</strong></td><td class='num'>10.26亿</td></tr></tbody></table>
+            <h3 style='font-size:14px;margin:8px 0'>🔥 Bottom 5 低活跃参考</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>*ST天喻 <span style='color:#aaa;font-size:11px'>300205</span></td><td class='num'><strong>0.16%</strong></td><td class='num'>0.03亿</td></tr><tr><td>宁通信B <span style='color:#aaa;font-size:11px'>200468</span></td><td class='num'><strong>0.22%</strong></td><td class='num'>0.01亿</td></tr><tr><td>东信Ｂ股 <span style='color:#aaa;font-size:11px'>900941</span></td><td class='num'><strong>0.51%</strong></td><td class='num'>0.01亿</td></tr><tr><td>大唐电信 <span style='color:#aaa;font-size:11px'>600198</span></td><td class='num'><strong>0.53%</strong></td><td class='num'>0.45亿</td></tr><tr><td>ST路通 <span style='color:#aaa;font-size:11px'>300555</span></td><td class='num'><strong>0.54%</strong></td><td class='num'>0.12亿</td></tr></tbody></table>
+        </div><div class="tab-pane" id="pane-2">
+            <h3 style='font-size:14px;margin:8px 0'>🔥 Top 5 最活跃（当日换手率）</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>托伦斯 <span style='color:#aaa;font-size:11px'>301583</span></td><td class='num'><strong>25.2%</strong></td><td class='num'>7.96亿</td></tr><tr><td>燧原科技-U <span style='color:#aaa;font-size:11px'>688801</span></td><td class='num'><strong>17.21%</strong></td><td class='num'>12.55亿</td></tr><tr><td>先导基电 <span style='color:#aaa;font-size:11px'>600641</span></td><td class='num'><strong>16.73%</strong></td><td class='num'>50.46亿</td></tr><tr><td>粤芯半导-U <span style='color:#aaa;font-size:11px'>301660</span></td><td class='num'><strong>14.82%</strong></td><td class='num'>10.04亿</td></tr><tr><td>敏芯股份 <span style='color:#aaa;font-size:11px'>688286</span></td><td class='num'><strong>14.61%</strong></td><td class='num'>8.37亿</td></tr></tbody></table>
+            <h3 style='font-size:14px;margin:8px 0'>🔥 Bottom 5 低活跃参考</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>格科微 <span style='color:#aaa;font-size:11px'>688728</span></td><td class='num'><strong>0.54%</strong></td><td class='num'>1.95亿</td></tr><tr><td>唯捷创芯 <span style='color:#aaa;font-size:11px'>688153</span></td><td class='num'><strong>0.54%</strong></td><td class='num'>0.5亿</td></tr><tr><td>龙芯中科 <span style='color:#aaa;font-size:11px'>688047</span></td><td class='num'><strong>0.56%</strong></td><td class='num'>2.1亿</td></tr><tr><td>华润微 <span style='color:#aaa;font-size:11px'>688396</span></td><td class='num'><strong>0.63%</strong></td><td class='num'>4.07亿</td></tr><tr><td>晶合集成 <span style='color:#aaa;font-size:11px'>688249</span></td><td class='num'><strong>0.69%</strong></td><td class='num'>3.89亿</td></tr></tbody></table>
+        </div><div class="tab-pane" id="pane-3">
+            <h3 style='font-size:14px;margin:8px 0'>🔥 Top 5 最活跃（当日换手率）</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>华是科技 <span style='color:#aaa;font-size:11px'>301218</span></td><td class='num'><strong>22.55%</strong></td><td class='num'>14.49亿</td></tr><tr><td>万兴科技 <span style='color:#aaa;font-size:11px'>300624</span></td><td class='num'><strong>20.52%</strong></td><td class='num'>18.99亿</td></tr><tr><td>丝路视觉 <span style='color:#aaa;font-size:11px'>300556</span></td><td class='num'><strong>14.41%</strong></td><td class='num'>2.93亿</td></tr><tr><td>海天瑞声 <span style='color:#aaa;font-size:11px'>688787</span></td><td class='num'><strong>13.33%</strong></td><td class='num'>10.62亿</td></tr><tr><td>索辰科技 <span style='color:#aaa;font-size:11px'>688507</span></td><td class='num'><strong>12.63%</strong></td><td class='num'>21.5亿</td></tr></tbody></table>
+            <h3 style='font-size:14px;margin:8px 0'>🔥 Bottom 5 低活跃参考</h3><table><thead><tr><th>个股</th><th class='num'>换手率</th><th class='num'>成交额</th></tr></thead><tbody><tr><td>ST智知 <span style='color:#aaa;font-size:11px'>603869</span></td><td class='num'><strong>0.15%</strong></td><td class='num'>0.06亿</td></tr><tr><td>宝信Ｂ <span style='color:#aaa;font-size:11px'>900926</span></td><td class='num'><strong>0.16%</strong></td><td class='num'>0.01亿</td></tr><tr><td>云赛Ｂ股 <span style='color:#aaa;font-size:11px'>900901</span></td><td class='num'><strong>0.16%</strong></td><td class='num'>0.0亿</td></tr><tr><td>曙光数创 <span style='color:#aaa;font-size:11px'>920808</span></td><td class='num'><strong>0.41%</strong></td><td class='num'>0.36亿</td></tr><tr><td>*ST网达 <span style='color:#aaa;font-size:11px'>603189</span></td><td class='num'><strong>0.42%</strong></td><td class='num'>0.1亿</td></tr></tbody></table>
         </div></div>
-                <div style="flex: 1;"><div class="section">
-            <h3>🏆 Top 5 量化活跃个股</h3>
-            <div class="stock-bar">
-                <span class="name">301218 经纬恒润-W</span>
-                <div class="bar-container">
-                    <div class="bar" style="width: 92.04%"></div>
-                </div>
-                <span class="value">23.01%</span>
-            </div><div class="stock-bar">
-                <span class="name">688004 经纬恒润-W</span>
-                <div class="bar-container">
-                    <div class="bar" style="width: 57.4%"></div>
-                </div>
-                <span class="value">14.35%</span>
-            </div><div class="stock-bar">
-                <span class="name">300209 经纬恒润-W</span>
-                <div class="bar-container">
-                    <div class="bar" style="width: 35.4%"></div>
-                </div>
-                <span class="value">8.85%</span>
-            </div><div class="stock-bar">
-                <span class="name">603138 经纬恒润-W</span>
-                <div class="bar-container">
-                    <div class="bar" style="width: 35.04%"></div>
-                </div>
-                <span class="value">8.76%</span>
-            </div><div class="stock-bar">
-                <span class="name">002376 经纬恒润-W</span>
-                <div class="bar-container">
-                    <div class="bar" style="width: 33.0%"></div>
-                </div>
-                <span class="value">8.25%</span>
-            </div>
-        </div></div>
-            </div>
-            
-            <div class="section">
-                <h3>⬇️ Bot 10 量化集中度板块</h3>
-                <div class="section">
-            <h3></h3>
-            <table>
-                <thead><tr><th>板块</th><th>成分股</th><th>ETF渗透</th><th>量化集中度</th><th>趋势</th></tr></thead>
-                <tbody><tr>
-                <td>🥇 通信设备</td>
-                <td>94只</td>
-                <td>0只</td>
-                <td><strong>49.4%</strong></td>
-                <td>📉</td>
-            </tr><tr>
-                <td>🥈 半导体</td>
-                <td>188只</td>
-                <td>0只</td>
-                <td><strong>58.8%</strong></td>
-                <td>→</td>
-            </tr><tr>
-                <td>🥈 计算机</td>
-                <td>360只</td>
-                <td>0只</td>
-                <td><strong>76.0%</strong></td>
-                <td>📈</td>
-            </tr><tr>
-                <td>🥉 电子</td>
-                <td>523只</td>
-                <td>0只</td>
-                <td><strong>92.3%</strong></td>
-                <td>📈</td>
-            </tr></tbody>
-            </table>
-        </div>
-            </div>
-        </div>
-        
-        <!-- 国家队资金 -->
-        <div class="section" style="display: none;">
-            <table>
-                <thead><tr><th>指标</th><th>数值</th><th>状态</th></tr></thead>
-                <tbody>
-                    <tr><td>ETF总成交额</td><td><strong>41.98亿</strong></td><td><span class="status up">🔄 实时</span></td></tr>
-                    <tr><td>主力净流入</td><td>+15.6亿</td><td><span class="status flat">今日累计</span></td></tr>
-                    <tr><td>北向持仓</td><td>沪深各XXX只</td><td><span class="status down">📅 日更</span></td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- 财经要闻 -->
-        <div class="section" style="display: none;">
-            <h3>今日财经要闻</h3>
-            <ul style="line-height: 2;">
-                <li>AI板块领涨，量化资金活跃</li>
-                <li>央行降准预期升温</li>
-                <li>ETF成交额突破120亿</li>
-            </ul>
-        </div>
-        
-        <!-- 投资信号 -->
-        <div class="section" style="display: none;">
-            <table>
-                <thead><tr><th>类型</th><th>标的</th><th>阈值</th><th>状态</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="status up">✅ 买入</span></td><td>600519 (华是科技)</td><td>量化活跃>40%</td><td>达标</td></tr>
-                    <tr><td><span class="status flat">⚠️ 关注</span></td><td>AI ETF资金流入</td><td>ETF成交额>120亿</td><td>观察</td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="footer">
-            <span>📅 最后更新: 2026-11-09 16:15</span>
-            <span>数据来源: quant-ratio + watchdog | Sina News</span>
+    </div><div class="section">
+        <h2>口径说明</h2>
+        <div class="methodology">
+            • <strong>量化活跃股占比</strong> = 成分股中当日换手率 &gt; 3.0% 的个股比例（数据源: stock_board_industry_cons_em，东方财富）<br>
+            • <strong>板块换手率(3日均)</strong> = 近3个交易日均值；趋势 = 近3日均 vs 前3日均变化（数据源: stock_board_industry_hist_em 真实历史）<br>
+            • <strong>相关ETF</strong> = ETF名称含板块关键词的基金数与当日成交额合计（计算机=人工智能/AI/算力/大数据/云计算/软件；电子=芯片；通信设备=通信/5G；半导体=半导体），按代码去重<br>
+            • <strong>综合评分(0-100)</strong> = 40×min(1,活跃占比/35%) + 30×min(1,板块换手率/5%) + 20×min(1,ETF成交亿/20) + 10×min(1,ETF数/30)<br>
+            • <strong>评级</strong>: ≥60 高 / 40-60 中 / &lt;40 低<br>
+            • 综合评分为透明公式的代理指标（非直接持仓数据），用于板块间横向对比，绝对值参考意义有限
         </div>
     </div>
-    
-    <!-- Tab切换逻辑 -->
-    <script>
-        document.querySelectorAll('.tab input[type="radio"]').forEach(function(radio) {
-            radio.addEventListener('change', function() {
-                const sections = document.querySelectorAll('.section');
-                const tabs = ['quant', 'etf', 'news', 'signal'];
-                const idx = Array.from(document.querySelectorAll('[name=view]')).indexOf(this);
-                sections.forEach((s, i) => s.style.display = (i === idx || i < 3 ? (tabs[i] === tabs[idx] ? 'block' : 'none') : 'none'));
-            });
-        });
-    </script>
+    <div class="footer">quant-ratio v2 · 数据源: akshare (东方财富) · 所有数值为真实接口返回值</div>
+</div>
 </body>
 </html>
