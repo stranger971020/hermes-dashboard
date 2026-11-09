@@ -56,6 +56,7 @@ tr:hover td { background: #f9f9ff; }
 .big-num { font-size:26px; font-weight:700; color:#263238; font-variant-numeric:tabular-nums; }
 .flow-grid { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
 .flow-box { border:1px solid #eee; border-radius:8px; padding:10px 16px; min-width:200px; flex:1; }
+.flow-box.primary { flex: 1 1 100%; border-color:#a5d6a7; background:#f7fcf7; }
 .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 .arc-list { display:flex; flex-wrap:wrap; gap:8px; }
 .arc { font-size:12.5px; color:#1a73e8; text-decoration:none; border:1px solid #e3f2fd; border-radius:6px; padding:4px 10px; white-space:nowrap; }
@@ -130,12 +131,12 @@ def render_module1(d):
         for p in tail)
 
     return f"""<section class="section">
-<h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">宽基ETF份额净申购（沪市，覆盖{etf.get('netbuy_coverage_pct','—')}%宽基份额）</span></h2>
+<h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span></h2>
 <div class="sub">{etf.get('netbuy_basis','')}</div>
 <div class="flow-grid">
-  <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b></div>
+  <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（国家队代理）</div>
     <span class="big-num {net_color}">{_fmt(net_today, '亿')}</span><br>{_sparkline(net, 'net_yi')}
-    <div style="font-size:10.5px;color:#bbb">份额变化×价格 ≈ 申购赎回净额</div></div>
+    <div style="font-size:10.5px;color:#bbb">份额变化×价格 ≈ 申购赎回净额；正=申购（资金进场），负=赎回</div></div>
   <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">主力资金今日净流入（全市场）</div>
     <span class="big-num {('up' if (main_today or 0) > 0 else 'down')}">{_fmt(main_today, '亿')}</span><br>{_sparkline(main_series, 'net_yi')}
     <div style="font-size:10.5px;color:#bbb">东财「超大单+大单」净额</div></div>
