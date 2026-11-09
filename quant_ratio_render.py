@@ -119,6 +119,8 @@ def render_module1(d):
     nb = flows.get('northbound') or {}
 
     net_today = etf.get('netbuy_today_yi')
+    last = net[-1] if net else {}
+    sh_today, sz_today = last.get('sh_yi'), last.get('sz_yi')
     main_today = main_series[-1].get('net_yi') if main_series else None
     main_map = {m['date']: m.get('net_yi') for m in main_series}
     tail = list(reversed(net[-10:]))
@@ -136,6 +138,7 @@ def render_module1(d):
 <div class="flow-grid">
   <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（国家队代理）</div>
     <span class="big-num {net_color}">{_fmt(net_today, '亿')}</span><br>{_sparkline(net, 'net_yi')}
+    <div style="font-size:11.5px;color:#607d8b;margin-top:4px">沪市 <b>{_fmt(sh_today)}</b>亿 · 深市 <b>{_fmt(sz_today if sz_today is not None else None, '', '次日起追踪')}</b>亿</div>
     <div style="font-size:10.5px;color:#bbb">份额变化×价格 ≈ 申购赎回净额；正=申购（资金进场），负=赎回</div></div>
   <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">主力资金今日净流入（全市场）</div>
     <span class="big-num {('up' if (main_today or 0) > 0 else 'down')}">{_fmt(main_today, '亿')}</span><br>{_sparkline(main_series, 'net_yi')}
@@ -232,8 +235,8 @@ def render_methodology(d):
 <p><b>主力净流入</b> = 东财全市场「超大单 + 大单」净额，按<b>单笔成交金额</b>分类，不代表机构身份；与"国家队"不是同一概念。</p>
 <p><b>信号</b> = 滚动分位：ETF净申购 ≥ 近20日80分位 → 国家队大额申购；主力净流入 |z|≥1 → 资金异动。北向停止披露，不计入。</p>
 <p><b>数据源</b>：akshare 免费接口（东财 / 上交所 ETF 份额），cron <code>15 16 * * *</code> 盘后刷新。历史窗口 {tw[0]} → {tw[-1]}。</p>
-<p><b>局限</b>：仅覆盖沪市宽基（占全市场宽基份额 85%），深市份额无历史接口；估算价用最新价，历史日净申购存在小幅估值误差；
-主力净流入按单笔金额分类，无法区分量化/机构/游资。</p>
+<p><b>局限</b>：沪市份额可取历史（交易所按日），深市无历史接口 —— 自 {d.get('etf', {}).get('sz_tracked_since', '—')} 起逐日快照累积（已 {d.get('etf', {}).get('sz_tracked_days', 0)} 日），
+首日深市无变化值；估算价用最新价，历史日净申购存在小幅估值误差；主力净流入按单笔金额分类，无法区分量化/机构/游资。</p>
 {f'<p><b>已下线模块：量化集中度</b> —— {off}。</p>' if off else ''}
 </div></section>"""
 

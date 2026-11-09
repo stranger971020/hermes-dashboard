@@ -40,13 +40,14 @@ tr:hover td { background: #f9f9ff; }
 .warn-note { background:#fff8e1; border-left:3px solid #ffb300; padding:8px 12px; font-size:12.5px; color:#6d4c00; margin:8px 0; border-radius:0 4px 4px 0; }
 </style></head><body>
 <div class="container">
-<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">2026-11-09 · 生成于 2026-11-09 22:33 · v5</div></div><span class="sig-badge sig-on">📢 1个信号触发</span></div>
+<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">2026-11-09 · 生成于 2026-11-09 22:40 · v5</div></div><span class="sig-badge sig-on">📢 1个信号触发</span></div>
 <section class="section">
 <h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span></h2>
-<div class="sub">沪市宽基ETF（67只）份额日变化 × 最新价，覆盖全市场宽基份额 85.2%</div>
+<div class="sub">宽基ETF份额净申购 = 沪市（交易所按日，67只，可回溯）+ 深市（交易所快照逐日累积，21只，自 2026-11-09 起，已 1 个快照日）× 最新价；当前覆盖 85.3% 宽基份额（深市自次日起可算变化）</div>
 <div class="flow-grid">
   <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（国家队代理）</div>
     <span class="big-num up">0.42亿</span><br><svg class="spark" width="280" height="46"><polyline points="17.6,33.4 31.2,36.1 44.8,21.5 58.4,24.6 72.0,29.6 85.6,30.5 99.2,32.4 112.8,22.8 126.4,18.4 140.0,25.1 153.6,30.9 167.2,33.8 180.8,33.4 194.4,30.3 208.0,22.6 221.6,9.9 235.2,22.3 248.8,34.0 262.4,33.5 276.0,34.9" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="34.9" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg>
+    <div style="font-size:11.5px;color:#607d8b;margin-top:4px">沪市 <b>0.42</b>亿 · 深市 <b><span class="dash">次日起追踪</span></b>亿</div>
     <div style="font-size:10.5px;color:#bbb">份额变化×价格 ≈ 申购赎回净额；正=申购（资金进场），负=赎回</div></div>
   <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">主力资金今日净流入（全市场）</div>
     <span class="big-num up">128.57亿</span><br><svg class="spark" width="280" height="46"><polyline points="4.0,28.6 17.6,22.8 31.2,28.9 44.8,34.7 58.4,21.9 72.0,23.4 85.6,23.7 99.2,22.8 112.8,34.6 126.4,20.8 140.0,26.9 153.6,31.1 167.2,15.8 180.8,36.1 194.4,29.5 208.0,18.3 221.6,33.3 235.2,9.9 248.8,19.0 262.4,32.3 276.0,18.0" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="18.0" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-09</text></svg>
@@ -74,8 +75,8 @@ tr:hover td { background: #f9f9ff; }
 <p><b>主力净流入</b> = 东财全市场「超大单 + 大单」净额，按<b>单笔成交金额</b>分类，不代表机构身份；与"国家队"不是同一概念。</p>
 <p><b>信号</b> = 滚动分位：ETF净申购 ≥ 近20日80分位 → 国家队大额申购；主力净流入 |z|≥1 → 资金异动。北向停止披露，不计入。</p>
 <p><b>数据源</b>：akshare 免费接口（东财 / 上交所 ETF 份额），cron <code>15 16 * * *</code> 盘后刷新。历史窗口 2026-10-12 → 2026-11-09。</p>
-<p><b>局限</b>：仅覆盖沪市宽基（占全市场宽基份额 85%），深市份额无历史接口；估算价用最新价，历史日净申购存在小幅估值误差；
-主力净流入按单笔金额分类，无法区分量化/机构/游资。</p>
+<p><b>局限</b>：沪市份额可取历史（交易所按日），深市无历史接口 —— 自 2026-11-09 起逐日快照累积（已 1 日），
+首日深市无变化值；估算价用最新价，历史日净申购存在小幅估值误差；主力净流入按单笔金额分类，无法区分量化/机构/游资。</p>
 <p><b>已下线模块：量化集中度</b> —— 2026-11-09 下线：换手率对未来20日收益/波动/回撤相关系数 -0.01~-0.06，无预测力。</p>
 </div></section>
 <div class="footer">quant-ratio v5 · akshare 免费数据源 · cron 15 16 * * * 盘后刷新</div>

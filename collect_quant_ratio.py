@@ -78,11 +78,30 @@ def get_trading_dates(today_iso):
 
 
 # ---------------- 国家队资金：ETF 份额净申购 ----------------
+SZ_CACHE = os.path.join(DASHBOARD_PATH, "cache", "etf_shares_szse.json")
+
+
+def _load_sz_cache():
+    try:
+        with open(SZ_CACHE) as f:
+            return json.load(f)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _save_sz_cache(cache):
+    os.makedirs(os.path.dirname(SZ_CACHE), exist_ok=True)
+    for d in sorted(cache)[:-60]:        # 只留最近 60 个快照日
+        cache.pop(d, None)
+    with open(SZ_CACHE, 'w') as f:
+        json.dump(cache, f, ensure_ascii=False)
+
+
 def collect_etf(trading_dates, today_iso):
     out = {'broad_count': None, 'broad_today_yi': None,
            'netbuy_series': [], 'netbuy_today_yi': None,
-           'netbuy_coverage_pct': None,
-           'netbuy_basis': '沪市宽基ETF（5开头）份额日变化 × 最新价，覆盖全市场宽基份额 N%',
+           'netbuy_coverage_pct': None, 'netbuy_basis': '',
+           'sz_tracked_days': 0, 'sz_tracked_since': None,
            'ai_union_count': None, 'ai_union_amt_yi': None}
 
     spot = _retry(ak.fund_etf_spot_em)
@@ -94,50 +113,106 @@ def collect_etf(trading_dates, today_iso):
 
     broad = [c for c, n in names.items() if any(k in n for k in BROAD_ETF_KEYWORDS)]
     sh_broad = [c for c in broad if c.startswith('5')]
+    sz_broad = [c for c in broad if not c.startswith('5')]
     out['broad_count'] = len(broad)
     out['broad_today_yi'] = round(sum(amt_today.get(c) or 0 for c in broad) / 1e8, 2)
 
-    tot = sum(shares_today.get(c) or 0 for c in broad)
-    tot_sh = sum(shares_today.get(c) or 0 for c in sh_broad)
-    out['netbuy_coverage_pct'] = round(tot_sh / tot * 100, 1) if tot else None
-    out['netbuy_basis'] = f"沪市宽基ETF（{len(sh_broad)}只）份额日变化 × 最新价，覆盖全市场宽基份额 {out['netbuy_coverage_pct']}%"
-
+    # 沪市：交易所按日份额（可回溯）
     def fetch_sh(d):
         try:
             df = _retry(ak.fund_etf_scale_sse, date=d.replace('-', ''))
             df.columns = ['序号', '代码', '简称', '类型', '统计日', '份额']
             return d, {str(c): _safe_float(v) for c, v in zip(df['代码'], df['份额'])}
         except Exception as e:  # noqa: BLE001
-            print(f"   ⚠️ 份额 {d} 获取失败: {e}")
+            print(f"   ⚠️ 沪市份额 {d} 获取失败: {e}")
             return d, None
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
         shares_by_date = {d: s for d, s in ex.map(fetch_sh, trading_dates) if s}
 
+    # 深市：交易所快照 + 本地逐日缓存（从首次运行那天起累积，无法回溯）
+    sz_cache = _load_sz_cache()
+    try:
+        szdf = _retry(ak.fund_etf_scale_szse)
+        szdf['基金代码'] = szdf['基金代码'].astype(str)
+        szset = set(sz_broad)
+        snap = {c: _safe_float(v) for c, v in zip(szdf['基金代码'], szdf['基金份额'])
+                if c in szset and _safe_float(v) is not None}
+        if snap:
+            sz_cache[today_iso] = snap
+            _save_sz_cache(sz_cache)
+        sh_snap = shares_by_date.get(today_iso) or {}
+        out['sz_tracked_days'] = len(sz_cache)
+        out['sz_tracked_since'] = min(sz_cache) if sz_cache else None
+    except Exception as e:  # noqa: BLE001
+        print(f"   ⚠️ 深市份额快照失败: {e}")
+        sh_snap = shares_by_date.get(today_iso) or {}
+
+    sz_dates = sorted(sz_cache)
+
+    def sz_delta(d):
+        """深市当日净申购（亿元）—— 需要缓存里有 d 与之前最近的快照"""
+        if d not in sz_cache:
+            return None
+        prevs = [x for x in sz_dates if x < d]
+        if not prevs:
+            return None
+        cur, prev = sz_cache[d], sz_cache[prevs[-1]]
+        amt = 0.0
+        for c, s1 in cur.items():
+            s0, px = prev.get(c), price.get(c)
+            if s0 is None or not px:
+                continue
+            amt += (s1 - s0) * px
+        return round(amt / 1e8, 2)
+
     netbuy = []
     for i, d in enumerate(trading_dates):
         cur = shares_by_date.get(d)
         prev = shares_by_date.get(trading_dates[i - 1]) if i > 0 else None
-        if not cur or not prev:
-            netbuy.append({'date': d, 'net_yi': None})
-            continue
-        amount = 0.0
-        for c in sh_broad:
-            s1, s0, px = cur.get(c), prev.get(c), price.get(c)
-            if s1 is None or s0 is None or not px:
-                continue
-            amount += (s1 - s0) * px
-        netbuy.append({'date': d, 'net_yi': round(amount / 1e8, 2)})
+        sh_amt = None
+        if cur and prev:
+            acc = 0.0
+            for c in sh_broad:
+                s1, s0, px = cur.get(c), prev.get(c), price.get(c)
+                if s1 is None or s0 is None or not px:
+                    continue
+                acc += (s1 - s0) * px
+            sh_amt = round(acc / 1e8, 2)
+        sz_amt = sz_delta(d)
+        if sh_amt is None and sz_amt is None:
+            netbuy.append({'date': d, 'net_yi': None, 'sh_yi': None, 'sz_yi': None})
+        else:
+            total = round((sh_amt or 0) + (sz_amt or 0), 2)
+            netbuy.append({'date': d, 'net_yi': total, 'sh_yi': sh_amt, 'sz_yi': sz_amt})
     out['netbuy_series'] = netbuy
     out['netbuy_today_yi'] = next((p['net_yi'] for p in netbuy if p['date'] == today_iso), None)
+    today_entry = next((p for p in netbuy if p['date'] == today_iso), None)
+
+    # 覆盖率 = 今日能算出「变化」的宽基份额 / 全市场宽基份额
+    # 深市要等到有前一日快照才能算变化，所以首日覆盖率=沪市占比（~85%），次日起 ~100%
+    tot = sum(shares_today.get(c) or 0 for c in broad)
+    cov_sh = sum(sh_snap.get(c) or 0 for c in sh_broad)
+    sz_countable = today_entry is not None and today_entry.get('sz_yi') is not None
+    cov_sz = sum((sz_cache.get(today_iso) or {}).get(c) or 0 for c in sz_broad) if sz_countable else 0
+    out['netbuy_coverage_pct'] = round((cov_sh + cov_sz) / tot * 100, 1) if tot else None
+    out['sz_delta_available'] = sz_countable
+    out['netbuy_basis'] = (
+        f"宽基ETF份额净申购 = 沪市（交易所按日，{len(sh_broad)}只，可回溯）+ "
+        f"深市（交易所快照逐日累积，{len(sz_broad)}只，自 {out['sz_tracked_since'] or today_iso} 起，"
+        f"已 {out['sz_tracked_days']} 个快照日）× 最新价；"
+        f"当前覆盖 {out['netbuy_coverage_pct']}% 宽基份额"
+        + ('' if sz_countable else '（深市自次日起可算变化）'))
 
     ai = [c for c, n in names.items() if any(k in n for k in AI_ETF_KEYWORDS)]
     out['ai_union_count'] = len(ai)
     out['ai_union_amt_yi'] = round(sum(amt_today.get(c) or 0 for c in ai) / 1e8, 2)
 
+    sz_today = next((p['sz_yi'] for p in netbuy if p['date'] == today_iso), None)
     print(f"✅ ETF: 宽基{len(broad)}只 今日成交{out['broad_today_yi']}亿 | "
-          f"沪市净申购 {out['netbuy_today_yi']}亿（覆盖{out['netbuy_coverage_pct']}%份额）| "
-          f"AI相关{out['ai_union_count']}只/{out['ai_union_amt_yi']}亿")
+          f"净申购 沪{next((p['sh_yi'] for p in netbuy if p['date'] == today_iso), None)}亿 + "
+          f"深{sz_today if sz_today is not None else '未积累'}亿 = {out['netbuy_today_yi']}亿 "
+          f"（覆盖{out['netbuy_coverage_pct']}%份额）")
     return out
 
 
