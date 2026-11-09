@@ -132,13 +132,14 @@ def render_module1(d):
         f'<td class="num">{_fmt(main_map.get(p.get("date")))}</td></tr>'
         for p in tail)
 
+    sz_txt = f"{sz_today}亿" if sz_today is not None else "次日起追踪"
     return f"""<section class="section">
 <h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span></h2>
 <div class="sub">{etf.get('netbuy_basis','')}</div>
 <div class="flow-grid">
   <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（国家队代理）</div>
     <span class="big-num {net_color}">{_fmt(net_today, '亿')}</span><br>{_sparkline(net, 'net_yi')}
-    <div style="font-size:11.5px;color:#607d8b;margin-top:4px">沪市 <b>{_fmt(sh_today)}</b>亿 · 深市 <b>{_fmt(sz_today if sz_today is not None else None, '', '次日起追踪')}</b>亿</div>
+    <div style="font-size:11.5px;color:#607d8b;margin-top:4px">沪市 <b>{_fmt(sh_today)}</b>亿 · 深市 <b>{sz_txt}</b></div>
     <div style="font-size:10.5px;color:#bbb">份额变化×价格 ≈ 申购赎回净额；正=申购（资金进场），负=赎回</div></div>
   <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">主力资金今日净流入（全市场）</div>
     <span class="big-num {('up' if (main_today or 0) > 0 else 'down')}">{_fmt(main_today, '亿')}</span><br>{_sparkline(main_series, 'net_yi')}
