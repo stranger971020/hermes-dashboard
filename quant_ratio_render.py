@@ -31,7 +31,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; m
 .header h1 { margin: 0 0 6px 0; font-size: 20px; }
 .header .meta { font-size: 13px; opacity: 0.75; }
 .sig-badge { display:inline-block; padding: 4px 12px; border-radius: 14px; font-size: 13px; font-weight:600; }
-.sig-on { background:#e8f5e9; color:#fff; } .sig-off { background:#eceff1; color:#607d8b; }
+.sig-on { background:#e8f5e9; color:#1b5e20; } .sig-off { background:#eceff1; color:#607d8b; }
 .section { padding: 20px 24px; border-bottom: 1px solid #eee; }
 .section h2 { font-size: 16px; margin: 0 0 4px 0; color: #333; }
 .section .sub { font-size: 12px; color:#999; margin-bottom: 12px; }
@@ -47,8 +47,8 @@ input.tab-radio { display: none; }
 .tabs { border-bottom: 2px solid #e8e8e8; margin-bottom: 14px; display:flex; gap:4px; flex-wrap:wrap; }
 .tabs label { padding: 8px 16px; cursor: pointer; background:#f5f5f5; font-size:13px; color:#666; border-radius:6px 6px 0 0; }
 .pane { display:none; }
-#tab-a:checked ~ .tabs label[for="tab-a"], #tab-b:checked ~ .tabs label[for="tab-b"], #tab-c:checked ~ .tabs label[for="tab-c"] { background:white; color:#1a73e8; font-weight:600; border-bottom:2px solid #1a73e8; }
-#tab-a:checked ~ .panes #pane-a, #tab-b:checked ~ .panes #pane-b, #tab-c:checked ~ .panes #pane-c { display:block; }
+#tab-a:checked ~ .tabs label[for="tab-a"], #tab-b:checked ~ .tabs label[for="tab-b"], #tab-c:checked ~ .tabs label[for="tab-c"], #tab-d:checked ~ .tabs label[for="tab-d"] { background:white; color:#1a73e8; font-weight:600; border-bottom:2px solid #1a73e8; }
+#tab-a:checked ~ .panes #pane-a, #tab-b:checked ~ .panes #pane-b, #tab-c:checked ~ .panes #pane-c, #tab-d:checked ~ .panes #pane-d { display:block; }
 .sector-card { border:1px solid #eee; border-radius:8px; padding:12px 16px; margin-bottom:14px; }
 .sector-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
 .sector-name { font-size:15px; font-weight:700; color:#263238; }
@@ -68,6 +68,13 @@ input.tab-radio { display: none; }
 .big-num { font-size:26px; font-weight:700; color:#263238; font-variant-numeric:tabular-nums; }
 .flow-grid { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
 .flow-box { border:1px solid #eee; border-radius:8px; padding:10px 16px; min-width:200px; flex:1; }
+.kpi-row b { font-size:14px; color:#263238; }
+.table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.stock-sub td:first-child, .stock-sub th:first-child { white-space:nowrap; }
+.arc-list { display:flex; flex-wrap:wrap; gap:8px; }
+.arc { font-size:12.5px; color:#1a73e8; text-decoration:none; border:1px solid #e3f2fd; border-radius:6px; padding:4px 10px; white-space:nowrap; }
+.arc:hover { background:#f3f8ff; }
+.warn-note { background:#fff8e1; border-left:3px solid #ffb300; padding:8px 12px; font-size:12.5px; color:#6d4c00; margin:8px 0; border-radius:0 4px 4px 0; }
 """
 
 
@@ -150,10 +157,16 @@ def _sector_card(s):
     etf_html = ""
     if s.get('相关ETF数') is not None:
         etf_html = f'<span>相关ETF <b>{s["相关ETF数"]}</b>只 / {_fmt(s.get("相关ETF成交亿"), "亿")}</span>'
+    n_all, n_tr = s.get('成分股数'), s.get('可交易股数')
+    universe_html = (f'成分股 {n_all}只 · 分母 {n_tr}只' if n_tr not in (None, n_all)
+                     else f'成分股 {n_all}只')
+    excl = (s.get('剔除B股') or 0) + (s.get('剔除停牌') or 0)
+    excl_html = (f'<span style="color:#b26a00">已剔 B股{s.get("剔除B股") or 0} / 停牌{s.get("剔除停牌") or 0}</span>'
+                 if excl else '')
     return f"""
 <div class="sector-card">
   <div class="sector-head">
-    <span class="sector-name">{s['板块']} <span style="font-weight:400;color:#90a4ae;font-size:12px">成分股 {s.get('成分股数','—')}只</span></span>
+    <span class="sector-name">{s['板块']} <span style="font-weight:400;color:#90a4ae;font-size:12px">{universe_html}</span></span>
     <div>{_trend_icon(s.get('趋势'))} {_sparkline(s.get('历史序列', []))}</div>
   </div>
   <div class="kpi-row">
@@ -162,28 +175,53 @@ def _sector_card(s):
     <span>近5日均值 <b>{_fmt(s.get('近5日均值%'), '%')}</b></span>
     <span>近10日均值 {_fmt(s.get('近10日均值%'), '%')}</span>
     <span>近20日均值 {_fmt(s.get('近20日均值%'), '%')}</span>
-    {etf_html}
+    {etf_html}{excl_html}
   </div>
-  {_stock_table(s.get('top5_stocks', []), 'Top5 高活跃个股（按今日换手率）')}
-  {_stock_table(s.get('bottom5_stocks', []), 'Bottom5 低活跃个股')}
+  <div class="table-scroll">{_stock_table(s.get('top5_stocks', []), 'Top5 高活跃个股（按今日换手率）')}</div>
+  <div class="table-scroll">{_stock_table(s.get('bottom5_stocks', []), 'Bottom5 低活跃个股（已剔除B股/停牌）')}</div>
 </div>"""
 
 
 def render_module1(d):
     groups = [
         ('tab-a', 'pane-a', 'AI相关板块', d.get('ai_sectors', [])),
-        ('tab-b', 'pane-b', 'Top10 高量化集中板块', d.get('top10_sectors', [])),
-        ('tab-c', 'pane-c', 'Bottom10 低量化集中板块', d.get('bottom10_sectors', [])),
+        ('tab-b', 'pane-b', '行业Top10', d.get('top10_sectors', [])),
+        ('tab-c', 'pane-c', '行业Bottom10', d.get('bottom10_sectors', [])),
+        ('tab-d', 'pane-d', '细分热门(参考)', d.get('leaf_sectors', [])),
     ]
+    u = d.get('universe') or {}
+    univ_txt = (f"排名口径：扫描 {u.get('scanned','—')} → 精确去重 {u.get('exact_deduped','—')} → "
+                f"候选 {u.get('eligible','—')} → <b>互不重叠行业 {u.get('independent','—')}</b> 参与排名"
+                if u else
+                f"排名门槛：成分股≥{d.get('min_sector_stocks','—')}只")
     tabs = "".join(f'<label for="{tid}">{label}</label>' for tid, _, label, _ in groups)
+
+    def _ordered(tid, blocks):
+        """展示顺序 = 排名顺序（Bottom10 最低在前）"""
+        key = lambda b: (b.get('量化集中度%_今日') if b.get('量化集中度%_今日') is not None else 999)
+        if tid == 'tab-c':
+            return sorted(blocks, key=key)
+        if tid in ('tab-b', 'tab-d'):
+            return sorted(blocks, key=key, reverse=True)
+        return blocks
+
     panes = ""
     for tid, pid, label, blocks in groups:
-        cards = "".join(_sector_card(s) for s in blocks) if blocks else '<p class="dash">数据待更新</p>'
-        panes += f'<div id="{pid}" class="pane">{cards}</div>'
+        blocks = _ordered(tid, blocks)
+        if blocks:
+            cards = "".join(_sector_card(s) for s in blocks)
+        else:
+            cards = '<p class="dash">数据待更新</p>'
+        note = ""
+        if tid == 'tab-d':
+            note = ('<div class="warn-note">此页签是<b>细分粒度</b>板块（如 印制电路板 ⊂ 元件 ⊂ 电子、'
+                    '营销代理 ⊂ 广告营销 ⊂ 传媒），彼此重叠、成分股被反复计入，'
+                    '只用于看哪个细分最热，<b>不能当作行业排名</b>。行业排名见前两个页签。</div>')
+        panes += f'<div id="{pid}" class="pane">{note}{cards}</div>'
     return (f"""<section class="section">
 <h2>① 量化集中度 <span style="font-size:12px;color:#90a4ae;font-weight:400">（成分股换手率&gt;{d.get('active_threshold_pct',3)}%占比 · 历史趋势为该指标本身）</span></h2>
-<div class="sub">排名门槛：成分股≥{d.get('min_sector_stocks','—')}只 | 全市场 {d.get('sector_universe_size','—')} 个行业板块参与扫描</div>
-<input class="tab-radio" type="radio" name="mtab" id="tab-a" checked><input class="tab-radio" type="radio" name="mtab" id="tab-b"><input class="tab-radio" type="radio" name="mtab" id="tab-c">
+<div class="sub">{univ_txt}</div>
+<input class="tab-radio" type="radio" name="mtab" id="tab-a" checked><input class="tab-radio" type="radio" name="mtab" id="tab-b"><input class="tab-radio" type="radio" name="mtab" id="tab-c"><input class="tab-radio" type="radio" name="mtab" id="tab-d">
 <div class="tabs">{tabs}</div>
 <div class="panes">{panes}</div>
 </section>""")
@@ -212,7 +250,8 @@ def render_module2(d):
   <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">主力资金今日净流入</div>
     <span class="big-num">{_fmt(_big(main_series, 'net_yi'), '亿')}</span><br>{_sparkline(main_series)}</div>
   <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">北向今日净买额（{nb.get('date','—')}）</div>
-    <span class="big-num">{_fmt(nb.get('netbuy_yi'), '亿')}</span>{nb_note}</div>
+    <span class="big-num">{_fmt(nb.get('netbuy_yi') if (nb.get('netbuy_yi') or 0) != 0 else None, '亿')}</span>
+    <span style="font-size:11px;color:#90a4ae">停止披露</span></div>
   <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">AI相关ETF（union）</div>
     <span class="big-num">{_fmt(etf.get('ai_union_amt_yi'), '亿')}</span><br>
     <span style="font-size:12px;color:#90a4ae">{etf.get('ai_union_count','—')}只（去重）</span></div>
@@ -241,34 +280,70 @@ def render_module4(d):
     sig = d.get('signals', {}) or {}
     rows = ""
     for s in sig.get('signals', []):
-        badge = '<span class="badge b-on">已触发</span>' if s['triggered'] else '<span class="badge b-off">未触发</span>'
-        direction = f' <span style="color:#c62828;font-size:12px">{s.get("direction","")}</span>' if s['triggered'] and s.get('direction') else ''
-        rows += (f'<tr><td>{s["name"]}{direction}</td>'
+        pct, z = s.get('percentile'), s.get('zscore')
+        ref = ""
+        if pct is not None:
+            ref = f"P{pct}"
+        if z is not None:
+            ref = (ref + f" · z={z}") if ref else f"z={z}"
+        if not ref:
+            ref = s.get('baseline') or "—"
+        badge = ('<span class="badge b-on">已触发</span>' if s['triggered']
+                 else '<span class="badge b-off">未触发</span>')
+        direction = (f' <span style="color:#c62828;font-size:12px">{s.get("direction","")}</span>'
+                     if s['triggered'] and s.get('direction') else '')
+        note = (f'<div style="font-size:11px;color:#90a4ae">{s.get("note","")}</div>'
+                if s.get('note') else '')
+        rows += (f'<tr><td>{s["name"]}{direction}{note}</td>'
                  f'<td class="num">{_fmt(s.get("current"), s.get("unit",""))}</td>'
-                 f'<td class="num" style="color:#888">阈值 {s.get("threshold")}{s.get("unit","")}</td>'
+                 f'<td class="num" style="color:#888">{ref}</td>'
                  f'<td>{badge}</td></tr>')
-    return (f'<section class="section"><h2>④ 投资信号 <span style="font-size:12px;color:#90a4ae;font-weight:400">阈值触发制 · '
-            f'{sig.get("triggered_count",0)}/{len(sig.get("signals",[]))} 已触发</span></h2>'
-            f'<table><thead><tr><th>信号</th><th class="num">当前值</th><th class="num">阈值</th><th>状态</th></tr></thead>'
+    total = len(sig.get('signals', []))
+    return (f'<section class="section"><h2>④ 投资信号 <span style="font-size:12px;color:#90a4ae;font-weight:400">'
+            f'滚动分位触发制 · {sig.get("triggered_count",0)}/{total} 已触发</span></h2>'
+            f'<table><thead><tr><th>信号</th><th class="num">当前值</th><th class="num">参照</th><th>状态</th></tr></thead>'
             f'<tbody>{rows}</tbody></table>'
-            f'<p style="font-size:12px;color:#888;margin-top:8px">{sig.get("push_line","(无触发)")}</p></section>')
+            f'<p style="font-size:12px;color:#888;margin-top:8px">{sig.get("push_line","(无触发)") or "(无触发)"}</p>'
+            f'<p style="font-size:11.5px;color:#90a4ae">规则：宽基ETF ≥ 近20日80分位 · 主力 |z|≥1 · AI活跃度(4板块中位数) ≥ 近20日80分位；'
+            f'北向已停止披露，不再计入。仅当出现新触发时才推送 Telegram。</p></section>')
+
+
+def render_archive(theme='quant', base='history/'):
+    """历史归档索引 —— 用户明确要求「保留历史记录」，此前文件存在但页面 0 个入口"""
+    import glob
+    files = sorted(glob.glob(os.path.join(HISTORY_DIR, f'{theme}_*.html')), reverse=True)[:30]
+    if not files:
+        return ""
+    items = "".join(
+        f'<a class="arc" href="{base}{os.path.basename(f)}">{os.path.basename(f)[len(theme) + 1:-5]}</a>'
+        for f in files)
+    return (f'<section class="section"><h2>历史归档 <span style="font-size:12px;color:#90a4ae;font-weight:400">'
+            f'最近 {len(files)} 期 · 每天一份</span></h2><div class="arc-list">{items}</div></section>')
 
 
 def render_methodology(d):
     tw = d.get('trading_dates_window', ['—', '—']) or ['—', '—']
+    u = d.get('universe') or {}
+    dq = d.get('data_quality') or {}
+    rank_txt = (f"496 个行业板块中成分股≥{d.get('min_sector_stocks','—')}只者 {u.get('eligible','—')} 个，"
+                f"其中 <b>{u.get('independent','—')}</b> 个互不包含（其余 {u.get('leaves','—')} 个是它们的子集，"
+                f"已剔除出行业排名，单独放在「细分热门」页签）"
+                if u else "见页首")
     return f"""<section class="section">
 <h2>口径说明</h2>
 <div class="methodology">
-<p><b>量化集中度（板块）</b> = 成分股中当日换手率 &gt; {d.get('active_threshold_pct',3)}% 的个股占比。换手率是量化资金高频交易的公开代理指标（skill标准阈值，非精确识别）。</p>
-<p><b>历史趋势</b> = 上述集中度指标在历史交易日的逐日值 + 近5/10/20日均值对比；成分股名单取当前口径（历史成员变动为近似）。</p>
-<p><b>全市场排名</b> = {d.get('sector_universe_size','—')}个行业板块中成分股≥{d.get('min_sector_stocks','—')}只者参与，按今日集中度排序取 Top10/Bottom10。</p>
-<p><b>国家队资金</b> = 宽基ETF（沪深300/上证50/中证500）成交合计为入市代理；主力资金来自全市场主力净流入；北向为参考值（披露规则调整后部分日期净买额为0）。</p>
-<p><b>数据源</b>：东方财富公开接口（akshare免费源），盘后 16:15 自动刷新。历史窗口 {tw[0]} → {tw[-1]}。</p>
-<p><b>局限</b>：换手率代理无法区分量化/非量化资金；ETF成交额含机构与散户；个股历史为逐股回填（新板块首日可能缺早期点）。</p>
+<p><b>量化集中度（板块）</b> = 可交易成分股中当日换手率 &gt; {d.get('active_threshold_pct',3)}% 的个股占比。换手率是量化资金高频交易的公开代理指标，不是精确识别。</p>
+<p><b>分母</b> = 剔除 B股（900/200 开头，今日换手中位 0.08%，天然不活跃）与当日无成交的停牌股；本期全市场剔除 B股 {dq.get('b_share_excluded','—')} 只、停牌 {dq.get('suspended_excluded','—')} 只。</p>
+<p><b>历史趋势</b> = 上述集中度指标在历史交易日的逐日值 + 近5/10/20日均值；单日有效成分股覆盖率 &lt; 80% 时该点留空，均线样本不足时显示「—」（不拿 1-2 个点冒充 20 日均值）。</p>
+<p><b>全市场排名</b> = {rank_txt}。按今日集中度排序取 Top10/Bottom10。</p>
+<p><b>国家队资金</b> = 宽基ETF（沪深300/上证50/中证500）成交合计为入市代理 —— <b>成交额含申购与赎回双边，不等于净流入</b>；主力资金来自全市场主力净流入；北向自 2024-08 起不再披露实时净买额，已停用。</p>
+<p><b>信号</b> = 滚动分位触发：宽基ETF成交额 ≥ 近20日80分位 / 主力净流入 |z|≥1 / AI板块活跃度（4板块中位数）≥ 近20日80分位（绝对阈值对 A 股恒真，已弃用）。</p>
+<p><b>数据源</b>：东方财富公开接口（akshare 免费源），cron <code>15 16 * * *</code> 盘后自动刷新。历史窗口 {tw[0]} → {tw[-1]}。</p>
+<p><b>局限</b>：换手率代理无法区分量化/非量化资金；ETF成交额含机构与散户；成分股名单取当前口径，历史成员变动为近似。</p>
 </div></section>"""
 
 
-def render(d):
+def render(d, theme='quant', base='history/'):
     sig = d.get('signals', {}) or {}
     n_trig = sig.get('triggered_count', 0)
     badge = (f'<span class="sig-badge sig-on">📢 {n_trig}个信号触发</span>' if n_trig
@@ -284,8 +359,9 @@ def render(d):
 {render_module2(d)}
 {render_module3(d)}
 {render_module4(d)}
+{render_archive(theme, base)}
 {render_methodology(d)}
-<div class="footer">quant-ratio v3 · akshare 免费数据源 · 盘后自动刷新</div>
+<div class="footer">quant-ratio v4 · akshare 免费数据源 · cron 15 16 * * * 盘后刷新</div>
 </div></body></html>"""
 
 
@@ -295,18 +371,19 @@ def main():
         print("⚠️ 无数据, 渲染占位页")
         data = {'date': str(date.today()), 'generated_at': '—', 'active_threshold_pct': 3.0,
                 'min_sector_stocks': 20, 'sector_universe_size': None,
-                'ai_sectors': [], 'top10_sectors': [], 'bottom10_sectors': [],
+                'ai_sectors': [], 'top10_sectors': [], 'bottom10_sectors': [], 'leaf_sectors': [],
                 'etf': {}, 'flows': {}, 'news_digest': {}, 'signals': {}}
-    html = render(data)
+    theme = sys.argv[1] if len(sys.argv) > 1 else "quant"
+    html = render(data, theme=theme, base='history/')
     with open(os.path.join(DASHBOARD_PATH, "dashboard_investment.html"), 'w') as f:
         f.write(html)
     print(f"✅ 已渲染 dashboard_investment.html ({len(html)} bytes)")
 
     os.makedirs(HISTORY_DIR, exist_ok=True)
-    theme = sys.argv[1] if len(sys.argv) > 1 else "quant"
     hist_path = os.path.join(HISTORY_DIR, f"{theme}_{date.today().strftime('%Y-%m-%d')}.html")
+    # 归档页与文件同目录 —— base 用空串，否则链接会指向 history/history/
     with open(hist_path, 'w') as f:
-        f.write(html)
+        f.write(render(data, theme=theme, base=''))
     print(f"✅ 历史归档已渲染 {hist_path}")
 
 

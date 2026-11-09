@@ -1,4 +1,6 @@
 __pycache__/
+.baseline/
+cache/
 # 私有数据：不进公开仓
 data.json
 lookup.json
