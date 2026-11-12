@@ -63,6 +63,72 @@ def _retry(fn, *args, attempts=3, **kwargs):
     raise last
 
 
+def _fetch_etf_spot_resilient(page_retries=10):
+    """分页容错的 ETF 实时行情抓取（collect_etf 的降级路径）。
+
+    akshare.fund_etf_spot_em 内部用 fetch_paginated_data 逐页拉取，任一页命中
+    东财边缘坏节点 / 触发按 IP 软限流（"Remote end closed connection without
+    response"）就会整段 abort。这里改为：
+      * 大分页（pz=500，1667 只 ETF ≈ 4 页）——减少往返次数 = 降低命中坏窗口概率；
+      * 每页独立重试且退避拉开（指数 + 抖动，单页最坏 ~1min），只重拉失败那页；
+      * Session(trust_env=False) 强制直连 —— 避免继承已挂的本地代理 env。
+    page_retries 仍失败的页才抛错（如实失败，不静默吞掉，见 R9）。
+
+    返回列：代码/名称/最新价/成交额/最新份额 —— collect_etf 仅用这 5 列。
+    """
+    import math
+    import random
+
+    import pandas as pd
+    import requests
+
+    url = "https://88.push2.eastmoney.com/api/qt/clist/get"
+    base_params = {
+        "pn": 1, "pz": 500, "po": 1, "np": 1,
+        "ut": "bd1d9ddb04089700cf9c27f6f7426281",
+        "fltt": 2, "invt": 2, "wbp2u": "|0|0|0|web",
+        "fid": "f3",
+        "fs": "b:MK0021,b:MK0022,b:MK0023,b:MK0024,b:MK0827",
+        "fields": "f2,f6,f12,f14,f38",
+    }
+    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
+
+    sess = requests.Session()
+    sess.trust_env = False          # 强制直连，不读 HTTP(S)_PROXY env（本地代理可能已挂）
+
+    def get_page(pn):
+        params = dict(base_params, pn=pn)
+        last = None
+        for attempt in range(page_retries):
+            try:
+                r = sess.get(url, params=params, timeout=20, headers=headers)
+                r.raise_for_status()
+                data = (r.json().get("data") or {})
+                diff = data.get("diff")
+                if not isinstance(diff, list):
+                    raise ValueError(f"page {pn}: 响应缺 data.diff")
+                return diff, data.get("total")
+            except Exception as e:  # noqa: BLE001
+                last = e
+                backoff = min(2 ** attempt * 1.0, 15.0) + random.uniform(0, 1.5)
+                time.sleep(backoff)
+        raise RuntimeError(f"page {pn} 重试 {page_retries} 次仍失败: {last}")
+
+    diff1, total = get_page(1)
+    rows = list(diff1)
+    per_page = len(diff1) or base_params["pz"]
+    total_pages = math.ceil(total / per_page) if (total and isinstance(total, int)) else 1
+    for pn in range(2, total_pages + 1):
+        time.sleep(random.uniform(2.0, 3.5))
+        diff, _ = get_page(pn)
+        rows.extend(diff)
+
+    df = pd.DataFrame(rows).rename(columns={
+        "f12": "代码", "f14": "名称", "f2": "最新价",
+        "f6": "成交额", "f38": "最新份额"})
+    return df
+
+
 # ---------------- 交易日历 ----------------
 def get_trading_dates(today_iso):
     """返回 (<=今日的最近21个交易日, 今日是否交易日)。非交易日不得采集。"""
@@ -104,7 +170,13 @@ def collect_etf(trading_dates, today_iso):
            'sz_tracked_days': 0, 'sz_tracked_since': None,
            'ai_union_count': None, 'ai_union_amt_yi': None}
 
-    spot = _retry(ak.fund_etf_spot_em)
+    # ETF 实时行情：优先走 akshare（正常日快路径）；东财边缘节点偶发断连导致
+    # 其内部整段分页 abort 时，降级到「每页独立重试」的容错抓取。
+    try:
+        spot = _retry(ak.fund_etf_spot_em, attempts=2)
+    except Exception as e:  # noqa: BLE001
+        print(f"   ⚠️ fund_etf_spot_em 分页失败，启用逐页容错重试: {e}")
+        spot = _fetch_etf_spot_resilient()
     spot['代码'] = spot['代码'].astype(str)
     names = dict(zip(spot['代码'], spot['名称'].astype(str)))
     price = dict(zip(spot['代码'], spot['最新价'].apply(_safe_float)))
