@@ -83,6 +83,13 @@ def _fetch_etf_spot_resilient(page_retries=10):
     import requests
 
     url = "https://88.push2.eastmoney.com/api/qt/clist/get"
+    # 多个边缘子域轮流用——不同 subdomain 常对应独立边缘池/限流计数，
+    # 单页重试时轮换 host 提高命中健康节点的概率。
+    urls = [
+        "https://88.push2.eastmoney.com/api/qt/clist/get",
+        "https://push2.eastmoney.com/api/qt/clist/get",
+        "https://90.push2.eastmoney.com/api/qt/clist/get",
+    ]
     base_params = {
         "pn": 1, "pz": 500, "po": 1, "np": 1,
         "ut": "bd1d9ddb04089700cf9c27f6f7426281",
@@ -101,7 +108,7 @@ def _fetch_etf_spot_resilient(page_retries=10):
         last = None
         for attempt in range(page_retries):
             try:
-                r = sess.get(url, params=params, timeout=20, headers=headers)
+                r = sess.get(urls[attempt % len(urls)], params=params, timeout=20, headers=headers)
                 r.raise_for_status()
                 data = (r.json().get("data") or {})
                 diff = data.get("diff")
