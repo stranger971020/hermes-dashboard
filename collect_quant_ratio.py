@@ -179,11 +179,26 @@ def collect_etf(trading_dates, today_iso):
 
     # ETF 实时行情：优先走 akshare（正常日快路径）；东财边缘节点偶发断连导致
     # 其内部整段分页 abort 时，降级到「每页独立重试」的容错抓取。
+    spot = None
+    used_sina = False
     try:
         spot = _retry(ak.fund_etf_spot_em, attempts=2)
     except Exception as e:  # noqa: BLE001
         print(f"   ⚠️ fund_etf_spot_em 分页失败，启用逐页容错重试: {e}")
-        spot = _fetch_etf_spot_resilient()
+        try:
+            spot = _fetch_etf_spot_resilient()
+        except Exception as e2:  # noqa: BLE001
+            print(f"   ⚠️ 东财两条路径均失败({type(e2).__name__})，降级新浪源(无份额列): {e2}")
+    if spot is None:
+        import pandas as _pd
+        s = _retry(ak.fund_etf_category_sina, symbol="ETF基金", attempts=3)
+        # 新浪代码带 sh/sz 前缀 → 去掉，与 SSE/SZSE 的 6 位裸码对齐
+        code = s['代码'].astype(str).str.replace(r'^(sh|sz)', '', regex=True)
+        spot = _pd.DataFrame({
+            '代码': code, '名称': s['名称'], '最新价': s['最新价'],
+            '成交额': s['成交额'], '最新份额': float('nan'),
+        })
+        used_sina = True
     spot['代码'] = spot['代码'].astype(str)
     names = dict(zip(spot['代码'], spot['名称'].astype(str)))
     price = dict(zip(spot['代码'], spot['最新价'].apply(_safe_float)))
@@ -274,6 +289,9 @@ def collect_etf(trading_dates, today_iso):
     cov_sh = sum(sh_snap.get(c) or 0 for c in sh_broad)
     sz_countable = today_entry is not None and today_entry.get('sz_yi') is not None
     cov_sz = sum((sz_cache.get(today_iso) or {}).get(c) or 0 for c in sz_broad) if sz_countable else 0
+    # 降级源（新浪）无份额列 → tot=0；此时分母改用「交易所已追踪全集」，口径自洽
+    if not tot and (cov_sh or cov_sz):
+        tot = cov_sh + cov_sz
     out['netbuy_coverage_pct'] = round((cov_sh + cov_sz) / tot * 100, 1) if tot else None
     out['sz_delta_available'] = sz_countable
     out['netbuy_basis'] = (
@@ -281,7 +299,8 @@ def collect_etf(trading_dates, today_iso):
         f"深市（交易所快照逐日累积，{len(sz_broad)}只，自 {out['sz_tracked_since'] or today_iso} 起，"
         f"已 {out['sz_tracked_days']} 个快照日）× 最新价；"
         f"当前覆盖 {out['netbuy_coverage_pct']}% 宽基份额"
-        + ('' if sz_countable else '（深市自次日起可算变化）'))
+        + ('' if sz_countable else '（深市自次日起可算变化）')
+        + ('；⚠️ 行情源降级为新浪(东财限流)，覆盖率分母=交易所已追踪全集' if used_sina else ''))
 
     ai = [c for c, n in names.items() if any(k in n for k in AI_ETF_KEYWORDS)]
     out['ai_union_count'] = len(ai)
