@@ -557,6 +557,74 @@ def render_module_policy():
     return head + quality + kpi + build_html + act_html + recent_html + meta + '</section>'
 
 
+def render_module_emotion():
+    """⑥ 情绪温度计 —— 市场状态提示（不是卖出信号）。
+
+    定位来自 2026-11-21 的定标实测（backtest/emotion_calib.py，2729 个交易日）：
+      · 涨占比 < 0.25 之后，未来 5 日沪深300 均值 +0.34%、下跌概率 42%（全样本基准 48%）
+      · 涨占比 < 0.25 且涨停数 < 50% × 20日均值 → 未来 5 日 +0.97%、下跌概率 37%
+      · 强势股（近20日涨幅前20%）在退潮日的未来 5 日 -0.24%，与弱势组 -0.08% 几无差异
+    ⇒ 「情绪退潮 → 卖出」是负期望。这一段的用处是：
+      ① 退潮期不要追高 / 不要加仓（波动放大，尾部风险变厚）
+      ② 顺手检查持仓集中度（真正放大回撤的是集中度，不是没兑现）
+      ③ 预期未来几天振幅变大，别把正常波动当趋势破坏
+    """
+    s, note = load_v6_summary()
+    head = ('<section class="section"><h2>⑥ 情绪温度计 '
+            '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
+            '退潮/冰点判读 · <b>状态提示，非卖出信号</b></span></h2>')
+    if not s:
+        return head + f'<p style="color:#90a4ae;font-size:13px">{note or "无数据"}</p></section>'
+    emo = s.get("emotion") or {}
+    if not emo:
+        return head + '<p style="color:#90a4ae;font-size:13px">V6 摘要未包含情绪模块</p></section>'
+
+    ur = emo.get("updown_ratio")
+    lu, ld = emo.get("limit_up"), emo.get("limit_down")
+    score, phase = emo.get("emo_score"), emo.get("phase") or "—"
+    if isinstance(ur, (int, float)):
+        if ur < 0.25:
+            state, cls = ("冰点/退潮 — 禁止追高与加仓", "up")
+        elif ur < 0.5:
+            state, cls = ("偏弱 — 谨慎加仓", "")
+        else:
+            state, cls = ("正常", "down")
+    else:
+        state, cls = ("—", "")
+
+    box1 = _v6_box("📉 涨跌家数比（涨/跌）", _v6_pct(ur), state, cls)
+    box2 = _v6_box("🔴 涨停 / 跌停",
+                   f"{lu if lu is not None else '—'}<span style='font-size:13px;color:#90a4ae'>/</span>{ld if ld is not None else '—'}",
+                   f"晋级率 {_v6_pct(emo.get('promotion_rate'))} · 最高连板 {emo.get('max_streak') if emo.get('max_streak') is not None else '—'}")
+    box3 = _v6_box("🌡️ 情绪分", (f"{score}" if score is not None else "—") + "<span style='font-size:13px;color:#90a4ae'>/100</span>",
+                   f"{phase} · 恐慌分 {emo.get('panic_score') if emo.get('panic_score') is not None else '—'}")
+
+    # 近 5 日趋势
+    hist = emo.get("hist5") or []
+    rows = "".join(
+        f"<tr><td>{h.get('date')}</td><td>{_v6_pct(h.get('updown_ratio'))}</td>"
+        f"<td>{h.get('limit_up')}</td><td>{h.get('max_streak')}</td>"
+        f"<td>{h.get('promotion_rate')}</td><td>{h.get('emo_score')}</td></tr>"
+        for h in hist)
+    trend = (f'<div class="table-scroll" style="margin-top:12px"><table><thead><tr>'
+             f'<th>日期</th><th>涨跌家数比</th><th>涨停</th><th>最高连板</th><th>晋级率</th><th>情绪分</th>'
+             f'</tr></thead><tbody>{rows}</tbody></table></div>') if rows else ""
+    advice = emo.get("advice")
+    advice_html = f"<br><b>系统原文：</b>{advice}" if advice else ""
+
+    return head + f"""
+<div class="flow-grid" style="margin-top:12px">{box1}{box2}{box3}</div>
+{trend}
+<div class="kv" style="margin-top:12px">判读规则：涨跌家数比 <b>&lt;0.50</b> 偏弱 · <b>&lt;0.25</b> 退潮/冰点（禁止追高与加仓）· 跌停 ≥25 家 → 冰点档（历史上 T+1 胜率反而抬升）</div>
+<p style="font-size:12px;color:#90a4ae;margin-top:8px">
+<b>为什么这段不输出「卖出」：</b>2729 个交易日的实测里，涨占比 &lt;0.25 之后未来 5 日沪深300 平均
+<b>+0.34%</b>（下跌概率 42%，低于基准 48%）；叠加「涨停骤降」后是 <b>+0.97%</b>（下跌概率 37%）。
+强势股在退潮日的未来 5 日也仅 -0.24%，与弱势股（-0.08%）几乎无差异 —— 恐慌时减仓是负期望。
+这一段的真实价值在<b>纪律</b>：退潮期不加仓、不追高、顺手看一眼集中度。
+{advice_html}</p>
+</section>"""
+
+
 def render_nav():
     """跨看板导航 —— 投资相关内容分散在多个入口，这里给出唯一入口。"""
     v6, _ = load_v6_summary()
@@ -627,6 +695,7 @@ def render(d, theme='quant', base='history/'):
 {render_module3(d)}
 {render_module_v6()}
 {render_module_policy()}
+{render_module_emotion()}
 {render_archive(theme, base)}
 {render_methodology(d)}
 <div class="footer">quant-ratio v6 · akshare 免费数据源 + V6 日报（工作日 02:45）· cron 15 16 * * * 盘后刷新</div>

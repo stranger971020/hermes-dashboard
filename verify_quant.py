@@ -156,6 +156,38 @@ def main():
         except Exception as e:  # noqa: BLE001
             errs.append(f"政策摘要解析失败: {e}")
 
+    # 9) 情绪温度计段（⑥, 2026-11-21）—— 数字必须能回算，且不得出现「卖出」指令
+    HTML = os.path.join(os.path.dirname(DATA), "dashboard_investment.html")
+    if os.path.exists(HTML):
+        try:
+            html = open(HTML, encoding="utf-8").read()
+            if "⑥ 情绪温度计" not in html:
+                errs.append("看板缺 ⑥ 情绪温度计段（render_module_emotion 未挂载）")
+            else:
+                seg = html.split("⑥ 情绪温度计", 1)[1][:6000]
+                if "非卖出信号" not in seg:
+                    errs.append("⑥ 段缺「非卖出信号」定位说明（易被误读为卖出指令）")
+                # 涨跌家数比必须能在 V6 摘要里对得上
+                v6f = sorted(glob.glob(os.path.join(V6_DIR, "v6_daily_*.json")))
+                if not v6f:
+                    warns.append("⑥ 段：无 V6 摘要可比对")
+                else:
+                    s6 = json.load(open(v6f[-1], encoding="utf-8"))
+                    e6 = s6.get("emotion") or {}
+                    ur = e6.get("updown_ratio")
+                    if isinstance(ur, (int, float)):
+                        shown = f"{ur * 100:.1f}%"
+                        if shown not in seg:
+                            errs.append(f"⑥ 段涨跌家数比与摘要不符: 摘要 {shown} 未出现在页面")
+                    else:
+                        warns.append("⑥ 段：摘要无 updown_ratio")
+                    # 禁止把退潮写成清仓建议
+                    for bad in ("清仓", "立即卖出", "全部卖出"):
+                        if bad in seg:
+                            errs.append(f"⑥ 段出现卖出指令「{bad}」—— 与实测结论矛盾（退潮后未来5日反而偏正）")
+        except Exception as e:  # noqa: BLE001
+            errs.append(f"⑥ 情绪段校验失败: {e}")
+
     print(f"quant-verify: {len(errs)} 错误 / {len(warns)} 警告  ({args.data})")
     for e in errs:
         print("  ❌", e)
