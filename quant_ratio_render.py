@@ -1181,7 +1181,7 @@ def render_nav():
         ("V6 交易日报", v6_html, False),
         ("政策信号全文", "policy/index.html", False),
         ("财经早报归档", "news/index.html", False),
-        ("系统健康", "health/index.html", False),
+        ("个人健康", "health/index.html", False),
         ("系统监控", "index.html", False),
     ]
     links = "".join(f'<a class="{"cur" if cur else ""}" href="{href}">{name}</a>'
@@ -1223,6 +1223,10 @@ def render_methodology(d):
 （脆弱度初减 + 峰值回撤 8% 移动止损）。两层并行，不互相覆盖。已有浮盈仓的动作以 ⑦ 为准；
 新仓/总仓上限取 ④ 中脆弱度 danger、Index Risk、阶段仓位三者中最严格者。若 ⑦ 自报数据滞后，
 看板会暂停新建仓建议并提示，但不会阻断 ④ 的展示。</p>
+<p><b>⑧/⑨ 量化</b>：⑧ 是日频「活跃度代理」——用换手率/振幅/日内波动/小单占比合成，
+每日横截面排序，<b>不是量化成交占比</b>，也无法识别单笔交易是否为量化；⑨ 是公募量化基金
+季报前十大持仓 / 流通市值，<b>季度更新、仅公募、不含私募，是下限而非全量</b>。
+真·量化成交占比需要 L2/逐笔或付费厂商数据，本看板不做。</p>
 <p><b>局限（④）</b>：V6 只在工作日 02:45 出报，周末/节假日显示上一交易日；看板不缓存、不重算，V6 摘要缺失即显示「尚未生成」，不填占位数值。</p>
 {f'<p><b>已下线模块：量化集中度</b> —— {off}。</p>' if off else ''}
 </div></section>"""
@@ -1239,7 +1243,7 @@ def render(d, theme='quant', base='history/'):
 <title>投资看板 · {d.get('date','')}</title>
 <style>{CSS}</style></head><body>
 <div class="container">
-<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">{d.get('date','')} · 生成于 {d.get('generated_at','—')} · v6（含 V6 决策层）</div></div>{badge}</div>
+<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">{d.get('date','')} · 生成于 {d.get('generated_at','—')} · v9（九段：V6 / 浮盈保护 / 量化代理）</div></div>{badge}</div>
 {render_nav()}
 {render_quick_nav()}
 {render_today_summary()}

@@ -54,8 +54,8 @@ tr:hover td { background: #f9f9ff; }
 .prow .v { margin-left:auto; font-variant-numeric:tabular-nums; color:#263238; font-weight:600; }
 </style></head><body>
 <div class="container">
-<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">2026-11-20 · 生成于 2026-11-20 16:17 · v6（含 V6 决策层）</div></div><span class="sig-badge sig-off">无信号触发</span></div>
-<div class="nav"><a class="cur" href="dashboard_investment.html">个人投资看板</a><a class="" href="https://stranger971020.github.io/trend-trading-system/reports/v6_daily/v6_daily_20261120.html">V6 交易日报</a><a class="" href="policy/index.html">政策信号全文</a><a class="" href="news/index.html">财经早报归档</a><a class="" href="health/index.html">系统健康</a><a class="" href="index.html">系统监控</a></div>
+<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">2026-11-20 · 生成于 2026-11-20 16:17 · v9（九段：V6 / 浮盈保护 / 量化代理）</div></div><span class="sig-badge sig-off">无信号触发</span></div>
+<div class="nav"><a class="cur" href="dashboard_investment.html">个人投资看板</a><a class="" href="https://stranger971020.github.io/trend-trading-system/reports/v6_daily/v6_daily_20261120.html">V6 交易日报</a><a class="" href="policy/index.html">政策信号全文</a><a class="" href="news/index.html">财经早报归档</a><a class="" href="health/index.html">个人健康</a><a class="" href="index.html">系统监控</a></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 24px;background:#f8fafc;border-bottom:1px solid #eee;font-size:12px"><span style="color:#607d8b;margin-right:4px">快速跳转：</span><a href="#sec-today" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">总览</a><a href="#sec-national" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">① 国家队</a><a href="#sec-news" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">② 要闻</a><a href="#sec-signals" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">③ 信号</a><a href="#sec-v6" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">④ V6</a><a href="#sec-policy" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">⑤ 政策</a><a href="#sec-emotion" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">⑥ 情绪</a><a href="#sec-risk" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">⑦ 浮盈保护</a><a href="#sec-quant" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">⑧ 量化活跃度</a><a href="#sec-holdings" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">⑨ 量化持仓</a><a href="#sec-glossary" style="color:#1a73e8;text-decoration:none;padding:3px 9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">指标字典</a></div>
 
 <section class="section" id="sec-today" style="background:#f8fafc">
@@ -252,6 +252,10 @@ function rkCalc() {
 （脆弱度初减 + 峰值回撤 8% 移动止损）。两层并行，不互相覆盖。已有浮盈仓的动作以 ⑦ 为准；
 新仓/总仓上限取 ④ 中脆弱度 danger、Index Risk、阶段仓位三者中最严格者。若 ⑦ 自报数据滞后，
 看板会暂停新建仓建议并提示，但不会阻断 ④ 的展示。</p>
+<p><b>⑧/⑨ 量化</b>：⑧ 是日频「活跃度代理」——用换手率/振幅/日内波动/小单占比合成，
+每日横截面排序，<b>不是量化成交占比</b>，也无法识别单笔交易是否为量化；⑨ 是公募量化基金
+季报前十大持仓 / 流通市值，<b>季度更新、仅公募、不含私募，是下限而非全量</b>。
+真·量化成交占比需要 L2/逐笔或付费厂商数据，本看板不做。</p>
 <p><b>局限（④）</b>：V6 只在工作日 02:45 出报，周末/节假日显示上一交易日；看板不缓存、不重算，V6 摘要缺失即显示「尚未生成」，不填占位数值。</p>
 <p><b>已下线模块：量化集中度</b> —— 2026-11-09 下线：换手率对未来20日收益/波动/回撤相关系数 -0.01~-0.06，无预测力。</p>
 </div></section>
