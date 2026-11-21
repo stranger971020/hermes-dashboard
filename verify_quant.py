@@ -119,6 +119,43 @@ def main():
         except Exception as e:  # noqa: BLE001
             errs.append(f"V6 摘要解析失败: {e}")
 
+    # 8) 政策信号摘要（跨系统契约, 2026-11-21）—— 结构问题=err，陈旧/降级=warn
+    pol_file = os.path.join(os.path.dirname(DATA), "policy", "latest.json")
+    if not os.path.exists(pol_file):
+        warns.append("政策摘要缺失（看板 ⑤ 段将显示『尚未生成』）")
+    else:
+        try:
+            with open(pol_file, encoding="utf-8") as f:
+                pol = json.load(f)
+            if pol.get("schema") != 1:
+                errs.append(f"政策摘要 schema={pol.get('schema')}，期望 1")
+            for k in ("score", "band", "cap", "market", "recent", "breakdown"):
+                if k not in pol:
+                    errs.append(f"政策摘要缺关键字段: {k}")
+            # 口径可复现闸门：score == 力度 × 位置系数 − 杠杆罚分（veto 时归零）
+            try:
+                calc = 0.0
+                if not pol.get("veto"):
+                    calc = round(float(pol["effect_score"]) * float(pol["position_coef"])
+                                 - float(pol["leverage_penalty"]), 1)
+                if abs(calc - float(pol["score"])) > 0.15:
+                    errs.append(f"政策分不可复现: 记录 {pol['score']} vs 公式 {calc}")
+            except Exception as e:  # noqa: BLE001
+                warns.append(f"政策分复算跳过（字段不全）: {e}")
+            if pol.get("degraded"):
+                warns.append(f"政策摘要自报数据降级: {pol.get('coverage')}")
+            iso = pol.get("trade_date_iso") or ""
+            try:
+                import datetime as _dt
+                _pd = _dt.datetime.strptime(str(iso), "%Y-%m-%d").date()
+                _pdays = (_dt.date.today() - _pd).days
+                if _pdays > 7:
+                    warns.append(f"政策摘要已 {_pdays} 天未更新（{iso}）")
+            except Exception:  # noqa: BLE001
+                warns.append(f"政策摘要 trade_date_iso 不可解析: {iso!r}")
+        except Exception as e:  # noqa: BLE001
+            errs.append(f"政策摘要解析失败: {e}")
+
     print(f"quant-verify: {len(errs)} 错误 / {len(warns)} 警告  ({args.data})")
     for e in errs:
         print("  ❌", e)

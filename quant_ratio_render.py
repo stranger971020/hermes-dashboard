@@ -78,6 +78,11 @@ tr:hover td { background: #f9f9ff; }
 .chip .r { font-size:11px; opacity:.7; margin-left:4px; }
 .kv { font-size:12px; color:#607d8b; margin:2px 0; }
 .kv b { color:#263238; }
+.pbar { height:7px; border-radius:4px; background:#eef2f7; overflow:hidden; margin:3px 0 8px; }
+.pbar > i { display:block; height:100%; background:#1a73e8; }
+.prow { display:flex; align-items:baseline; gap:8px; font-size:12px; color:#607d8b; }
+.prow .k { width:64px; flex:0 0 auto; }
+.prow .v { margin-left:auto; font-variant-numeric:tabular-nums; color:#263238; font-weight:600; }
 """
 
 
@@ -407,12 +412,159 @@ def render_module_v6():
             + card_html + stock_html + glance_html + meta_html + '</section>')
 
 
+# ─────────────────── ⑤ 政策信号（跨系统 · policy-signal） ───────────────────
+
+POLICY_FILE = os.path.join(DASHBOARD_PATH, "policy", "latest.json")
+POLICY_PAGE = "https://stranger971020.github.io/hermes-dashboard/policy/"
+POLICY_MAX_AGE_DAYS = 7   # 工作日 17:30 EOD；长假容忍到 7 天
+
+BAND_MEANING = {
+    "可能改变趋势": "力度足以改变趋势 —— 可按仓位上限执行",
+    "托底/压尾部": "托底、压尾部风险为主 —— 趋势不改",
+    "形式大于实质": "有动作但力度不足 —— 只托不举",
+    "无效": "该市场位置政策推不动 —— 别把政策当催化",
+}
+
+
+def _position_zone(dd):
+    """市场位置分档（与 policy-signal 页同一口径）。"""
+    if not isinstance(dd, (int, float)):
+        return "—"
+    if dd <= -15:
+        return "有效区（历史政策起效区）"
+    if dd <= -13:
+        return "擦边区（再跌 2% 才进有效区）"
+    if dd <= -5:
+        return "中等回调（历史上政策常无效）"
+    return "高位区（政策推不动）"
+
+
+def load_policy_summary():
+    try:
+        with open(POLICY_FILE, encoding="utf-8") as f:
+            d = json.load(f)
+    except FileNotFoundError:
+        return None, ("政策摘要尚未生成 —— policy-signal 在工作日 17:30 EOD 产出 "
+                      "policy/latest.json。")
+    except Exception as e:  # noqa: BLE001
+        return None, f"政策摘要解析失败: {e}"
+    if d.get("schema") != 1:
+        return None, f"政策摘要 schema 不匹配: {d.get('schema')}（期望 1）"
+    return d, None
+
+
+def render_module_policy():
+    p, note = load_policy_summary()
+    head = ('<section class="section"><h2>⑤ 政策信号 '
+            '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
+            'policy-signal · 政策力度 × 市场位置 → 仓位上限</span></h2>')
+    if not p:
+        return head + f'<p style="color:#90a4ae;font-size:13px">{note or "无数据"}</p></section>'
+
+    bd = p.get("breakdown") or {}
+    mk = p.get("market") or {}
+    ex = p.get("expect") or {}
+    cnt = p.get("counts") or {}
+    hits = p.get("hits") or []
+    recent = p.get("recent") or []
+
+    band = p.get("band") or "—"
+    score = p.get("score")
+    cap = p.get("cap")
+    band_cls = {"可能改变趋势": "down", "托底/压尾部": "", "形式大于实质": "flat", "无效": "up"}.get(band, "")
+
+    quality = ""
+    if p.get("degraded"):
+        quality = (f'<div class="warn-note">⚠️ 本日数据降级：{p.get("coverage") or "—"} —— '
+                   f'评分基于部分数据源，读数和仓位上限打折看。</div>')
+
+    kpi = ('<div class="flow-grid">'
+           + _v6_box("🧮 政策力度分", f'{score}<span style="font-size:13px;color:#90a4ae">/100</span>'
+                     if isinstance(score, (int, float)) else "—",
+                     f"档位：{band}", band_cls)
+           + _v6_box("📏 仓位上限（政策给出的 cap）",
+                     f"{cap}%" if isinstance(cap, (int, float)) else "—",
+                     BAND_MEANING.get(band, ""))
+           + _v6_box("📍 市场位置（决定政策有没有用）",
+                     f"{mk.get('dd250')}%" if mk.get("dd250") is not None else "—",
+                     _position_zone(mk.get("dd250")))
+           + '</div>')
+
+    # ── 力度构成 ──
+    dims = [("金额", bd.get("amount"), 15), ("风险处置", bd.get("risk"), 15),
+            ("机构资金", bd.get("inst"), 15), ("制度支持", bd.get("support"), 15),
+            ("规模分", bd.get("scale"), 6)]
+    bars = ""
+    for name, v, mx in dims:
+        w = 0 if not isinstance(v, (int, float)) else max(0, min(100, v / mx * 100))
+        bars += (f'<div class="prow"><span class="k">{name}</span>'
+                 f'<span class="v">{v if v is not None else "—"}</span></div>'
+                 f'<div class="pbar"><i style="width:{w:.0f}%"></i></div>')
+    formula = (f'力度 {p.get("effect_score")} × 位置系数 {p.get("position_coef")} '
+               f'− 杠杆罚分 {p.get("leverage_penalty")} = <b>{score}</b>'
+               + ('　·　否决触发（高杠杆 + 20日弱势 → 直接归零）' if p.get("veto") else '')
+               + ('　·　监管收紧在案 → cap 减半' if p.get("cooling") else ''))
+    build_html = ('<div class="flow-grid" style="margin-top:14px"><div class="flow-box primary">'
+                  '<div style="font-size:12px;color:#607d8b;margin-bottom:6px">'
+                  f'力度构成（条长 = 占该项满分比例 · 合计 {p.get("effect_score")}/60）</div>'
+                  + bars
+                  + f'<div class="kv" style="margin-top:6px">{formula}</div>'
+                  + f'<div class="kv">同档历史（未来 60 日）：区间 <b>{ex.get("r60_low")}% ~ {ex.get("r60_high")}%</b>'
+                    f' · 最大回撤 <b>{ex.get("max_dd")}%</b></div>'
+                  + '</div></div>')
+
+    # ── 今日动作 ──
+    if hits:
+        items = "".join(
+            (f'<div style="padding:7px 0;border-bottom:1px solid #f5f5f5;font-size:13px">'
+             f'<span class="tname">{h.get("dept") or "—"}</span>'
+             f'<span style="color:#90a4ae;font-size:12px">{h.get("type") or "—"}</span>　'
+             + (f'<a class="news-item" style="display:inline" href="{h.get("url")}" target="_blank" rel="noopener">{h.get("title")}</a>'
+                if h.get("url") else f'<span>{h.get("title")}</span>')
+             + '</div>')
+            for h in hits[:5])
+        act_html = (f'<div style="margin-top:14px;font-size:12px;color:#607d8b">'
+                    f'今日动作（去重后 {len(hits)} 条，按信息量排序取前 5）</div>' + items)
+    else:
+        act_html = ('<div class="kv" style="margin-top:14px">今日动作：'
+                    '本期无偏多政策事件（扫描 '
+                    f'{cnt.get("scanned") or "—"} 条 / 命中 {cnt.get("hit") or 0} 条）</div>')
+
+    # ── 最近读数 ──
+    def _mmdd(r):
+        v = str(r.get("trade_date_iso") or r.get("trade_date") or "")
+        if len(v) == 8 and v.isdigit():
+            return f"{v[4:6]}-{v[6:]}"
+        return v[5:] if len(v) >= 10 else v
+
+    series = [{"date": _mmdd(r), "score": r.get("score")} for r in reversed(recent)]
+    spark = _sparkline(series, "score", width=560, height=52) if series else ""
+    recent_html = (f'<div style="margin-top:14px;font-size:12px;color:#607d8b">最近读数（日）'
+                   f'{spark}'
+                   f'<div style="font-size:11px;color:#90a4ae">'
+                   f'{recent[-1].get("trade_date_iso") if recent else ""} → '
+                   f'{recent[0].get("trade_date_iso") if recent else ""}'
+                   f' · 最新 {score} / 档位 {band}</div></div>')
+
+    meta = (f'<div style="margin-top:10px;font-size:12px;color:#607d8b;line-height:1.8">'
+            f'数据日期 <b>{p.get("trade_date_iso") or p.get("trade_date")}</b>'
+            f' · 生成 {p.get("generated_at")}'
+            f' · 规则版本 {p.get("rules_ver") or "—"}'
+            f' · 覆盖 {p.get("coverage") or "—"}<br>'
+            f'<a class="news-item" style="display:inline" href="{p.get("links", {}).get("page") or POLICY_PAGE}" '
+            f'target="_blank" rel="noopener">→ 政策信号完整页（① 今日动作 ② 力度构成 ③ 市场位置 ④ 风险 ⑤ 所以怎么做）</a></div>')
+
+    return head + quality + kpi + build_html + act_html + recent_html + meta + '</section>'
+
+
 def render_nav():
-    """跨看板导航 —— 投资相关内容分散在 3 个入口，这里给出唯一入口。"""
+    """跨看板导航 —— 投资相关内容分散在多个入口，这里给出唯一入口。"""
+    v6, _ = load_v6_summary()
+    v6_html = ((v6 or {}).get("links") or {}).get("html") or f"{V6_PAGES}/"
     items = [
         ("个人投资看板", "dashboard_investment.html", True),
-        ("V6 交易日报", f"{V6_PAGES}/v6_daily_{date.today().strftime('%Y%m%d')}.html", False),
-        ("政策信号", "policy/index.html", False),
+        ("V6 交易日报", v6_html, False),
+        ("政策信号全文", "policy/index.html", False),
         ("财经早报归档", "news/index.html", False),
         ("系统健康", "health/index.html", False),
         ("系统监控", "index.html", False),
@@ -474,6 +626,7 @@ def render(d, theme='quant', base='history/'):
 {render_module2(d)}
 {render_module3(d)}
 {render_module_v6()}
+{render_module_policy()}
 {render_archive(theme, base)}
 {render_methodology(d)}
 <div class="footer">quant-ratio v6 · akshare 免费数据源 + V6 日报（工作日 02:45）· cron 15 16 * * * 盘后刷新</div>
