@@ -188,6 +188,67 @@ def main():
         except Exception as e:  # noqa: BLE001
             errs.append(f"⑥ 情绪段校验失败: {e}")
 
+    # 10) 浮盈保护段（⑦, 2026-11-21）—— 分数可回算、动作与状态一致、不得写成卖出指令
+    risk_file = os.path.join(os.path.dirname(DATA), "risk_state.json")
+    if not os.path.exists(risk_file):
+        warns.append("风险状态 risk_state.json 缺失（看板 ⑦ 段将显示『尚未生成』）")
+    else:
+        try:
+            with open(risk_file, encoding="utf-8") as f:
+                rk = json.load(f)
+            if rk.get("schema") != 1:
+                errs.append(f"风险状态 schema={rk.get('schema')}，期望 1")
+            for k in ("asof", "state", "score", "components", "action", "metrics"):
+                if k not in rk:
+                    errs.append(f"风险状态缺关键字段: {k}")
+            comp = rk.get("components") or {}
+            score = int(sum(bool(v) for v in comp.values()))
+            if score != int(rk.get("score", -1)):
+                errs.append(f"风险分数不可复现: 记录 {rk.get('score')} vs 组件和 {score}")
+            state = ("normal" if score <= 1 else "warning" if score <= 3
+                     else "fragile" if score <= 5 else "crash")
+            if state != rk.get("state"):
+                errs.append(f"风险状态与分数不符: score {score} → {state}，记录 {rk.get('state')}")
+            base = {"normal": 0.0, "warning": 0.0, "fragile": 0.25, "crash": 0.40}[state]
+            m = rk.get("metrics") or {}
+            trim = base
+            if (m.get("g60") or 0) < -0.05 and int(m.get("shock10") or 0) >= 2:
+                trim = max(trim, 0.50)
+            trim = min(trim, 0.50)
+            act = rk.get("action") or {}
+            if abs(float(act.get("initial_trim", -1)) - trim) > 1e-9:
+                errs.append(f"初减建议不可复现: 记录 {act.get('initial_trim')} vs 规则 {trim}")
+            if abs(float(act.get("trail_stop", -1)) - 0.08) > 1e-9:
+                errs.append(f"移动止损应为 8%，记录 {act.get('trail_stop')}")
+            if not (rk.get("validation") or {}).get("fragile_crash_15"):
+                warns.append("风险状态缺回测锚点（先跑 backtest/rb_export.py）")
+            # 页面段
+            if os.path.exists(HTML):
+                html10 = open(HTML, encoding="utf-8").read()
+                if "⑦ 浮盈保护" not in html10:
+                    errs.append("看板缺 ⑦ 浮盈保护段（render_module_risk 未挂载）")
+                else:
+                    seg10 = html10.split("⑦ 浮盈保护", 1)[1][:9000]
+                    for mk in ("建议初减", "移动止损计算器", "回测锚点"):
+                        if mk not in seg10:
+                            errs.append(f"⑦ 段缺标记: {mk}")
+                    if f"{trim:.0%}" not in seg10:
+                        errs.append(f"⑦ 段建议初减与状态不符: 期望 {trim:.0%}")
+                    for bad in ("清仓", "立即卖出", "全部卖出"):
+                        if bad in seg10:
+                            errs.append(f"⑦ 段出现卖出指令「{bad}」—— 规则是初减+移动止损，不是一键卖光")
+            # 陈旧告警
+            try:
+                import datetime as _dt
+                _ad = _dt.datetime.strptime(str(rk.get("asof")), "%Y%m%d").date()
+                _days = (_dt.date.today() - _ad).days
+                if _days > 7:
+                    warns.append(f"风险状态已 {_days} 天未更新（asof {rk.get('asof')}）")
+            except Exception:  # noqa: BLE001
+                warns.append(f"风险状态 asof 不可解析: {rk.get('asof')!r}")
+        except Exception as e:  # noqa: BLE001
+            errs.append(f"风险状态校验失败: {e}")
+
     print(f"quant-verify: {len(errs)} 错误 / {len(warns)} 警告  ({args.data})")
     for e in errs:
         print("  ❌", e)

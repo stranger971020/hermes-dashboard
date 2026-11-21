@@ -3,7 +3,7 @@
 
 页面: dashboard_investment.html + history/quant_YYYY-MM-DD.html
 无硬编码 fallback — 数据缺失显示 "—"，不伪造数值。
-index.html 是监控页（勿动）。纯 CSS，无 JS。
+index.html 是监控页（勿动）。纯 CSS；⑦ 段含一个移动止损计算器（inline JS）。
 
 v5: ① 国家队资金动向 / ② 今日财经要闻 / ③ 投资信号
     模块① 主指标改为 ETF 份额净申购（旧版用成交额，同日差 350 倍）
@@ -24,6 +24,7 @@ DATA_FILE = os.path.join(DASHBOARD_PATH, "quant_data.json")
 V6_DIR = "/Users/jren/projects/trend-trading-system/reports/v6_daily"
 V6_PAGES = "https://stranger971020.github.io/trend-trading-system/reports/v6_daily"
 V6_MAX_AGE_DAYS = 5   # 超过则标"数据陈旧"（周末+节假日不产报，5 天覆盖长周末）
+RISK_JSON = os.path.join(DASHBOARD_PATH, "risk_state.json")
 
 
 def load_data():
@@ -625,6 +626,135 @@ def render_module_emotion():
 </section>"""
 
 
+def load_risk_summary():
+    """⑦ 段数据源：trend-trading-system/analysis/risk_state.py 生成。"""
+    if not os.path.exists(RISK_JSON):
+        return None, "risk_state.json 尚未生成"
+    try:
+        with open(RISK_JSON) as f:
+            return json.load(f), ""
+    except Exception as e:  # noqa: BLE001
+        return None, f"risk_state.json 解析失败: {e}"
+
+
+def render_module_risk():
+    """⑦ 浮盈保护 · 市场脆弱度 + 动作框架。
+
+    规则来自 2021-01~2026-10 的 100-500亿 PIT 事件研究（个股层，非组合代理）：
+      · 脆弱/崩跌 + 近20日涨幅>=15%：20日 CVaR5 -39.5% → -8.3%，P(跌>10%) 43.0% → 0.6%
+      · 弱市第二次冲击（10日内>=2次 80%下跌）：均值 -6.7% → -1.0%
+      · 峰值浮盈 +12~18% 切片：最终浮亏概率 26% → 0%，回吐>10pp 42% → 3%
+    动作：状态脆弱→初减25%，崩跌→40%，弱市第二次冲击→至少50%；
+          剩余仓位以「持有期最高收盘价」为基准，回撤 8% 收盘触发减仓/退出。
+    """
+    p, note = load_risk_summary()
+    head = ('<section class="section"><h2>⑦ 浮盈保护 · 风险状态 '
+            '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
+            'PIT 大盘脆弱度 + 持仓动作框架 · <b>初减 + 8% 移动止损</b></span></h2>')
+    if not p:
+        return (head + f'<p style="color:#90a4ae;font-size:13px">{note}。'
+                f'运行 <code>python3 ~/projects/trend-trading-system/analysis/risk_state.py</code> 生成。</p></section>')
+
+    m = p.get("metrics") or {}
+    a = p.get("action") or {}
+    comp = p.get("components") or {}
+    state = p.get("state", "normal")
+    label = p.get("state_label", state)
+    score = p.get("score", 0)
+    trim = a.get("initial_trim", 0) or 0
+    cls = "up" if state in ("fragile", "crash") else ("down" if state == "normal" else "")
+
+    box1 = _v6_box("🧭 市场状态", label,
+                   f"脆弱度 {score}/8 · asof {p.get('asof', '—')}", cls)
+    box2 = _v6_box("✂️ 建议初减", f"{trim:.0%}",
+                   f"剩余仓位 8% 移动止损", "up" if trim >= 0.4 else "")
+    box3 = _v6_box("📉 市场广度", _v6_pct(m.get("down_ratio")),
+                   f"MA20上方 {_v6_pct(m.get('above_ma20'))} · 60日 {_v6_pct(m.get('g60'))}")
+
+    volr = m.get("ivol_ratio")
+    volr_s = f"{volr:.2f}×" if isinstance(volr, (int, float)) else "—"
+    labels = [
+        ("trend_60d_lt_-5", "沪深300 60日 &lt; -5%", _v6_pct(m.get("g60"))),
+        ("trend_60d_lt_-10", "沪深300 60日 &lt; -10%", _v6_pct(m.get("g60"))),
+        ("breadth_ma20_lt_30", "MA20 上方占比 &lt; 30%", _v6_pct(m.get("above_ma20"))),
+        ("breadth_ma20_lt_20", "MA20 上方占比 &lt; 20%", _v6_pct(m.get("above_ma20"))),
+        ("shock_today", "当日下跌占比 ≥ 80%", _v6_pct(m.get("down_ratio"))),
+        ("second_shock_10d", "10 日内第二次冲击", f"{m.get('shock10', '—')} 次"),
+        ("strong_basket_rolling", "强势篮子 5 日相对转负",
+         _v6_pct(m.get("strong_ex5")) if m.get("strong_ex5") is not None else "—"),
+        ("vol_expansion", "指数波动扩张 &gt; 1.3×", volr_s),
+    ]
+    rows = "".join(
+        f"<tr><td>{lab}</td><td>{'✅' if comp.get(k) else '·'}</td>"
+        f"<td class='num'>{val}</td></tr>" for k, lab, val in labels)
+
+    hist = (p.get("history") or [])[-10:]
+    slab = {"normal": "正常", "warning": "警戒", "fragile": "脆弱", "crash": "崩跌"}
+    hrows = "".join(
+        f"<tr><td>{h.get('trade_date')}</td><td>{slab.get(h.get('frag_state'), h.get('frag_state'))}</td>"
+        f"<td class='num'>{int(h.get('frag_score', 0))}</td>"
+        f"<td class='num'>{_v6_pct(h.get('down_ratio'))}</td>"
+        f"<td class='num'>{_v6_pct(h.get('above_ma20'))}</td>"
+        f"<td class='num'>{int(h.get('shock10', 0))}</td></tr>" for h in reversed(hist))
+
+    v = p.get("validation") or {}
+    fc = v.get("fragile_crash_15") or {}
+    ss = v.get("second_shock_15") or {}
+    pk = v.get("peak_12_18") or {}
+    fh, fr = fc.get("hold") or {}, fc.get("rule") or {}
+    sh, sr = ss.get("hold") or {}, ss.get("rule") or {}
+    val_html = ""
+    if fh and fr:
+        val_html = (
+            f"<div class='kv' style='margin-top:12px'><b>回测锚点</b>（{v.get('sample', {}).get('start', '—')}"
+            f"~{v.get('sample', {}).get('end', '—')} · 100-500亿 PIT · 近20日涨幅≥15% · 未来20日）：<br>"
+            f"脆弱/崩跌状态 20日 CVaR5：<b>{fh.get('cvar5', 0) * 100:.1f}% → {fr.get('cvar5', 0) * 100:.1f}%</b>"
+            f" · P(跌&gt;10%)：{fh.get('p_lt_10', 0) * 100:.1f}% → {fr.get('p_lt_10', 0) * 100:.1f}%<br>"
+            f"弱市第二次冲击：均值 <b>{sh.get('mean', 0) * 100:.1f}% → {sr.get('mean', 0) * 100:.1f}%</b>"
+            f" · CVaR5 {sh.get('cvar5', 0) * 100:.1f}% → {sr.get('cvar5', 0) * 100:.1f}%<br>"
+            f"峰值浮盈 +12~18% 切片：最终浮亏概率 <b>{pk.get('hold_p_final_neg', 0) * 100:.0f}% → "
+            f"{pk.get('rule_p_final_neg', 0) * 100:.0f}%</b> · 回吐&gt;10pp "
+            f"{pk.get('hold_p_giveback_gt10', 0) * 100:.0f}% → {pk.get('rule_p_giveback_gt10', 0) * 100:.0f}%<br>"
+            f"<span style='color:#90a4ae'>口径：单边成本 0.15%；2022 年市值快照缺失用 2021-12-29 隐含股本前推；"
+            f"不构成投资建议。</span></div>")
+
+    return head + f"""
+<div class="flow-grid" style="margin-top:12px">{box1}{box2}{box3}</div>
+<div class="table-scroll" style="margin-top:8px"><table><thead><tr>
+<th>脆弱度构成</th><th>命中</th><th class="num">当前值</th></tr></thead><tbody>{rows}</tbody></table></div>
+<div class="kv" style="margin-top:12px"><b>当前动作：</b>初减 <b>{trim:.0%}</b>（{a.get('initial_trim_reason', '—')}）。
+剩余仓位：以<b>持有期最高收盘价</b>为基准，收盘回撤 <b>8%</b> 触发减仓/退出；不预测顶，不因单日下跌砍掉全部仓位。</div>
+<div class="flow-box" style="margin-top:12px">
+  <div style="font-size:12px;color:#607d8b;margin-bottom:6px">🧮 移动止损计算器（峰值=持有期最高收盘价，不是成本价）</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px">
+    <label>峰值价 <input id="rk-peak" type="number" step="0.01" style="width:110px;padding:4px"></label>
+    <label>当前价 <input id="rk-cur" type="number" step="0.01" style="width:110px;padding:4px"></label>
+    <button onclick="rkCalc()" style="padding:4px 12px;cursor:pointer">计算</button>
+    <span id="rk-out" style="color:#607d8b">输入两个价格</span>
+  </div>
+</div>
+<div class="table-scroll" style="margin-top:12px"><table><thead><tr>
+<th>日期</th><th>状态</th><th class="num">分数</th><th class="num">下跌占比</th>
+<th class="num">MA20上方</th><th class="num">10日冲击</th></tr></thead><tbody>{hrows}</tbody></table></div>
+{val_html}
+<script>
+function rkCalc() {{
+  var p = parseFloat(document.getElementById('rk-peak').value);
+  var c = parseFloat(document.getElementById('rk-cur').value);
+  var out = document.getElementById('rk-out');
+  if (!isFinite(p) || !isFinite(c) || p <= 0 || c <= 0) {{ out.textContent = '输入峰值价与当前价'; return; }}
+  var dd = c / p - 1;
+  if (dd <= -0.08) {{
+    out.innerHTML = '当前回撤 <b>' + (dd * 100).toFixed(1) + '%</b> → <b style="color:#c62828">已触发 8% 移动止损</b>';
+  }} else {{
+    out.innerHTML = '当前回撤 <b>' + (dd * 100).toFixed(1) + '%</b> · 距 8% 止损还有 <b>' +
+      ((dd + 0.08) * 100).toFixed(1) + 'pp</b>';
+  }}
+}}
+</script>
+</section>"""
+
+
 def render_nav():
     """跨看板导航 —— 投资相关内容分散在多个入口，这里给出唯一入口。"""
     v6, _ = load_v6_summary()
@@ -696,6 +826,7 @@ def render(d, theme='quant', base='history/'):
 {render_module_v6()}
 {render_module_policy()}
 {render_module_emotion()}
+{render_module_risk()}
 {render_archive(theme, base)}
 {render_methodology(d)}
 <div class="footer">quant-ratio v6 · akshare 免费数据源 + V6 日报（工作日 02:45）· cron 15 16 * * * 盘后刷新</div>
