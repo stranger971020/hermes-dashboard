@@ -25,6 +25,8 @@ V6_DIR = "/Users/jren/projects/trend-trading-system/reports/v6_daily"
 V6_PAGES = "https://stranger971020.github.io/trend-trading-system/reports/v6_daily"
 V6_MAX_AGE_DAYS = 5   # 超过则标"数据陈旧"（周末+节假日不产报，5 天覆盖长周末）
 RISK_JSON = os.path.join(DASHBOARD_PATH, "risk_state.json")
+QUANT_ACTIVITY_JSON = os.path.join(DASHBOARD_PATH, "cache", "quant_activity.json")
+QUANT_HOLDINGS_JSON = os.path.join(DASHBOARD_PATH, "cache", "quant_holdings.json")
 
 
 def load_data():
@@ -155,7 +157,7 @@ def render_module1(d):
         for p in tail)
 
     sz_txt = f"{sz_today}亿" if sz_today is not None else "次日起追踪"
-    return f"""<section class="section">
+    return f"""<section class="section" id="sec-national">
 <h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span></h2>
 <div class="sub">{etf.get('netbuy_basis','')}</div>
 <div class="flow-grid">
@@ -183,7 +185,7 @@ def render_module1(d):
 def render_module2(d):
     news = d.get('news_digest', {}) or {}
     if not news.get('items') and not news.get('themes_points'):
-        return ('<section class="section"><h2>② 今日财经要闻</h2>'
+        return ('<section class="section" id="sec-news"><h2>② 今日财经要闻</h2>'
                 '<p style="color:#90a4ae;font-size:13px">今日 digest 尚未生成（每日 08:30 由 Sina News 管道产出）。</p></section>')
     date_str = news.get('date') or ''
     ds = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}" if len(date_str) == 8 else date_str
@@ -194,7 +196,7 @@ def render_module2(d):
     items = "".join(
         f'<a class="news-item" href="{it["url"]}" target="_blank">• {it["title"]}</a>'
         for it in news.get('items', []))
-    return (f'<section class="section"><h2>② 今日财经要闻 '
+    return (f'<section class="section" id="sec-news"><h2>② 今日财经要闻 '
             f'<span style="font-size:12px;color:#90a4ae;font-weight:400">{ds} · Sina News AI归纳 · {src}个主题</span></h2>'
             f'{points}{items}</section>')
 
@@ -223,7 +225,7 @@ def render_module3(d):
                  f'<td class="num" style="color:#888">{ref}</td>'
                  f'<td>{badge}</td></tr>')
     total = len(sig.get('signals', []))
-    return (f'<section class="section"><h2>③ 投资信号 '
+    return (f'<section class="section" id="sec-signals"><h2>③ 投资信号 '
             f'<span style="font-size:12px;color:#90a4ae;font-weight:400">滚动分位触发 · '
             f'{sig.get("triggered_count",0)}/{total} 已触发</span></h2>'
             f'<table><thead><tr><th>信号</th><th class="num">当前值</th><th class="num">参照</th><th>状态</th></tr></thead>'
@@ -277,7 +279,7 @@ def _v6_box(label, value, sub="", cls=""):
 
 def render_module_v6():
     s, note = load_v6_summary()
-    head = ('<section class="section"><h2>④ V6 交易决策 '
+    head = ('<section class="section" id="sec-v6"><h2>④ V6 交易决策 '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
             'trend-trading-system · 波段决策单 · 100-500亿域</span></h2>')
     if not s:
@@ -458,7 +460,7 @@ def load_policy_summary():
 
 def render_module_policy():
     p, note = load_policy_summary()
-    head = ('<section class="section"><h2>⑤ 政策信号 '
+    head = ('<section class="section" id="sec-policy"><h2>⑤ 政策信号 '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
             'policy-signal · 政策力度 × 市场位置 → 仓位上限</span></h2>')
     if not p:
@@ -573,7 +575,7 @@ def render_module_emotion():
       ③ 预期未来几天振幅变大，别把正常波动当趋势破坏
     """
     s, note = load_v6_summary()
-    head = ('<section class="section"><h2>⑥ 情绪温度计 '
+    head = ('<section class="section" id="sec-emotion"><h2>⑥ 情绪温度计 '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
             '退潮/冰点判读 · <b>状态提示，非卖出信号</b></span></h2>')
     if not s:
@@ -662,7 +664,7 @@ def render_module_risk():
           剩余仓位以「持有期最高收盘价」为基准，回撤 8% 收盘触发减仓/退出。
     """
     p, note = load_risk_summary()
-    head = ('<section class="section"><h2>⑦ 浮盈保护 · 风险状态 '
+    head = ('<section class="section" id="sec-risk"><h2>⑦ 浮盈保护 · 风险状态 '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
             'PIT 大盘脆弱度 + 持仓动作框架 · <b>初减 + 8% 移动止损</b></span></h2>')
     if not p:
@@ -802,6 +804,374 @@ function rkCalc() {{
 </section>"""
 
 
+def load_quant_activity():
+    if not os.path.exists(QUANT_ACTIVITY_JSON):
+        return None, "cache/quant_activity.json 尚未生成"
+    try:
+        with open(QUANT_ACTIVITY_JSON) as f:
+            return json.load(f), ""
+    except Exception as e:  # noqa: BLE001
+        return None, f"quant_activity.json 解析失败: {e}"
+
+
+def render_module_quant_activity():
+    """⑧ 量化参与度（代理）——不是成交占比/持仓占比。
+
+    代理公式（与 backtest/quant_activity_validate.py 同口径）：
+      mean(z(换手率), z(振幅), z(|日内涨跌|), z(小单占比))，每日横截面、成交额加权。
+    验证：2024-01 微盘崩 / 2024-02 量化平仓，事件前 10 日 micro-large spread
+    相对前 60 日 z≈+1.0，事件后回落；安慰剂日期未通过。
+    """
+    p, note = load_quant_activity()
+    head = ('<section class="section" id="sec-quant"><h2>⑧ 量化参与度（代理） '
+            '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
+            '活跃度代理 · <b>不是成交占比/持仓占比</b></span></h2>')
+    if not p:
+        return (head + f'<p style="color:#90a4ae;font-size:13px">{note}。'
+                f'运行 <code>python3 ~/projects/hermes-dashboard/collect_quant_activity.py</code> 生成。</p></section>')
+
+    m = p.get("market") or {}
+    cov = p.get("coverage") or {}
+    hist = p.get("history") or []
+    caveat = (p.get("proxy") or {}).get("caveat") or "代理，不是量化成交占比。"
+    formula = (p.get("proxy") or {}).get("formula") or ""
+
+    box1 = _v6_box("📊 市场活跃度", f"{m.get('score', '—')}<span style='font-size:13px;color:#90a4ae'>/100</span>",
+                   f"z {m.get('z', 0):+.2f} · 60日分位")
+    box2 = _v6_box("🔬 微盘活跃度", f"{m.get('micro_score', '—')}<span style='font-size:13px;color:#90a4ae'>/100</span>",
+                   f"vs 大盘 spread {m.get('spread_score', '—')}/100")
+    box3 = _v6_box("🏛 大盘活跃度", f"{m.get('large_score', '—')}<span style='font-size:13px;color:#90a4ae'>/100</span>",
+                   f"micro-large z {m.get('spread_z', 0):+.2f}")
+
+    def _ind_rows(items):
+        return "".join(
+            f"<tr><td>{x.get('name', '—')}</td><td class='num'>{x.get('score_pct', 0):.0f}</td>"
+            f"<td class='num'>{x.get('n', 0)}</td><td class='num'>{x.get('turnover', 0):.1f}%</td></tr>"
+            for x in (items or []))
+
+    stock_rows = "".join(
+        f"<tr><td>{x.get('name', '—')}</td><td style='color:#90a4ae'>{x.get('ts_code', '—')}</td>"
+        f"<td>{x.get('industry', '—')}</td><td class='num'>{x.get('score', 0):.1f}</td>"
+        f"<td class='num'>{x.get('turnover_rate', 0):.1f}%</td>"
+        f"<td class='num'>{x.get('small_share', 0) * 100:.0f}%</td>"
+        f"<td class='num {('up' if x.get('intraday', 0) < 0 else 'down')}'>{x.get('intraday', 0):+.1f}%</td>"
+        f"<td class='num'>{x.get('range', 0):.1f}%</td></tr>"
+        for x in (p.get("top_stocks") or [])[:10])
+
+    h20 = hist[-20:]
+    spark = (
+        f"<div class='kv' style='margin-top:12px'><b>近20日：</b>"
+        f"<div><span style='color:#1a73e8'>市场</span>{_sparkline(h20, 'market', width=560, height=44)}</div>"
+        f"<div><span style='color:#7c3aed'>微盘</span>{_sparkline(h20, 'micro', width=560, height=44)}</div>"
+        f"<div><span style='color:#c62828'>spread</span>{_sparkline(h20, 'spread', width=560, height=44)}</div></div>")
+
+    return head + f"""
+<div class="kv" style="margin-top:10px;background:#fff7ed;border-left:3px solid #f59e0b;padding:8px 10px;color:#92400e">
+  ⚠️ {caveat}<br>
+  <span style="font-size:11px;color:#a16207">公式：{formula} · 覆盖 {cov.get('n_stocks', '—')} 只 / {cov.get('n_industries', '—')} 行业 · asof {p.get('asof', '—')}</span>
+</div>
+<div class="flow-grid" style="margin-top:12px">{box1}{box2}{box3}</div>
+{spark}
+<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:14px">
+  <div style="flex:1;min-width:320px">
+    <div class="kv"><b>活跃度最高行业</b></div>
+    <div class="table-scroll"><table><thead><tr><th>行业</th><th class="num">分位</th><th class="num">成分股</th><th class="num">换手</th></tr></thead>
+    <tbody>{_ind_rows(p.get('top_industries')) or '<tr><td colspan="4">—</td></tr>'}</tbody></table></div>
+  </div>
+  <div style="flex:1;min-width:320px">
+    <div class="kv"><b>活跃度最低行业</b></div>
+    <div class="table-scroll"><table><thead><tr><th>行业</th><th class="num">分位</th><th class="num">成分股</th><th class="num">换手</th></tr></thead>
+    <tbody>{_ind_rows(p.get('bottom_industries')) or '<tr><td colspan="4">—</td></tr>'}</tbody></table></div>
+  </div>
+</div>
+<div class="kv" style="margin-top:14px"><b>个股活跃度 Top10</b>
+  <span style="color:#90a4ae">（换手/振幅/日内/小单占比合成；高分=更像高频/量化活跃，不等于量化持仓）</span></div>
+<div class="table-scroll"><table><thead><tr>
+<th>名称</th><th>代码</th><th>行业</th><th class="num">活跃度</th><th class="num">换手</th>
+<th class="num">小单占比</th><th class="num">日内</th><th class="num">振幅</th></tr></thead>
+<tbody>{stock_rows or '<tr><td colspan="8">—</td></tr>'}</tbody></table></div>
+<div class="kv" style="margin-top:10px;color:#90a4ae">
+  验证：2024-01 微盘崩 / 2024-02 量化平仓，事件前 10 日 micro-large spread 相对前 60 日
+  <b>z≈+1.0</b>，事件后回落；安慰剂日期未通过。代理只用于拥挤度/活跃度排序，<b>不能回答「量化基金占多少」</b>。
+</div>
+</section>"""
+
+
+def load_quant_holdings():
+    if not os.path.exists(QUANT_HOLDINGS_JSON):
+        return None, "cache/quant_holdings.json 尚未生成"
+    try:
+        with open(QUANT_HOLDINGS_JSON) as f:
+            return json.load(f), ""
+    except Exception as e:  # noqa: BLE001
+        return None, f"quant_holdings.json 解析失败: {e}"
+
+
+def render_module_quant_holdings():
+    """⑨ 量化持仓（公募·季度·下限）——不是全部量化持仓。"""
+    p, note = load_quant_holdings()
+    head = ('<section class="section" id="sec-holdings"><h2>⑨ 量化持仓（季度·公募下限） '
+            '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
+            '仅公募·前十大·不含私募 · <b>下限而非全量</b></span></h2>')
+    if not p:
+        return (head + f'<p style="color:#90a4ae;font-size:13px">{note}。'
+                f'运行 <code>python3 ~/projects/hermes-dashboard/collect_quant_holdings.py --force</code> 生成。</p></section>')
+
+    cov = p.get("coverage") or {}
+    m = p.get("market") or {}
+    ok = int(cov.get("n_funds_ok") or 0)
+    base = int(cov.get("n_funds_base") or 0)
+    ratio = ok / base if base else 0
+    complete = ratio >= 0.8
+    caveat = m.get("caveat") or "仅公募·前十大·不含私募；结果是下限。"
+
+    warn = ""
+    if not complete:
+        warn = (f"<div class='kv' style='margin-top:10px;background:#fef2f2;border-left:3px solid #dc2626;"
+                f"padding:8px 10px;color:#991b1b'>⚠️ 基金抓取覆盖不足：{ok}/{base}（{ratio*100:.0f}%）。"
+                f"本期占比数字不可用，只展示已抓到的样本；请稍后重跑。</div>")
+
+    if complete:
+        kpi = f"""
+<div class="flow-grid" style="margin-top:12px">
+  {_v6_box("📅 季度", p.get("quarter", "—"), f"截至 {p.get('quarter_end', '—')}")}
+  {_v6_box("💰 公募量化前十大持仓", f"{m.get('total_holding_yi', 0):.1f}<span style='font-size:13px;color:#90a4ae'>亿</span>",
+           f"基金 {ok}/{base} · 股票 {cov.get('n_stocks', '—')}")}
+  {_v6_box("📊 占 A 股流通市值", f"{m.get('share_pct', 0):.3f}<span style='font-size:13px;color:#90a4ae'>%</span>",
+           f"分母 {m.get('total_circ_yi', 0):.0f}亿 · 下限")}
+</div>"""
+    else:
+        kpi = f"""
+<div class="flow-grid" style="margin-top:12px">
+  {_v6_box("📅 季度", p.get("quarter", "—"), f"截至 {p.get('quarter_end', '—')}")}
+  {_v6_box("💰 已抓到持仓", f"{m.get('total_holding_yi', 0):.1f}<span style='font-size:13px;color:#90a4ae'>亿</span>",
+           f"基金 {ok}/{base} · 覆盖不足")}
+  {_v6_box("📊 占流通市值", "—", "覆盖不足，暂不展示")}
+</div>"""
+
+    def _ind_rows(items):
+        return "".join(
+            f"<tr><td>{x.get('name', '—')}</td><td class='num'>{x.get('holding_yi', 0):.2f}</td>"
+            f"<td class='num'>{x.get('n', 0)}</td>"
+            f"<td class='num'>{(x.get('own_pct') if x.get('own_pct') is not None else 0):.3f}%</td></tr>"
+            for x in (items or [])[:8])
+
+    def _stock_rows(items):
+        return "".join(
+            f"<tr><td>{x.get('name', '—')}</td><td style='color:#90a4ae'>{x.get('ts_code', '—')}</td>"
+            f"<td>{x.get('industry', '—')}</td><td class='num'>{x.get('holding_yi', 0):.2f}</td>"
+            f"<td class='num'>{x.get('n_funds', 0)}</td>"
+            f"<td class='num'>{(x.get('own_pct') if x.get('own_pct') is not None else 0):.3f}%</td></tr>"
+            for x in (items or [])[:10])
+
+    return head + f"""
+<div class="kv" style="margin-top:10px;background:#eff6ff;border-left:3px solid #3b82f6;padding:8px 10px;color:#1e40af">
+  {caveat}<br>
+  <span style="font-size:11px">口径：{cov.get('note', '—')} · 抓取成功 {ok}/{base} · 含量化增强 {cov.get('n_quant_enhanced', '—')} 只</span>
+</div>
+{warn}
+{kpi}
+<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:14px">
+  <div style="flex:1;min-width:320px">
+    <div class="kv"><b>行业持仓（绝对值）</b></div>
+    <div class="table-scroll"><table><thead><tr><th>行业</th><th class="num">持仓(亿)</th><th class="num">股票数</th><th class="num">占流通</th></tr></thead>
+    <tbody>{_ind_rows(p.get('top_industries')) or '<tr><td colspan="4">—</td></tr>'}</tbody></table></div>
+  </div>
+  <div style="flex:1;min-width:320px">
+    <div class="kv"><b>个股持仓占流通比 Top10</b><span style="color:#90a4ae">（小盘更易上榜）</span></div>
+    <div class="table-scroll"><table><thead><tr><th>名称</th><th>代码</th><th>行业</th><th class="num">持仓(亿)</th><th class="num">基金数</th><th class="num">占流通</th></tr></thead>
+    <tbody>{_stock_rows(p.get('top_stocks_by_ownership')) or '<tr><td colspan="6">—</td></tr>'}</tbody></table></div>
+  </div>
+</div>
+<div class="kv" style="margin-top:10px;color:#90a4ae">
+  这是「公募量化基金季报前十大」的持仓下限，不是全部量化持仓：私募不披露、季报只有前十大、
+  前十大约覆盖 50–60% 股票仓位。它适合看长期持有/拥挤，不适合日频交易。
+</div>
+</section>"""
+
+
+def render_quick_nav():
+    items = [
+        ("总览", "sec-today"),
+        ("① 国家队", "sec-national"), ("② 要闻", "sec-news"),
+        ("③ 信号", "sec-signals"), ("④ V6", "sec-v6"),
+        ("⑤ 政策", "sec-policy"), ("⑥ 情绪", "sec-emotion"),
+        ("⑦ 浮盈保护", "sec-risk"), ("⑧ 量化活跃度", "sec-quant"),
+        ("⑨ 量化持仓", "sec-holdings"), ("指标字典", "sec-glossary"),
+    ]
+    links = "".join(
+        f'<a href="#{i}" style="color:#1a73e8;text-decoration:none;padding:3px 9px;'
+        f'border:1px solid #e2e8f0;border-radius:12px;background:#fff">{n}</a>'
+        for n, i in items)
+    return (f'<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 24px;'
+            f'background:#f8fafc;border-bottom:1px solid #eee;font-size:12px">'
+            f'<span style="color:#607d8b;margin-right:4px">快速跳转：</span>{links}</div>')
+
+
+def render_today_summary():
+    """总分结构的「总」：今天先看三件事，指标解释在字典。"""
+    s, _ = load_v6_summary()
+    rg, _ = load_risk_summary()
+    q, _ = load_quant_activity()
+    t = (s or {}).get("temperature") or {}
+    risk = (s or {}).get("index_risk") or {}
+    pos = (s or {}).get("position") or {}
+    card = (s or {}).get("decision_card") or {}
+    m = (q or {}).get("market") or {}
+    state = rg.get("state") if isinstance(rg, dict) else None
+    ok = bool(rg.get("ok", True)) if isinstance(rg, dict) else False
+    ex = (rg.get("existing") or {}) if isinstance(rg, dict) else {}
+    ne = (rg.get("new_entry") or {}) if isinstance(rg, dict) else {}
+    trim = (rg.get("action") or {}).get("initial_trim", 0) if isinstance(rg, dict) else 0
+
+    temp_txt = f"{t.get('temp'):.1f}" if isinstance(t.get("temp"), (int, float)) else "—"
+    risk_txt = (f"{risk.get('label')}（{risk.get('score')}/6）"
+                if risk else "—")
+    guard_txt = (f"{rg.get('state_label')}（{rg.get('score')}/8）" if ok else "风险状态不可用")
+    guard_sub = (ex.get("text") or f"初减 {trim:.0%} · 剩余8%止损") if ok else "沿用原纪律"
+    ceiling = ne.get("ceiling_text") or "—"
+    q_market = m.get("score", "—")
+    q_sub = (f"微盘 {m.get('micro_score', '—')} · 大盘 {m.get('large_score', '—')} "
+             f"· spread {m.get('spread_score', '—')}")
+
+    if ok and state in ("fragile", "crash"):
+        priority = ("先防守：已有浮盈仓按 ⑦ 初减/8%止损；"
+                    "新仓受 ⑦ 上限约束；等状态回到警戒/正常再谈进攻。")
+    else:
+        priority = ("按 V6 温度档与 ⑦ 防守层执行；新仓不超过 ⑦/④ 的上限。")
+
+    return f"""
+<section class="section" id="sec-today" style="background:#f8fafc">
+  <h2>🧭 今天先看这三件事 <span style="font-size:12px;color:#90a4ae;font-weight:400">总览 · 细节在下方各段</span></h2>
+  <div class="flow-grid" style="margin-top:10px">
+    {_v6_box("🌡 大盘", f"{temp_txt}<span style='font-size:13px;color:#90a4ae'>/100</span>",
+             f"{t.get('level', '—')} · 阶段 {t.get('regime', card.get('regime', '—'))} · 大盘风险 {risk_txt}")}
+    {_v6_box("🛡 已有浮盈", guard_txt, guard_sub, "up" if state in ("fragile", "crash") else "")}
+    {_v6_box("📡 量化活跃度", f"{q_market}<span style='font-size:13px;color:#90a4ae'>/100</span>",
+             q_sub + " · 代理，不是成交占比")}
+  </div>
+  <div class="kv" style="margin-top:10px"><b>一句话：</b>{priority}</div>
+  <div class="kv" style="color:#64748b">看不懂某个数字？先看 <a href="#sec-glossary">指标字典</a>；
+    每段的「怎么看/别误读」都在那里。⑦ 的动作只作用于已有浮盈仓；④ 的仓位是进攻/新仓。</div>
+</section>"""
+
+
+def _gloss_table(rows):
+    tr = "".join(
+        f"<tr><td style='white-space:nowrap'><b>{a}</b></td><td>{b}</td><td>{c}</td>"
+        f"<td style='color:#b45309'>{d}</td></tr>" for a, b, c, d in rows)
+    return (f"<div class='table-scroll'><table><thead><tr>"
+            f"<th>指标</th><th>它是什么（人话）</th><th>怎么读 / 阈值</th>"
+            f"<th>别误读</th></tr></thead><tbody>{tr}</tbody></table></div>")
+
+
+def render_glossary():
+    groups = [
+        ("① 国家队资金（ETF 份额净申购）", [
+            ("ETF 净申购", "国家队今天净买入了多少（份额变化 × 价格）",
+             "越大越像在买；>近20日80分位 = 比过去80%的日子都强",
+             "不是成交额；成交额含做市/套利换手，会大几十倍"),
+            ("主力净流入", "大单资金今天净买入/卖出多少",
+             "|z|≥1 = 偏离20日均值超过1个标准差", "按单笔金额分类，不一定是机构"),
+            ("分位", "在最近N天里排第几", "80分位 = 比80%的日子高", "分位高≠明天涨"),
+        ]),
+        ("③ 投资信号（滚动分位）", [
+            ("ETF 净申购信号", "净申购达到近20日80分位", "触发=值得关注", "触发不是必买"),
+            ("主力资金信号", "主力净流入偏离20日均值≥1σ", "|z|≥1 触发", "单日噪声大"),
+        ]),
+        ("④ V6 交易决策", [
+            ("温度 0–100", "市场热度（拥挤度）", "<45低温=不拥挤；>55高温=过热",
+             "低温≠马上涨；是概率/反向指标"),
+            ("阶段", "技术性牛熊 + 年线/半年线", "过冷/恐慌、下跌、震荡、过热、上涨",
+             "阶段是背景，不是个股买卖指令"),
+            ("大盘风险 0–6", "6项技术风险命中几项", "高/极高=多项破位",
+             "诊断用；动作看 ⑦ 浮盈保护"),
+            ("温度档仓位", "按温度档给新仓的目标数量", "如 3只(半仓)",
+             "不是已有仓位的减仓比例"),
+            ("决策单阶段仓位", "阶段给的仓位区间", "如 30-50%（试探建仓）",
+             "与温度档是两种口径，别混"),
+            ("市场广度", "上涨/下跌家数占比", "越低越弱；看趋势不看看单日",
+             "单日噪声大"),
+            ("250日回撤", "离一年最高点跌了多少", "越深=跌得越多（页面取绝对值）",
+             "不是估值便宜"),
+            ("P≧20% / 预期", "模型给的上涨概率/预期收益", "概率是排序，不是保证",
+             "不要单票满仓"),
+        ]),
+        ("⑤ 政策信号", [
+            ("政策力度分 0–100", "政策动作的强度", "25=形式大于实质；越高越强",
+             "不是市场底"),
+            ("上限 cap", "政策能带来的资金/力度上限", "8%=有动作但力度不足",
+             "不是买入信号"),
+            ("市场位置", "当前点位在政策有效区的位置", "有效区/无效区",
+             "政策不是万能"),
+        ]),
+        ("⑥ 情绪温度计", [
+            ("涨跌家数比", "上涨家数 / 下跌家数", "<0.5偏弱；<0.25退潮/冰点",
+             "退潮后历史反而偏涨，不是卖出信号"),
+            ("涨停/跌停", "当日涨停/跌停家数", "跌停≥25=冰点/恐慌",
+             "冰点≠继续跌"),
+            ("晋级率", "昨日涨停今天继续涨停的比例", "低=赚钱效应差",
+             "短线情绪，不是大盘"),
+            ("情绪分/恐慌分", "0–100 的热度/恐慌", "越高越热/越恐慌",
+             "反向指标，不是买卖指令"),
+        ]),
+        ("⑦ 浮盈保护（防守层）", [
+            ("脆弱度 0–8", "大盘脆弱度打分", "0–1正常、2–3警戒、4–5脆弱、6–8崩跌",
+             "动作看状态，不只看分数"),
+            ("建议初减", "对已有浮盈仓建议先卖多少", "25% / 40% / 50%",
+             "不是目标仓位，也不是清仓"),
+            ("8% 移动止损", "从持仓最高收盘价回撤8%就减/退", "峰值不是成本价",
+             "不是买入就设8%止损"),
+            ("下跌占比", "当日下跌家数 / 全市场", "≥80%=广泛下跌",
+             "单日不够，看5日/10日"),
+            ("MA20上方", "多少股票在20日均线上方", "<30%弱、<20%更弱",
+             "广度，不是指数"),
+            ("10日冲击", "10日内80%下跌的天数", "≥2=第二次冲击",
+             "第一次冲击没有预测力"),
+            ("新仓/总仓上限", "新仓/总仓最多多少", "如≤15%（V6 danger）",
+             "不是已有仓位的减仓比例"),
+        ]),
+        ("⑧ 量化活跃度（代理）", [
+            ("市场/微盘/大盘 0–100", "当天活跃度在近60日的分位",
+             "越高越活跃；微盘-大盘=背离", "是相对分位，不是绝对成交占比"),
+            ("spread", "微盘活跃度 − 大盘活跃度", "100=60日最高背离",
+             "高背离=微盘/题材被高频资金做，不是量化持仓"),
+            ("换手/振幅/日内/小单占比", "代理的四个输入",
+             "换手高、振幅大、日内波动大、小单多=更像高频",
+             "小单多也可能是散户"),
+            ("代理", "不是量化成交占比", "无法识别单笔交易",
+             "真值需 L2/逐笔或付费厂商"),
+        ]),
+        ("⑨ 量化持仓（季度·公募下限）", [
+            ("季度/前十大", "公募量化基金季报前十大持仓", "季度更新",
+             "不是日频，不是全部持仓"),
+            ("占流通市值", "公募量化前十大持仓 / 流通市值", "约0.1–0.3%量级",
+             "下限，不含私募"),
+            ("覆盖基金", "抓取成功 / 基础名称去重", "≥80%才展示占比",
+             "覆盖不足会显示警告"),
+            ("个股占流通比", "基金持有该股 / 该股流通市值", "小盘更容易高",
+             "不是量化持仓的全部"),
+        ]),
+    ]
+    blocks = "".join(
+        f"<details{' open' if title.startswith(('⑦', '⑧', '⑨')) else ''} "
+        f"style='margin:8px 0'><summary style='cursor:pointer;font-weight:600;"
+        f"color:#334155'>{title}</summary>{_gloss_table(rows)}</details>"
+        for title, rows in groups)
+    return f"""
+<section class="section" id="sec-glossary">
+  <h2>📖 指标字典 <span style="font-size:12px;color:#90a4ae;font-weight:400">
+    普通人版 · 每个数字一句话 · 先看结论再看表</span></h2>
+  <p style="font-size:13px;color:#475569;line-height:1.7">
+    这张表回答三件事：<b>它是什么</b>、<b>阈值怎么读</b>、<b>最容易怎么误读</b>。
+    阈值是经验分位/回测值，不是保证；任何单一指标都不该单独决定买卖。
+    先看顶部的「今天先看这三件事」，再按需展开下面的分组。</p>
+  {blocks}
+  <p style="font-size:12px;color:#90a4ae;margin-top:8px">
+    更技术性的口径（数据源、公式、降级处理）在下方「口径说明」。</p>
+</section>"""
+
+
 def render_nav():
     """跨看板导航 —— 投资相关内容分散在多个入口，这里给出唯一入口。"""
     v6, _ = load_v6_summary()
@@ -827,7 +1197,7 @@ def render_archive(theme='quant', base='history/'):
     items = "".join(
         f'<a class="arc" href="{base}{os.path.basename(f)}">{os.path.basename(f)[len(theme) + 1:-5]}</a>'
         for f in files)
-    return (f'<section class="section"><h2>历史归档 '
+    return (f'<section class="section" id="sec-archive"><h2>历史归档 '
             f'<span style="font-size:12px;color:#90a4ae;font-weight:400">最近 {len(files)} 期 · 每天一份</span></h2>'
             f'<div class="arc-list">{items}</div></section>')
 
@@ -835,7 +1205,7 @@ def render_archive(theme='quant', base='history/'):
 def render_methodology(d):
     tw = d.get('trading_dates_window', ['—', '—']) or ['—', '—']
     off = (d.get('offline_modules') or {}).get('量化集中度')
-    return f"""<section class="section">
+    return f"""<section class="section" id="sec-method">
 <h2>口径说明</h2>
 <div class="methodology">
 <p><b>国家队资金（v5 已换口径）</b> = 沪市宽基ETF（510050 / 510300 / 510310 / 510330 / 510500 等）<b>份额日变化 × 最新价</b>。
@@ -871,6 +1241,8 @@ def render(d, theme='quant', base='history/'):
 <div class="container">
 <div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">{d.get('date','')} · 生成于 {d.get('generated_at','—')} · v6（含 V6 决策层）</div></div>{badge}</div>
 {render_nav()}
+{render_quick_nav()}
+{render_today_summary()}
 {render_module1(d)}
 {render_module2(d)}
 {render_module3(d)}
@@ -878,9 +1250,12 @@ def render(d, theme='quant', base='history/'):
 {render_module_policy()}
 {render_module_emotion()}
 {render_module_risk()}
+{render_module_quant_activity()}
+{render_module_quant_holdings()}
 {render_archive(theme, base)}
+{render_glossary()}
 {render_methodology(d)}
-<div class="footer">quant-ratio v6 · akshare 免费数据源 + V6 日报（工作日 02:45）· cron 15 16 * * * 盘后刷新</div>
+<div class="footer">投资看板 · akshare + V6 日报（工作日 02:45）+ 量化活跃度代理/季度持仓 · cron 15 16 * * * 盘后刷新</div>
 </div></body></html>"""
 
 

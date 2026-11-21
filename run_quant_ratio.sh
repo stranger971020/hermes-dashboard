@@ -20,6 +20,11 @@ echo "=== quant-ratio 投资看板刷新 (主题: ${THEME}) ==="
 echo "[1/5] 收集数据..."
 ${PY} "${DASHBOARD_PATH}/collect_quant_ratio.py" "${THEME}"
 
+# 1b. 量化参与度：日频代理（A）+ 季度公募持仓下限（B，--if-stale 跳过）
+echo "[1b/5] 量化活跃度代理 + 季度持仓..."
+${PY} "${DASHBOARD_PATH}/collect_quant_activity.py" || echo "⚠️ 量化活跃度代理采集失败（非致命）"
+${PY} "${DASHBOARD_PATH}/collect_quant_holdings.py" --if-stale || echo "⚠️ 量化持仓缓存刷新失败（非致命）"
+
 # 2. 渲染 HTML（dashboard_investment.html + history/{theme}_{date}.html）
 echo ""
 echo "[2/5] 渲染HTML..."
@@ -35,7 +40,8 @@ if [ -d "${DASHBOARD_PATH}/.git" ]; then
     echo ""
     echo "[4/5] 提交Git..."
     cd "${DASHBOARD_PATH}"
-    git add collect_quant_ratio.py quant_ratio_render.py verify_quant.py run_quant_ratio.sh \
+    git add collect_quant_ratio.py collect_quant_activity.py collect_quant_holdings.py \
+        quant_ratio_render.py verify_quant.py run_quant_ratio.sh \
         dashboard_investment.html quant_data.json \
         "history/${THEME}_*.html" "history/${THEME}_*.json" 2>/dev/null || true
     git commit -m "quant-ratio: update ${THEME} dashboard [$(date +%Y-%m-%d)]" 2>/dev/null \

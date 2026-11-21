@@ -277,6 +277,79 @@ def main():
         except Exception as e:  # noqa: BLE001
             errs.append(f"风险状态校验失败: {e}")
 
+    # 11) 量化活跃度代理（⑧, 2026-11-22）—— 必须自证是代理，不得冒充占比
+    act_file = os.path.join(os.path.dirname(DATA), "cache", "quant_activity.json")
+    if not os.path.exists(act_file):
+        warns.append("量化活跃度代理 cache/quant_activity.json 缺失（看板 ⑧ 段将显示未生成）")
+    else:
+        try:
+            with open(act_file, encoding="utf-8") as f:
+                a = json.load(f)
+            if a.get("schema") != 1:
+                errs.append(f"量化代理 schema={a.get('schema')}，期望 1")
+            for k in ("asof", "market", "coverage", "proxy"):
+                if k not in a:
+                    errs.append(f"量化代理缺关键字段: {k}")
+            m = a.get("market") or {}
+            for k in ("score", "micro_score", "large_score", "spread_score"):
+                v = m.get(k)
+                if not isinstance(v, (int, float)) or not (0 <= v <= 100):
+                    errs.append(f"量化代理 {k} 不是 0-100: {v!r}")
+            caveat = (a.get("proxy") or {}).get("caveat", "")
+            if "不是" not in caveat and "无法识别" not in caveat:
+                errs.append("量化代理缺「不是成交占比/无法识别」的自我限定")
+            if not a.get("top_stocks"):
+                warns.append("量化代理 top_stocks 为空")
+            if os.path.exists(HTML):
+                html11 = open(HTML, encoding="utf-8").read()
+                if "<h2>⑧ 量化参与度" not in html11:
+                    errs.append("看板缺 ⑧ 量化参与度段（render_module_quant_activity 未挂载）")
+                else:
+                    seg11 = html11.split("<h2>⑧ 量化参与度", 1)[1][:14000]
+                    for mk in ("活跃度代理", "不是成交占比", "微盘活跃度",
+                               "个股活跃度 Top10", "2024-01 微盘崩"):
+                        if mk not in seg11:
+                            errs.append(f"⑧ 段缺标记: {mk}")
+                    if "量化持仓占比" in seg11 and "不是" not in seg11:
+                        errs.append("⑧ 段出现未限定的「量化持仓占比」")
+        except Exception as e:  # noqa: BLE001
+            errs.append(f"量化代理校验失败: {e}")
+
+    # 12) 量化持仓（⑨, 季度·公募下限）—— 必须标「仅公募/不含私募/下限」
+    hold_file = os.path.join(os.path.dirname(DATA), "cache", "quant_holdings.json")
+    if not os.path.exists(hold_file):
+        warns.append("量化持仓 cache/quant_holdings.json 缺失（看板 ⑨ 段将显示未生成）")
+    else:
+        try:
+            with open(hold_file, encoding="utf-8") as f:
+                hd = json.load(f)
+            if hd.get("schema") != 1:
+                errs.append(f"量化持仓 schema={hd.get('schema')}，期望 1")
+            for k in ("quarter", "coverage", "market", "top_industries"):
+                if k not in hd:
+                    errs.append(f"量化持仓缺关键字段: {k}")
+            cov = hd.get("coverage") or {}
+            ok = int(cov.get("n_funds_ok") or 0)
+            base = int(cov.get("n_funds_base") or 1)
+            ratio = ok / base if base else 0
+            if ratio >= 0.8 and not isinstance((hd.get("market") or {}).get("share_pct"), (int, float)):
+                errs.append("量化持仓覆盖率足够但 share_pct 非数值")
+            if os.path.exists(HTML):
+                html12 = open(HTML, encoding="utf-8").read()
+                if "<h2>⑨ 量化持仓" not in html12:
+                    errs.append("看板缺 ⑨ 量化持仓段（render_module_quant_holdings 未挂载）")
+                else:
+                    seg12 = html12.split("<h2>⑨ 量化持仓", 1)[1][:12000]
+                    for mk in ("仅公募", "不含私募", "下限", "个股持仓占流通比 Top10"):
+                        if mk not in seg12:
+                            errs.append(f"⑨ 段缺标记: {mk}")
+                    if ratio < 0.8 and "覆盖不足" not in seg12:
+                        errs.append(f"⑨ 段覆盖率 {ok}/{base} 不足，但页面没有覆盖不足提示")
+                    if "全部量化持仓" in seg12 and "不是" not in seg12:
+                        errs.append("⑨ 段把公募前十大说成全部量化持仓")
+        except Exception as e:  # noqa: BLE001
+            errs.append(f"量化持仓校验失败: {e}")
+
     print(f"quant-verify: {len(errs)} 错误 / {len(warns)} 警告  ({args.data})")
     for e in errs:
         print("  ❌", e)
