@@ -698,11 +698,10 @@ def render_module_risk():
 
     warn_html = ""
     if not ok or stale:
-        warns = "；".join(p.get("warnings") or [])
+        msg = "；".join(p.get("warnings") or ["风险状态未计算/数据滞后 — 新建仓建议暂停"])
         warn_html = (f"<div class='kv' style='margin-top:10px;color:#b45309;background:#fffbeb;"
                      f"padding:8px 10px;border-left:3px solid #f59e0b'>"
-                     f"⚠️ 风险状态未计算/数据滞后{stale_txt}"
-                     f"{('：' + warns) if warns else ''} — 新建仓建议暂停；已有仓位按 8% 移动止损纪律执行。</div>")
+                     f"⚠️ {msg}。已有仓位按 8% 移动止损纪律执行。</div>")
     if source == "file_fallback":
         warn_html += (f"<div class='kv' style='margin-top:6px;color:#90a4ae'>"
                       f"数据源：risk_state.json（V6 摘要未包含 risk_guard，使用独立文件兜底）。</div>")

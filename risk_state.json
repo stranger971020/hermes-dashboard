@@ -1,7 +1,17 @@
 {
   "schema": 1,
   "asof": "20261119",
-  "generated_at": "2026-11-21T16:00:26",
+  "generated_at": "2026-11-21T16:37:35",
+  "expected_date": "20261120",
+  "stale_days": 1,
+  "freshness": {
+    "asof": "20261119",
+    "expected": "20261120",
+    "stale_days": 1,
+    "ok": false,
+    "source": "arg"
+  },
+  "entry_advice_ok": false,
   "state": "crash",
   "state_label": "崩跌",
   "score": 6,
@@ -30,6 +40,11 @@
   "action": {
     "initial_trim": 0.5,
     "initial_trim_reason": "弱市 + 10日内第二次广泛下跌 → 至少减半",
+    "initial_trim_already_active": true,
+    "incremental_trim": 0.0,
+    "previous_state": "fragile",
+    "previous_trim": 0.5,
+    "trim_text": "前日建议初减 50%；若已执行，今日不重复；若未执行，今日补执行。剩余仓位执行 8% 移动止损",
     "trail_stop": 0.08,
     "note": "初减后剩余仓位按「持仓峰值回撤 8%」移动止损；不预测顶，不因单日下跌砍掉全部仓位。"
   },
