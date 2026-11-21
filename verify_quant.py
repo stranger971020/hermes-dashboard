@@ -106,6 +106,11 @@ def main():
             for k in ("temperature", "decision_card", "position"):
                 if k not in v6:
                     errs.append(f"V6 摘要缺关键字段: {k}")
+            rg = v6.get("risk_guard")
+            if not isinstance(rg, dict):
+                warns.append("V6 摘要缺 risk_guard（看板 ⑦ 将回退 risk_state.json）")
+            elif str(rg.get("asof")) != str(v6.get("trading_date")):
+                errs.append(f"risk_guard.asof={rg.get('asof')} 与 trading_date={v6.get('trading_date')} 不一致")
             if not v6.get("links", {}).get("html"):
                 warns.append("V6 摘要缺 links.html（看板外链将回退拼 URL）")
             try:
@@ -190,12 +195,29 @@ def main():
 
     # 10) 浮盈保护段（⑦, 2026-11-21）—— 分数可回算、动作与状态一致、不得写成卖出指令
     risk_file = os.path.join(os.path.dirname(DATA), "risk_state.json")
-    if not os.path.exists(risk_file):
-        warns.append("风险状态 risk_state.json 缺失（看板 ⑦ 段将显示『尚未生成』）")
-    else:
+    rk = None
+    _src = None
+    _v6_files = sorted(glob.glob(os.path.join(V6_DIR, "v6_daily_*.json")))
+    if _v6_files:
+        try:
+            with open(_v6_files[-1], encoding="utf-8") as f:
+                _v6_rk = json.load(f)
+            if isinstance(_v6_rk.get("risk_guard"), dict):
+                rk = _v6_rk["risk_guard"]
+                _src = "v6_summary"
+        except Exception:  # noqa: BLE001
+            pass
+    if rk is None and os.path.exists(risk_file):
         try:
             with open(risk_file, encoding="utf-8") as f:
                 rk = json.load(f)
+            _src = "file_fallback"
+        except Exception as e:  # noqa: BLE001
+            errs.append(f"风险状态解析失败: {e}")
+    if rk is None:
+        warns.append("风险状态缺失（V6 摘要无 risk_guard，risk_state.json 也不存在）")
+    else:
+        try:
             if rk.get("schema") != 1:
                 errs.append(f"风险状态 schema={rk.get('schema')}，期望 1")
             for k in ("asof", "state", "score", "components", "action", "metrics"):
@@ -216,7 +238,10 @@ def main():
                 trim = max(trim, 0.50)
             trim = min(trim, 0.50)
             act = rk.get("action") or {}
-            if abs(float(act.get("initial_trim", -1)) - trim) > 1e-9:
+            _fresh = rk.get("freshness") or {}
+            _ok = bool(rk.get("ok", True))
+            _stale = int(rk.get("stale_days", _fresh.get("stale_days", 0)) or 0)
+            if _ok and _stale == 0 and abs(float(act.get("initial_trim", -1)) - trim) > 1e-9:
                 errs.append(f"初减建议不可复现: 记录 {act.get('initial_trim')} vs 规则 {trim}")
             if abs(float(act.get("trail_stop", -1)) - 0.08) > 1e-9:
                 errs.append(f"移动止损应为 8%，记录 {act.get('trail_stop')}")
@@ -225,15 +250,18 @@ def main():
             # 页面段
             if os.path.exists(HTML):
                 html10 = open(HTML, encoding="utf-8").read()
-                if "⑦ 浮盈保护" not in html10:
+                if "<h2>⑦ 浮盈保护" not in html10:
                     errs.append("看板缺 ⑦ 浮盈保护段（render_module_risk 未挂载）")
                 else:
-                    seg10 = html10.split("⑦ 浮盈保护", 1)[1][:9000]
-                    for mk in ("建议初减", "移动止损计算器", "回测锚点"):
+                    seg10 = html10.split("<h2>⑦ 浮盈保护", 1)[1][:12000]
+                    for mk in ("建议初减", "移动止损计算器", "回测锚点",
+                               "与 V6 分工", "防守/已有浮盈"):
                         if mk not in seg10:
                             errs.append(f"⑦ 段缺标记: {mk}")
-                    if f"{trim:.0%}" not in seg10:
+                    if _ok and _stale == 0 and f"{trim:.0%}" not in seg10:
                         errs.append(f"⑦ 段建议初减与状态不符: 期望 {trim:.0%}")
+                    if (not _ok or _stale) and not any(x in seg10 for x in ("暂停", "风险状态未计算")):
+                        errs.append("⑦ 段风险状态不可用/滞后，但页面没有暂停提示")
                     for bad in ("清仓", "立即卖出", "全部卖出"):
                         if bad in seg10:
                             errs.append(f"⑦ 段出现卖出指令「{bad}」—— 规则是初减+移动止损，不是一键卖光")

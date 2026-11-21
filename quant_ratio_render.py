@@ -286,6 +286,7 @@ def render_module_v6():
     t = s.get("temperature") or {}
     pos = s.get("position") or {}
     risk = s.get("index_risk") or {}
+    rg = s.get("risk_guard") or {}
     card = s.get("decision_card") or {}
     team = s.get("national_team") or {}
     emo = s.get("emotion") or {}
@@ -349,6 +350,7 @@ def render_module_v6():
     <div class="kv">阶段 <b>{card.get('regime') or t.get('regime') or '—'}</b> · 阶段仓位 <b>{card.get('position') or pos.get('size') or '—'}</b> · 行业臂 <b>{arm_disp}</b></div>
     <div class="kv">市场广度 <b>{_v6_pct(card.get('breadth'), 0)}</b> · 沪深300 250日回撤 <b>{_v6_pct(card.get('dd250'))}</b>
       {(' · ' + str(card.get('_tilt_note'))) if card.get('_tilt_note') else ''}</div>
+    <div class="kv" style="color:#7c3aed">🛡 已有浮盈仓（防守）：见 ⑦ 浮盈保护{('（' + str(rg.get('state_label')) + '(' + str(rg.get('score')) + '/8)' + '）') if rg.get('ok') else '（风险状态不可用）'}</div>
     <div style="margin-top:10px;font-size:12px;color:#607d8b">买入行业</div>
     <div style="margin-top:2px">{buy_chips}</div>
     <div style="margin-top:8px;font-size:12px;color:#607d8b">回避（热度分位 ≥90 · 最热 10%）</div>
@@ -627,14 +629,26 @@ def render_module_emotion():
 
 
 def load_risk_summary():
-    """⑦ 段数据源：trend-trading-system/analysis/risk_state.py 生成。"""
-    if not os.path.exists(RISK_JSON):
-        return None, "risk_state.json 尚未生成"
-    try:
-        with open(RISK_JSON) as f:
-            return json.load(f), ""
-    except Exception as e:  # noqa: BLE001
-        return None, f"risk_state.json 解析失败: {e}"
+    """⑦ 段数据源：优先 V6 摘要的 risk_guard，回退本地 risk_state.json。
+
+    单一事实源在 trend-trading-system/analysis/risk_state.py；V6 日报 02:45 生成并
+    写入 summary["risk_guard"]，看板 16:15 只消费，不重算、不产生第二个判断。
+    """
+    s, _ = load_v6_summary()
+    if isinstance(s, dict) and isinstance(s.get("risk_guard"), dict):
+        p = dict(s["risk_guard"])
+        p["_source"] = "v6_summary"
+        p["_v6_trading_date"] = s.get("trading_date")
+        return p, ""
+    if os.path.exists(RISK_JSON):
+        try:
+            with open(RISK_JSON) as f:
+                p = json.load(f)
+            p["_source"] = "file_fallback"
+            return p, ""
+        except Exception as e:  # noqa: BLE001
+            return None, f"risk_state.json 解析失败: {e}"
+    return None, "V6 摘要无 risk_guard，且 risk_state.json 尚未生成"
 
 
 def render_module_risk():
@@ -662,14 +676,46 @@ def render_module_risk():
     label = p.get("state_label", state)
     score = p.get("score", 0)
     trim = a.get("initial_trim", 0) or 0
+    ok = bool(p.get("ok", True))
+    fresh = p.get("freshness") or {}
+    stale = p.get("stale_days", fresh.get("stale_days", 0)) or 0
+    source = p.get("_source", "")
+    existing = p.get("existing") or {}
+    new_entry = p.get("new_entry") or {}
     cls = "up" if state in ("fragile", "crash") else ("down" if state == "normal" else "")
 
+    src_txt = ("来源 V6 日报" if source == "v6_summary"
+               else "来源 risk_state.json（V6 摘要未含守卫，独立文件兜底）" if source == "file_fallback"
+               else "")
+    stale_txt = f" · 滞后 {stale} 个交易日" if stale else ""
     box1 = _v6_box("🧭 市场状态", label,
-                   f"脆弱度 {score}/8 · asof {p.get('asof', '—')}", cls)
-    box2 = _v6_box("✂️ 建议初减", f"{trim:.0%}",
-                   f"剩余仓位 8% 移动止损", "up" if trim >= 0.4 else "")
+                   f"脆弱度 {score}/8 · asof {p.get('asof', '—')}{stale_txt}", cls)
+    box2 = _v6_box("✂️ 建议初减", ("暂停" if not ok else f"{trim:.0%}"),
+                   ("风险状态不可用 — 新仓建议暂停" if not ok
+                    else f"剩余仓位 8% 移动止损"), "up" if (ok and trim >= 0.4) else "")
     box3 = _v6_box("📉 市场广度", _v6_pct(m.get("down_ratio")),
                    f"MA20上方 {_v6_pct(m.get('above_ma20'))} · 60日 {_v6_pct(m.get('g60'))}")
+
+    warn_html = ""
+    if not ok or stale:
+        warns = "；".join(p.get("warnings") or [])
+        warn_html = (f"<div class='kv' style='margin-top:10px;color:#b45309;background:#fffbeb;"
+                     f"padding:8px 10px;border-left:3px solid #f59e0b'>"
+                     f"⚠️ 风险状态未计算/数据滞后{stale_txt}"
+                     f"{('：' + warns) if warns else ''} — 新建仓建议暂停；已有仓位按 8% 移动止损纪律执行。</div>")
+    if source == "file_fallback":
+        warn_html += (f"<div class='kv' style='margin-top:6px;color:#90a4ae'>"
+                      f"数据源：risk_state.json（V6 摘要未包含 risk_guard，使用独立文件兜底）。</div>")
+
+    existing_text = existing.get("text") or a.get("trim_text") or (
+        f"初减 {trim:.0%}；剩余仓位自峰值回撤 8% 即减/退" if ok else "风险状态不可用")
+    ceiling_text = new_entry.get("ceiling_text") or "按 V6 温度档执行（无 V6 上下文对照）"
+    divergence = new_entry.get("divergence")
+    div_html = f"<br><span style='color:#b45309'>⚠️ {divergence}</span>" if divergence else ""
+    division_html = (
+        "<div class='kv' style='margin-top:12px'><b>与 V6 分工：</b>"
+        "④ = 进攻/新仓（温度档、行业、候选）；⑦ = 防守/已有浮盈（初减 + 8% 移动止损）。"
+        "两层并行、不互相覆盖。新仓/总仓上限见下；⑦ 的动作只作用于已有浮盈仓。</div>")
 
     volr = m.get("ivol_ratio")
     volr_s = f"{volr:.2f}×" if isinstance(volr, (int, float)) else "—"
@@ -720,10 +766,12 @@ def render_module_risk():
 
     return head + f"""
 <div class="flow-grid" style="margin-top:12px">{box1}{box2}{box3}</div>
+{warn_html}
 <div class="table-scroll" style="margin-top:8px"><table><thead><tr>
 <th>脆弱度构成</th><th>命中</th><th class="num">当前值</th></tr></thead><tbody>{rows}</tbody></table></div>
-<div class="kv" style="margin-top:12px"><b>当前动作：</b>初减 <b>{trim:.0%}</b>（{a.get('initial_trim_reason', '—')}）。
-剩余仓位：以<b>持有期最高收盘价</b>为基准，收盘回撤 <b>8%</b> 触发减仓/退出；不预测顶，不因单日下跌砍掉全部仓位。</div>
+<div class="kv" style="margin-top:12px"><b>当前动作：</b>已有浮盈仓 {existing_text}。
+新仓/总仓上限：<b>{ceiling_text}</b>。{div_html}</div>
+{division_html}
 <div class="flow-box" style="margin-top:12px">
   <div style="font-size:12px;color:#607d8b;margin-bottom:6px">🧮 移动止损计算器（峰值=持有期最高收盘价，不是成本价）</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px">
@@ -802,6 +850,10 @@ def render_methodology(d):
 <p><b>④ V6 交易决策</b> = 从 trend-trading-system 的 V6 日报结构化摘要（<code>reports/v6_daily/v6_daily_YYYYMMDD.json</code>，schema=1）读取，只做展示，不在本看板重算。
 口径分工：本看板 ① 是<b>资金来源层</b>（ETF 份额净申购 / 主力净额，原始事实），④ 的「国家队进出场信号」是<b>信号判定层</b>（份额×点位×杠杆交叉验证 → ENTRY/EXIT/ROTATE，含置信度）；
 两者数据源相同、口径不同，出现方向不一致时以「① 看资金事实、④ 看判定结论」分别理解，不要互相校验。</p>
+<p><b>④ 与 ⑦ 分工</b>：④ 是进攻/新仓层（温度档、行业臂、候选股）；⑦ 是防守/已有浮盈层
+（脆弱度初减 + 峰值回撤 8% 移动止损）。两层并行，不互相覆盖。已有浮盈仓的动作以 ⑦ 为准；
+新仓/总仓上限取 ④ 中脆弱度 danger、Index Risk、阶段仓位三者中最严格者。若 ⑦ 自报数据滞后，
+看板会暂停新建仓建议并提示，但不会阻断 ④ 的展示。</p>
 <p><b>局限（④）</b>：V6 只在工作日 02:45 出报，周末/节假日显示上一交易日；看板不缓存、不重算，V6 摘要缺失即显示「尚未生成」，不填占位数值。</p>
 {f'<p><b>已下线模块：量化集中度</b> —— {off}。</p>' if off else ''}
 </div></section>"""
