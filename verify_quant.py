@@ -19,6 +19,7 @@ import sys
 
 DATA = "/Users/jren/projects/hermes-dashboard/quant_data.json"
 HISTORY_DIR = "/Users/jren/projects/hermes-dashboard/history"
+V6_DIR = "/Users/jren/projects/trend-trading-system/reports/v6_daily"
 
 
 def main():
@@ -90,6 +91,33 @@ def main():
         errs.append(f"归档文件缺失: history/quant_{d.get('date')}.html")
     if len(glob.glob(os.path.join(HISTORY_DIR, "quant_*.html"))) == 0:
         errs.append("history/ 下无 quant_*.html")
+
+    # 7) V6 摘要（跨系统契约, 2026-11-21）—— 新鲜度问题是 warn：V6 周末/节假日不产报,
+    #    不应阻断本看板发布；结构问题（schema/关键字段）才是 err。
+    v6_files = sorted(glob.glob(os.path.join(V6_DIR, "v6_daily_*.json")))
+    if not v6_files:
+        warns.append("V6 摘要 JSON 缺失（看板 ④ 段将显示『尚未生成』）")
+    else:
+        try:
+            with open(v6_files[-1], encoding="utf-8") as f:
+                v6 = json.load(f)
+            if v6.get("schema") != 1:
+                errs.append(f"V6 摘要 schema={v6.get('schema')}，期望 1（{os.path.basename(v6_files[-1])}）")
+            for k in ("temperature", "decision_card", "position"):
+                if k not in v6:
+                    errs.append(f"V6 摘要缺关键字段: {k}")
+            if not v6.get("links", {}).get("html"):
+                warns.append("V6 摘要缺 links.html（看板外链将回退拼 URL）")
+            try:
+                import datetime as _dt
+                _td = _dt.datetime.strptime(str(v6.get("trading_date")), "%Y%m%d").date()
+                _age = (_dt.date.today() - _td).days
+                if _age > 5:
+                    warns.append(f"V6 摘要已 {_age} 天未更新（trading_date={v6.get('trading_date')}）")
+            except Exception:  # noqa: BLE001
+                errs.append("V6 摘要 trading_date 不可解析")
+        except Exception as e:  # noqa: BLE001
+            errs.append(f"V6 摘要解析失败: {e}")
 
     print(f"quant-verify: {len(errs)} 错误 / {len(warns)} 警告  ({args.data})")
     for e in errs:

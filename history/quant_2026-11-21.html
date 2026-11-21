@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>投资看板 · 2026-11-20</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+.container { max-width: 1080px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+.header { background: #1a1a2e; color: white; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { margin: 0 0 6px 0; font-size: 20px; }
+.header .meta { font-size: 13px; opacity: 0.75; }
+.sig-badge { display:inline-block; padding: 4px 12px; border-radius: 14px; font-size: 13px; font-weight:600; }
+.sig-on { background:#e8f5e9; color:#1b5e20; } .sig-off { background:#eceff1; color:#607d8b; }
+.section { padding: 20px 24px; border-bottom: 1px solid #eee; }
+.section h2 { font-size: 16px; margin: 0 0 4px 0; color: #333; }
+.section .sub { font-size: 12px; color:#999; margin-bottom: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+th { background: #fafafa; color: #666; font-weight: 600; white-space: nowrap; }
+tr:hover td { background: #f9f9ff; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+.b-on { background:#e8f5e9; color:#2e7d32; } .b-off { background:#fafafa; color:#9e9e9e; }
+.up { color:#c62828; font-weight:600; } .down { color:#2e7d32; font-weight:600; } .flat { color:#757575; }
+.news-item { display:block; text-decoration:none; color:#1a73e8; font-size:13.5px; line-height:1.6; padding:3px 0; }
+.news-item:hover { text-decoration:underline; }
+.theme-point { font-size:13.5px; color:#37474f; margin:6px 0; line-height:1.55; }
+.theme-point .tname { display:inline-block; background:#e3f2fd; color:#1565c0; border-radius:4px; padding:1px 8px; font-size:12px; margin-right:8px; font-weight:600; }
+.methodology { font-size: 12px; color: #888; line-height: 1.75; }
+.methodology code { background:#f5f5f5; padding:1px 4px; border-radius:3px; }
+.footer { padding: 16px 24px; font-size: 12px; color: #999; text-align: center; }
+.dash { color: #bbb; }
+.big-num { font-size:26px; font-weight:700; color:#263238; font-variant-numeric:tabular-nums; }
+.flow-grid { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+.flow-box { border:1px solid #eee; border-radius:8px; padding:10px 16px; min-width:200px; flex:1; }
+.flow-box.primary { flex: 1 1 100%; border-color:#a5d6a7; background:#f7fcf7; }
+.table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.arc-list { display:flex; flex-wrap:wrap; gap:8px; }
+.arc { font-size:12.5px; color:#1a73e8; text-decoration:none; border:1px solid #e3f2fd; border-radius:6px; padding:4px 10px; white-space:nowrap; }
+.arc:hover { background:#f3f8ff; }
+.warn-note { background:#fff8e1; border-left:3px solid #ffb300; padding:8px 12px; font-size:12.5px; color:#6d4c00; margin:8px 0; border-radius:0 4px 4px 0; }
+.nav { display:flex; gap:8px; flex-wrap:wrap; padding:10px 24px; background:#fafbfc; border-bottom:1px solid #eee; }
+.nav a { font-size:12.5px; color:#1a73e8; text-decoration:none; border:1px solid #e3f2fd; border-radius:6px; padding:4px 10px; background:#fff; white-space:nowrap; }
+.nav a:hover { background:#f3f8ff; }
+.nav a.cur { background:#e3f2fd; color:#0d47a1; font-weight:600; border-color:#bbdefb; }
+.chip { display:inline-block; font-size:12.5px; border-radius:6px; padding:3px 9px; margin:3px 6px 3px 0; background:#e8f5e9; color:#1b5e20; border:1px solid #c8e6c9; }
+.chip.avoid { background:#fafafa; color:#78909c; border-color:#eceff1; }
+.chip .r { font-size:11px; opacity:.7; margin-left:4px; }
+.kv { font-size:12px; color:#607d8b; margin:2px 0; }
+.kv b { color:#263238; }
+</style></head><body>
+<div class="container">
+<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">2026-11-20 · 生成于 2026-11-20 16:17 · v6（含 V6 决策层）</div></div><span class="sig-badge sig-off">无信号触发</span></div>
+<div class="nav"><a class="cur" href="dashboard_investment.html">个人投资看板</a><a class="" href="https://stranger971020.github.io/trend-trading-system/reports/v6_daily/v6_daily_20261121.html">V6 交易日报</a><a class="" href="policy/index.html">政策信号</a><a class="" href="news/index.html">财经早报归档</a><a class="" href="health/index.html">系统健康</a><a class="" href="index.html">系统监控</a></div>
+<section class="section">
+<h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span></h2>
+<div class="sub">宽基ETF份额净申购 = 沪市（交易所按日，67只，可回溯）+ 深市（交易所快照逐日累积，21只，自 2026-11-09 起，已 9 个快照日）× 最新价；当前覆盖 14.8% 宽基份额</div>
+<div class="flow-grid">
+  <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（国家队代理）</div>
+    <span class="big-num up">83.15亿</span><br><svg class="spark" width="280" height="46"><polyline points="17.6,23.7 31.2,29.1 44.8,31.8 58.4,31.4 72.0,28.6 85.6,21.7 99.2,9.9 112.8,21.5 126.4,31.9 140.0,31.4 153.6,32.7 167.2,33.9 180.8,33.9 194.4,36.1 208.0,35.1 221.6,27.3 235.2,25.8 248.8,26.8 262.4,18.8 276.0,28.3" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="28.3" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-20</text></svg>
+    <div style="font-size:11.5px;color:#607d8b;margin-top:4px">沪市 <b><span class="dash">—</span></b>亿 · 深市 <b>83.15亿</b></div>
+    <div style="font-size:10.5px;color:#bbb">份额变化×价格 ≈ 申购赎回净额；正=申购（资金进场），负=赎回</div></div>
+  <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">主力资金今日净流入（全市场）</div>
+    <span class="big-num down">-520.88亿</span><br><svg class="spark" width="280" height="46"><polyline points="4.0,20.8 17.6,26.9 31.2,31.1 44.8,15.8 58.4,36.1 72.0,29.5 85.6,18.3 99.2,33.3 112.8,9.9 126.4,19.0 140.0,32.3 153.6,18.0 167.2,17.1 180.8,16.5 194.4,32.3 208.0,33.9 221.6,34.9 235.2,26.6 248.8,22.7 262.4,27.6 276.0,32.2" fill="none" stroke="#1a73e8" stroke-width="1.6"/><circle cx="276.0" cy="32.2" r="2.6" fill="#1a73e8"/><text x="276" y="44" font-size="9" fill="#aaa" text-anchor="end">11-20</text></svg>
+    <div style="font-size:10.5px;color:#bbb">东财「超大单+大单」净额</div></div>
+  <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日成交（88只）</div>
+    <span class="big-num">867.34亿</span>
+    <div style="font-size:10.5px;color:#b26a00;margin-top:6px">⚠️ 含二级市场换手，<b>不等于</b>净申购</div></div>
+  <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">AI相关ETF成交（160只）</div>
+    <span class="big-num">497.29亿</span>
+    <div style="font-size:10.5px;color:#bbb;margin-top:6px">名称含人工智能/算力/芯片/通信等，仅反映交易热度</div></div>
+</div>
+<div class="table-scroll"><table><thead><tr><th>日期</th><th class="num">宽基ETF净申购(亿)</th><th class="num">主力净流入(亿)</th></tr></thead>
+<tbody><tr><td>2026-11-20</td><td class="num">83.15</td><td class="num">-520.88</td></tr><tr><td>2026-11-19</td><td class="num">261.67</td><td class="num">-311.13</td></tr><tr><td>2026-11-18</td><td class="num">112.37</td><td class="num">-85.04</td></tr><tr><td>2026-11-17</td><td class="num">131.07</td><td class="num">-266.07</td></tr><tr><td>2026-11-16</td><td class="num">102.78</td><td class="num">-643.79</td></tr><tr><td>2026-11-13</td><td class="num">-44.32</td><td class="num">-600.21</td></tr><tr><td>2026-11-12</td><td class="num">-61.96</td><td class="num">-524.11</td></tr><tr><td>2026-11-11</td><td class="num">-20.56</td><td class="num">198.47</td></tr><tr><td>2026-11-10</td><td class="num">-21.86</td><td class="num">172.67</td></tr><tr><td>2026-11-09</td><td class="num">1.16</td><td class="num">128.57</td></tr></tbody></table></div>
+<p style="font-size:11.5px;color:#90a4ae;margin-top:8px">北向单日净买额自 2024-08 起停止披露，已从本模块移除。</p>
+</section>
+<section class="section"><h2>② 今日财经要闻 <span style="font-size:12px;color:#90a4ae;font-weight:400">2026-11-20 · Sina News AI归纳 · 7个主题</span></h2><a class="news-item" href="https://www.cls.cn/detail/2539583" target="_blank">• 金融街证券：公司董事长目前正接受调查并被实施留置措施</a><a class="news-item" href="https://www.cls.cn/detail/2539567" target="_blank">• A股限售股解禁一览：53.32亿元市值限售股今日解禁</a><a class="news-item" href="https://www.cls.cn/detail/2539555" target="_blank">• 财联社11月20日电，美股股指期货小幅低开，其中纳指期货跌0.1%。</a><a class="news-item" href="https://www.cls.cn/detail/2539549" target="_blank">• 上市公司回购公告透底机构动向</a><a class="news-item" href="https://www.cls.cn/detail/2539548" target="_blank">• 信用债行情延续修复 大行二级资本债领涨</a><a class="news-item" href="https://www.cls.cn/detail/2539608" target="_blank">• 财联社11月20日电，日本东证指数下跌2%，报3,745.73点。</a><a class="news-item" href="https://www.cls.cn/detail/2539596" target="_blank">• 财联社11月20日电，日本40年期国债收益率下跌2.5个基点至4.155%。</a><a class="news-item" href="https://www.cls.cn/detail/2539595" target="_blank">• 财联社11月20日电，日本10年期国债收益率下跌2.0个基点至2.800%。</a><a class="news-item" href="https://www.cls.cn/detail/2539590" target="_blank">• 财联社11月20日电，MSCI亚太指数下跌1.1%至239.79点。</a><a class="news-item" href="https://www.cls.cn/detail/2539585" target="_blank">• 财联社11月20日电，日经225指数开盘跌1.50%报58551.56点。</a><a class="news-item" href="https://www.cls.cn/detail/2539584" target="_blank">• 韩国KOSPI指数低开4.08% SK海力士跌逾6%</a><a class="news-item" href="https://www.cls.cn/detail/2539580" target="_blank">• 中信证券：房地产相关权益资产价值可能在2027年见底向上</a></section>
+<section class="section"><h2>③ 投资信号 <span style="font-size:12px;color:#90a4ae;font-weight:400">滚动分位触发 · 0/3 已触发</span></h2><table><thead><tr><th>信号</th><th class="num">当前值</th><th class="num">参照</th><th>状态</th></tr></thead><tbody><tr><td>国家队ETF净申购(沪市宽基)<div style="font-size:11px;color:#90a4ae">份额日变化×价格；ETF成交额含二级换手，不是净申购</div></td><td class="num">83.15亿</td><td class="num" style="color:#888">P58</td><td><span class="badge b-off">未触发</span></td></tr><tr><td>主力净流入<div style="font-size:11px;color:#90a4ae">东财「超大单+大单」净额，按单笔金额分类，非机构身份</div></td><td class="num">-520.88亿</td><td class="num" style="color:#888">P30 · z=-0.93</td><td><span class="badge b-off">未触发</span></td></tr><tr><td>北向单日净买额<div style="font-size:11px;color:#90a4ae">2024-08 起不再披露实时净买额，停用</div></td><td class="num"><span class="dash">—</span></td><td class="num" style="color:#888">停止披露</td><td><span class="badge b-off">未触发</span></td></tr></tbody></table><p style="font-size:12px;color:#888;margin-top:8px">(无触发)</p><p style="font-size:11.5px;color:#90a4ae">规则：ETF净申购 ≥ 近20日80分位 · 主力净流入 |z|≥1。仅当出现新触发时才推送 Telegram（同一信号当天只推一次）。</p></section>
+<section class="section"><h2>④ V6 交易决策 <span style="font-size:12px;color:#90a4ae;font-weight:400">trend-trading-system · 波段决策单 · 100-500亿域</span></h2><div class="flow-grid"><div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">🌡️ 市场温度</div><span class="big-num down">15.8<span style='font-size:13px;color:#90a4ae'>/100</span></span><div style="font-size:10.5px;color:#bbb;margin-top:4px">低温（温度档：低温<45.0 / 高温>55.0）</div></div><div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">📐 温度档仓位（历史胜率实证）</div><span class="big-num ">3只 (半仓)</span><div style="font-size:10.5px;color:#bbb;margin-top:4px">历史 T+1 胜率 48.2% · D+5 50.9%</div></div><div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">📊 大盘技术风险</div><span class="big-num ">高</span><div style="font-size:10.5px;color:#bbb;margin-top:4px">4/6 项触发 · 20261119</div></div></div><div class="flow-grid"><div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">🏛️ 国家队进出场信号</div><span class="big-num ">ENTRY</span><div style="font-size:10.5px;color:#bbb;margin-top:4px">置信度 medium</div></div><div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">🎭 情绪周期</div><span class="big-num ">7.9<span style='font-size:13px;color:#90a4ae'>/100</span></span><div style="font-size:10.5px;color:#bbb;margin-top:4px">退潮期 · 涨停 24 / 跌停 77</div></div><div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">📈 影子实盘（前向跟踪）</div><span class="big-num ">T+1 46.9%</span><div style="font-size:10.5px;color:#bbb;margin-top:4px">已结算 96 笔 · 累计 -17.418997548254488%</div></div></div>
+<div class="flow-grid" style="margin-top:14px">
+  <div class="flow-box primary">
+    <div style="font-size:12px;color:#607d8b;margin-bottom:6px">🎯 波段决策单（20261119）</div>
+    <div class="kv">阶段 <b>过冷/恐慌</b> · 阶段仓位 <b>30-50%（试探建仓）</b> · 行业臂 <b>all（全市场择优）</b></div>
+    <div class="kv">市场广度 <b>12%</b> · 沪深300 250日回撤 <b>-21.2%</b>
+      </div>
+    <div style="margin-top:10px;font-size:12px;color:#607d8b">买入行业</div>
+    <div style="margin-top:2px"><span style="font-size:12.5px;color:#90a4ae">本期行业臂 = 全市场择优（该阶段行业筛选无增益）</span></div>
+    <div style="margin-top:8px;font-size:12px;color:#607d8b">回避（热度分位 ≥90 · 最热 10%）</div>
+    <div style="margin-top:2px"><span class="chip avoid">饰品<span class="r">分位 91.0</span></span><span class="chip avoid">养殖业<span class="r">分位 91.0</span></span><span class="chip avoid">房屋建设Ⅱ<span class="r">分位 92.0</span></span><span class="chip avoid">铁路公路<span class="r">分位 93.0</span></span><span class="chip avoid">保险Ⅱ<span class="r">分位 94.0</span></span><span class="chip avoid">农商行Ⅱ<span class="r">分位 95.0</span></span><span class="chip avoid">国有大型银行Ⅱ<span class="r">分位 95.0</span></span><span class="chip avoid">白酒Ⅱ<span class="r">分位 96.0</span></span></div>
+    <div style="font-size:11px;color:#90a4ae;margin-top:8px">全行业（本阶段行业筛选无增益）</div>
+  </div>
+</div>
+<div class="table-scroll" style="margin-top:6px">
+<table><thead><tr><th>名称</th><th>代码</th><th>行业</th><th class="num">波段分</th><th class="num">P(Win)</th>
+<th class="num">预期涨幅</th><th class="num">市值</th><th class="num">250日回撤</th><th class="num">20日波动</th></tr></thead>
+<tbody><tr><td>芯原股份</td><td style="color:#90a4ae">688521.SH</td><td>半导体</td><td class="num">99.5</td><td class="num">53.2%</td><td class="num up">14.0%</td><td class="num">437亿</td><td class="num">77.6%</td><td class="num">6.70%</td></tr><tr><td>振华股份</td><td style="color:#90a4ae">603067.SH</td><td>化学原料</td><td class="num">98.9</td><td class="num">41.0%</td><td class="num up">11.5%</td><td class="num">131亿</td><td class="num">64.9%</td><td class="num">5.29%</td></tr><tr><td>行云科技</td><td style="color:#90a4ae">300209.SZ</td><td>软件开发</td><td class="num">98.4</td><td class="num">39.1%</td><td class="num up">10.6%</td><td class="num">199亿</td><td class="num">45.6%</td><td class="num">7.67%</td></tr><tr><td>杰华特</td><td style="color:#90a4ae">688141.SH</td><td>半导体</td><td class="num">98.3</td><td class="num">40.5%</td><td class="num up">10.5%</td><td class="num">284亿</td><td class="num">64.7%</td><td class="num">7.20%</td></tr><tr><td>晶丰明源</td><td style="color:#90a4ae">688368.SH</td><td>半导体</td><td class="num">97.9</td><td class="num">40.2%</td><td class="num up">10.1%</td><td class="num">158亿</td><td class="num">68.0%</td><td class="num">8.68%</td></tr><tr><td>银轮股份</td><td style="color:#90a4ae">002126.SZ</td><td>汽车零部件</td><td class="num">97.7</td><td class="num">34.7%</td><td class="num up">10.0%</td><td class="num">215亿</td><td class="num">58.0%</td><td class="num">4.86%</td></tr><tr><td>甬矽电子</td><td style="color:#90a4ae">688362.SH</td><td>半导体</td><td class="num">97.2</td><td class="num">37.4%</td><td class="num up">9.3%</td><td class="num">175亿</td><td class="num">66.5%</td><td class="num">5.75%</td></tr><tr><td>冰轮环境</td><td style="color:#90a4ae">000811.SZ</td><td>通用设备</td><td class="num">97.1</td><td class="num">35.6%</td><td class="num up">9.3%</td><td class="num">201亿</td><td class="num">63.9%</td><td class="num">5.25%</td></tr></tbody></table></div>
+<div style="font-size:11px;color:#90a4ae;margin-top:4px">模型 swing_engine(20241231) · 按 swing_score 排序 · 250日回撤取绝对值（越深=跌得越多）· 仅供研究, 非投资建议</div><div class="kv" style="margin-top:10px">🎯 主线雷达 L2 top5: <b>白色家电(98.6) · 股份制银行Ⅱ(97.9) · 航空机场(97.5) · 小家电(97.3) · 城商行Ⅱ(96.9)</b></div><div class="kv">🌊 主升浪雷达: <b>沪深300=回调中 · 上证=回调中 · 创业板=回调中</b></div><div style="margin-top:10px;font-size:12px;color:#607d8b;line-height:1.8">数据日期 <b>20261119</b>（下一期 20261120） · 生成 2026-11-21 11:34:55 · 模型 20261111<br><a class="news-item" style="display:inline" href="https://stranger971020.github.io/trend-trading-system/reports/v6_daily/v6_daily_20261119.html" target="_blank" rel="noopener">→ V6 完整日报（12 段：风险/预案/主升浪/主线/国家队/温度/情绪/衰减榜/仓位规则/明日策略/影子归因）</a></div></section>
+<section class="section"><h2>历史归档 <span style="font-size:12px;color:#90a4ae;font-weight:400">最近 12 期 · 每天一份</span></h2><div class="arc-list"><a class="arc" href="quant_2026-11-21.html">2026-11-21</a><a class="arc" href="quant_2026-11-20.html">2026-11-20</a><a class="arc" href="quant_2026-11-19.html">2026-11-19</a><a class="arc" href="quant_2026-11-18.html">2026-11-18</a><a class="arc" href="quant_2026-11-17.html">2026-11-17</a><a class="arc" href="quant_2026-11-16.html">2026-11-16</a><a class="arc" href="quant_2026-11-15.html">2026-11-15</a><a class="arc" href="quant_2026-11-14.html">2026-11-14</a><a class="arc" href="quant_2026-11-13.html">2026-11-13</a><a class="arc" href="quant_2026-11-11.html">2026-11-11</a><a class="arc" href="quant_2026-11-10.html">2026-11-10</a><a class="arc" href="quant_2026-11-09.html">2026-11-09</a></div></section>
+<section class="section">
+<h2>口径说明</h2>
+<div class="methodology">
+<p><b>国家队资金（v5 已换口径）</b> = 沪市宽基ETF（510050 / 510300 / 510310 / 510330 / 510500 等）<b>份额日变化 × 最新价</b>。
+这是汇金/证金申购 ETF 的直接体现。旧版用「ETF成交额」当代理，实测同日成交 147.7亿 而实际净申购仅 0.42亿，差 <b>350 倍</b> ——
+成交额绝大部分是做市与套利换手，不是国家队买入，已弃用（成交额仅作背景数字保留）。</p>
+<p><b>主力净流入</b> = 东财全市场「超大单 + 大单」净额，按<b>单笔成交金额</b>分类，不代表机构身份；与"国家队"不是同一概念。</p>
+<p><b>信号</b> = 滚动分位：ETF净申购 ≥ 近20日80分位 → 国家队大额申购；主力净流入 |z|≥1 → 资金异动。北向停止披露，不计入。</p>
+<p><b>数据源</b>：akshare 免费接口（东财 / 上交所 ETF 份额），cron <code>15 16 * * *</code> 盘后刷新。历史窗口 2026-10-23 → 2026-11-20。</p>
+<p><b>局限</b>：沪市份额可取历史（交易所按日），深市无历史接口 —— 自 2026-11-09 起逐日快照累积（已 9 日），
+首日深市无变化值；估算价用最新价，历史日净申购存在小幅估值误差；主力净流入按单笔金额分类，无法区分量化/机构/游资。</p>
+<p><b>④ V6 交易决策</b> = 从 trend-trading-system 的 V6 日报结构化摘要（<code>reports/v6_daily/v6_daily_YYYYMMDD.json</code>，schema=1）读取，只做展示，不在本看板重算。
+口径分工：本看板 ① 是<b>资金来源层</b>（ETF 份额净申购 / 主力净额，原始事实），④ 的「国家队进出场信号」是<b>信号判定层</b>（份额×点位×杠杆交叉验证 → ENTRY/EXIT/ROTATE，含置信度）；
+两者数据源相同、口径不同，出现方向不一致时以「① 看资金事实、④ 看判定结论」分别理解，不要互相校验。</p>
+<p><b>局限（④）</b>：V6 只在工作日 02:45 出报，周末/节假日显示上一交易日；看板不缓存、不重算，V6 摘要缺失即显示「尚未生成」，不填占位数值。</p>
+<p><b>已下线模块：量化集中度</b> —— 2026-11-09 下线：换手率对未来20日收益/波动/回撤相关系数 -0.01~-0.06，无预测力。</p>
+</div></section>
+<div class="footer">quant-ratio v6 · akshare 免费数据源 + V6 日报（工作日 02:45）· cron 15 16 * * * 盘后刷新</div>
+</div></body></html>

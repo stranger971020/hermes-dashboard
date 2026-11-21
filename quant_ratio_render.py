@@ -9,14 +9,21 @@ v5: ① 国家队资金动向 / ② 今日财经要闻 / ③ 投资信号
     模块① 主指标改为 ETF 份额净申购（旧版用成交额，同日差 350 倍）
 """
 
+import glob
 import json
 import os
 import sys
-from datetime import date
+from datetime import date, datetime
 
 DASHBOARD_PATH = "/Users/jren/projects/hermes-dashboard"
 HISTORY_DIR = os.path.join(DASHBOARD_PATH, "history")
 DATA_FILE = os.path.join(DASHBOARD_PATH, "quant_data.json")
+
+# ── V6 日报（trend-trading-system）跨系统数据源 ──
+# 契约: v6_daily_report.py 每次日报落 reports/v6_daily/v6_daily_<date>.json (schema=1)
+V6_DIR = "/Users/jren/projects/trend-trading-system/reports/v6_daily"
+V6_PAGES = "https://stranger971020.github.io/trend-trading-system/reports/v6_daily"
+V6_MAX_AGE_DAYS = 5   # 超过则标"数据陈旧"（周末+节假日不产报，5 天覆盖长周末）
 
 
 def load_data():
@@ -62,6 +69,15 @@ tr:hover td { background: #f9f9ff; }
 .arc { font-size:12.5px; color:#1a73e8; text-decoration:none; border:1px solid #e3f2fd; border-radius:6px; padding:4px 10px; white-space:nowrap; }
 .arc:hover { background:#f3f8ff; }
 .warn-note { background:#fff8e1; border-left:3px solid #ffb300; padding:8px 12px; font-size:12.5px; color:#6d4c00; margin:8px 0; border-radius:0 4px 4px 0; }
+.nav { display:flex; gap:8px; flex-wrap:wrap; padding:10px 24px; background:#fafbfc; border-bottom:1px solid #eee; }
+.nav a { font-size:12.5px; color:#1a73e8; text-decoration:none; border:1px solid #e3f2fd; border-radius:6px; padding:4px 10px; background:#fff; white-space:nowrap; }
+.nav a:hover { background:#f3f8ff; }
+.nav a.cur { background:#e3f2fd; color:#0d47a1; font-weight:600; border-color:#bbdefb; }
+.chip { display:inline-block; font-size:12.5px; border-radius:6px; padding:3px 9px; margin:3px 6px 3px 0; background:#e8f5e9; color:#1b5e20; border:1px solid #c8e6c9; }
+.chip.avoid { background:#fafafa; color:#78909c; border-color:#eceff1; }
+.chip .r { font-size:11px; opacity:.7; margin-left:4px; }
+.kv { font-size:12px; color:#607d8b; margin:2px 0; }
+.kv b { color:#263238; }
 """
 
 
@@ -211,6 +227,201 @@ def render_module3(d):
             f'仅当出现新触发时才推送 Telegram（同一信号当天只推一次）。</p></section>')
 
 
+# ─────────────────── ④ V6 交易决策（跨系统 · trend-trading-system） ───────────────────
+
+def load_v6_summary():
+    """读 trend-trading-system 最新 v6_daily_*.json（schema=1）。
+
+    设计: 只消费结构化摘要，不解析 ~1MB HTML（版式改动不会打断看板）。
+    返回 (summary|None, note)；拿不到就如实说明，不伪造数值。
+    """
+    try:
+        files = sorted(glob.glob(os.path.join(V6_DIR, "v6_daily_*.json")))
+    except Exception as e:  # noqa: BLE001
+        return None, f"V6 目录不可读: {e}"
+    if not files:
+        return None, ("V6 摘要 JSON 尚未生成 —— v6_daily_report.py 自 2026-11-21 起落 "
+                      "reports/v6_daily/v6_daily_YYYYMMDD.json（下一期：工作日 02:45）。")
+    try:
+        with open(files[-1], encoding="utf-8") as f:
+            s = json.load(f)
+    except Exception as e:  # noqa: BLE001
+        return None, f"V6 摘要解析失败（{os.path.basename(files[-1])}）: {e}"
+    if s.get("schema") != 1:
+        return None, f"V6 摘要 schema 不匹配: {s.get('schema')}（期望 1）"
+    return s, None
+
+
+def _v6_age_days(s):
+    try:
+        return (date.today() - datetime.strptime(str(s.get("trading_date")), "%Y%m%d").date()).days
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _v6_pct(v, d=1):
+    return f"{v * 100:.{d}f}%" if isinstance(v, (int, float)) else "—"
+
+
+def _v6_box(label, value, sub="", cls=""):
+    sub_html = f'<div style="font-size:10.5px;color:#bbb;margin-top:4px">{sub}</div>' if sub else ""
+    return (f'<div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">{label}</div>'
+            f'<span class="big-num {cls}">{value}</span>{sub_html}</div>')
+
+
+def render_module_v6():
+    s, note = load_v6_summary()
+    head = ('<section class="section"><h2>④ V6 交易决策 '
+            '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
+            'trend-trading-system · 波段决策单 · 100-500亿域</span></h2>')
+    if not s:
+        return head + f'<p style="color:#90a4ae;font-size:13px">{note or "无数据"}</p></section>'
+
+    t = s.get("temperature") or {}
+    pos = s.get("position") or {}
+    risk = s.get("index_risk") or {}
+    card = s.get("decision_card") or {}
+    team = s.get("national_team") or {}
+    emo = s.get("emotion") or {}
+    shadow = s.get("shadow") or {}
+    mainline = s.get("mainline") or {}
+    wave = s.get("wave") or {}
+    links = s.get("links") or {}
+    bands = pos.get("bands") or {}
+
+    temp_v = t.get("temp")
+    lo, hi = bands.get("low"), bands.get("high")
+    temp_cls = ""
+    if isinstance(temp_v, (int, float)):
+        if isinstance(lo, (int, float)) and temp_v < lo:
+            temp_cls = "down"        # 低温（优选）→ 绿
+        elif isinstance(hi, (int, float)) and temp_v > hi:
+            temp_cls = "up"          # 过热 → 红
+    temp_box = _v6_box(
+        "🌡️ 市场温度",
+        (f"{temp_v:.1f}" if isinstance(temp_v, (int, float)) else "—") + "<span style='font-size:13px;color:#90a4ae'>/100</span>",
+        f"{t.get('level') or '—'}（温度档：低温<{lo} / 高温>{hi}）", temp_cls)
+    pos_box = _v6_box(
+        "📐 温度档仓位（历史胜率实证）",
+        pos.get("size") or "—",
+        f"历史 T+1 胜率 {_v6_pct(pos.get('hist_t1'))} · D+5 {_v6_pct(pos.get('hist_d5'))}")
+    risk_box = _v6_box(
+        "📊 大盘技术风险",
+        risk.get("label") or "—",
+        (f"{risk.get('score')}/6 项触发" + (f" · {risk.get('asof')}" if risk.get("asof") else ""))
+        if risk else "Index Risk 未计算")
+    team_box = _v6_box(
+        "🏛️ 国家队进出场信号",
+        team.get("verdict") or "—",
+        f"置信度 {team.get('confidence') or '—'}" if team else "数据不足")
+    emo_box = _v6_box(
+        "🎭 情绪周期",
+        (f"{emo.get('emo_score')}" if emo.get("emo_score") is not None else "—") + "<span style='font-size:13px;color:#90a4ae'>/100</span>",
+        (f"{emo.get('phase') or '—'} · 涨停 {emo.get('limit_up')} / 跌停 {emo.get('limit_down')}")
+        if emo else "未计算")
+    shadow_box = _v6_box(
+        "📈 影子实盘（前向跟踪）",
+        (f"T+1 {_v6_pct(shadow.get('t1_wr'))}" if shadow.get("t1_wr") is not None else "—"),
+        (f"已结算 {shadow.get('n_settled_t1')} 笔 · 累计 {shadow.get('cum_t1')}%")
+        if shadow.get("n_settled_t1") else "样本不足")
+
+    # ── 决策单（阶段自适应行业臂）──
+    buy = card.get("industries_buy") or []
+    avoid = card.get("industries_avoid") or []
+    buy_chips = "".join(
+        f'<span class="chip">{x.get("ind")}<span class="r">热度分位 {x.get("rank")} · 20日 {x.get("r20")}%</span></span>'
+        for x in buy) or '<span style="font-size:12.5px;color:#90a4ae">本期行业臂 = 全市场择优（该阶段行业筛选无增益）</span>'
+    avoid_chips = "".join(
+        f'<span class="chip avoid">{x.get("ind")}<span class="r">分位 {x.get("rank")}</span></span>'
+        for x in avoid) or '<span style="font-size:12.5px;color:#90a4ae">无</span>'
+    arm = card.get("arm") or "—"
+    arm_disp = "all（全市场择优）" if arm == "all" else str(arm)
+    card_html = f"""
+<div class="flow-grid" style="margin-top:14px">
+  <div class="flow-box primary">
+    <div style="font-size:12px;color:#607d8b;margin-bottom:6px">🎯 波段决策单（{card.get('asof') or s.get('trading_date')}）</div>
+    <div class="kv">阶段 <b>{card.get('regime') or t.get('regime') or '—'}</b> · 阶段仓位 <b>{card.get('position') or pos.get('size') or '—'}</b> · 行业臂 <b>{arm_disp}</b></div>
+    <div class="kv">市场广度 <b>{_v6_pct(card.get('breadth'), 0)}</b> · 沪深300 250日回撤 <b>{_v6_pct(card.get('dd250'))}</b>
+      {(' · ' + str(card.get('_tilt_note'))) if card.get('_tilt_note') else ''}</div>
+    <div style="margin-top:10px;font-size:12px;color:#607d8b">买入行业</div>
+    <div style="margin-top:2px">{buy_chips}</div>
+    <div style="margin-top:8px;font-size:12px;color:#607d8b">回避（热度分位 ≥90 · 最热 10%）</div>
+    <div style="margin-top:2px">{avoid_chips}</div>
+    <div style="font-size:11px;color:#90a4ae;margin-top:8px">{card.get('arm_note') or ''}</div>
+  </div>
+</div>"""
+
+    # ── 个股候选 ──
+    stocks = (card.get("stocks") or [])[:8]
+
+    def _n(v, d=1, suffix=""):
+        return f"{v:.{d}f}{suffix}" if isinstance(v, (int, float)) else "—"
+
+    if stocks:
+        rows = "".join(
+            f'<tr><td>{x.get("name") or "—"}</td><td style="color:#90a4ae">{x.get("ts_code")}</td>'
+            f'<td>{x.get("ind") or "—"}</td>'
+            f'<td class="num">{_n(x.get("score"))}</td>'
+            f'<td class="num">{_n(x.get("p_win"), 1, "%")}</td>'
+            f'<td class="num {"up" if (x.get("expect") or 0) > 0 else "down"}">{_n(x.get("expect"), 1, "%")}</td>'
+            f'<td class="num">{_n(x.get("mv"), 0, "亿")}</td>'
+            f'<td class="num">{_n(abs(x["dd250"]) if isinstance(x.get("dd250"), (int, float)) else None, 1, "%")}</td>'
+            f'<td class="num">{_n(x.get("vol20"), 2, "%")}</td></tr>'
+            for x in stocks)
+        stock_html = f"""
+<div class="table-scroll" style="margin-top:6px">
+<table><thead><tr><th>名称</th><th>代码</th><th>行业</th><th class="num">波段分</th><th class="num">P(Win)</th>
+<th class="num">预期涨幅</th><th class="num">市值</th><th class="num">250日回撤</th><th class="num">20日波动</th></tr></thead>
+<tbody>{rows}</tbody></table></div>
+<div style="font-size:11px;color:#90a4ae;margin-top:4px">模型 {card.get('model') or '—'} · 按 swing_score 排序 · 250日回撤取绝对值（越深=跌得越多）· 仅供研究, 非投资建议</div>"""
+    else:
+        stock_html = '<p style="font-size:12.5px;color:#90a4ae;margin:6px 0">本期无个股候选（行业臂或模型未就绪）。</p>'
+
+    # ── 主线 / 主升浪 一行速览 ──
+    ml = mainline.get("ranking") or []
+    ml_txt = " · ".join(f"{x.get('ind')}({x.get('ml20')})" for x in ml[:5]) or "—"
+    ws = wave.get("states") or []
+    wave_txt = " · ".join(f"{x.get('name')}={x.get('status')}" for x in ws) or "—"
+    glance_html = (f'<div class="kv" style="margin-top:10px">🎯 主线雷达 L2 top5: <b>{ml_txt}</b></div>'
+                   f'<div class="kv">🌊 主升浪雷达: <b>{wave_txt}</b></div>')
+
+    # ── 数据时点 / 陈旧警示 / 外链 ──
+    age = _v6_age_days(s)
+    stale_html = ""
+    if age is not None and age > V6_MAX_AGE_DAYS:
+        stale_html = (f'<div class="warn-note">⚠️ V6 数据截至 <b>{s.get("trading_date")}</b>（{age} 天前）。'
+                      f'下一期 {s.get("next_date") or "—"} —— 工作日 02:45 出报，周末/节假日不产。</div>')
+    if s.get("stale_days"):
+        stale_html += (f'<div class="warn-note">⚠️ V6 日报自报数据滞后 {s["stale_days"]} 个交易日'
+                       f'（行情截至 {s.get("price_date")}），指标仅供参考。</div>')
+    html_link = links.get("html") or (f"{V6_PAGES}/v6_daily_{s.get('trading_date')}.html")
+    meta_html = (f'<div style="margin-top:10px;font-size:12px;color:#607d8b;line-height:1.8">'
+                 f'数据日期 <b>{s.get("trading_date") or "—"}</b>（下一期 {s.get("next_date") or "—"}）'
+                 f' · 生成 {s.get("generated_at") or "—"} · 模型 {s.get("model_ver") or "—"}<br>'
+                 f'<a class="news-item" style="display:inline" href="{html_link}" target="_blank" rel="noopener">'
+                 f'→ V6 完整日报（12 段：风险/预案/主升浪/主线/国家队/温度/情绪/衰减榜/仓位规则/明日策略/影子归因）</a></div>')
+
+    return (head + stale_html
+            + '<div class="flow-grid">' + temp_box + pos_box + risk_box + '</div>'
+            + '<div class="flow-grid">' + team_box + emo_box + shadow_box + '</div>'
+            + card_html + stock_html + glance_html + meta_html + '</section>')
+
+
+def render_nav():
+    """跨看板导航 —— 投资相关内容分散在 3 个入口，这里给出唯一入口。"""
+    items = [
+        ("个人投资看板", "dashboard_investment.html", True),
+        ("V6 交易日报", f"{V6_PAGES}/v6_daily_{date.today().strftime('%Y%m%d')}.html", False),
+        ("政策信号", "policy/index.html", False),
+        ("财经早报归档", "news/index.html", False),
+        ("系统健康", "health/index.html", False),
+        ("系统监控", "index.html", False),
+    ]
+    links = "".join(f'<a class="{"cur" if cur else ""}" href="{href}">{name}</a>'
+                    for name, href, cur in items)
+    return f'<div class="nav">{links}</div>'
+
+
 def render_archive(theme='quant', base='history/'):
     import glob
     files = sorted(glob.glob(os.path.join(HISTORY_DIR, f'{theme}_*.html')), reverse=True)[:30]
@@ -238,6 +449,10 @@ def render_methodology(d):
 <p><b>数据源</b>：akshare 免费接口（东财 / 上交所 ETF 份额），cron <code>15 16 * * *</code> 盘后刷新。历史窗口 {tw[0]} → {tw[-1]}。</p>
 <p><b>局限</b>：沪市份额可取历史（交易所按日），深市无历史接口 —— 自 {d.get('etf', {}).get('sz_tracked_since', '—')} 起逐日快照累积（已 {d.get('etf', {}).get('sz_tracked_days', 0)} 日），
 首日深市无变化值；估算价用最新价，历史日净申购存在小幅估值误差；主力净流入按单笔金额分类，无法区分量化/机构/游资。</p>
+<p><b>④ V6 交易决策</b> = 从 trend-trading-system 的 V6 日报结构化摘要（<code>reports/v6_daily/v6_daily_YYYYMMDD.json</code>，schema=1）读取，只做展示，不在本看板重算。
+口径分工：本看板 ① 是<b>资金来源层</b>（ETF 份额净申购 / 主力净额，原始事实），④ 的「国家队进出场信号」是<b>信号判定层</b>（份额×点位×杠杆交叉验证 → ENTRY/EXIT/ROTATE，含置信度）；
+两者数据源相同、口径不同，出现方向不一致时以「① 看资金事实、④ 看判定结论」分别理解，不要互相校验。</p>
+<p><b>局限（④）</b>：V6 只在工作日 02:45 出报，周末/节假日显示上一交易日；看板不缓存、不重算，V6 摘要缺失即显示「尚未生成」，不填占位数值。</p>
 {f'<p><b>已下线模块：量化集中度</b> —— {off}。</p>' if off else ''}
 </div></section>"""
 
@@ -253,13 +468,15 @@ def render(d, theme='quant', base='history/'):
 <title>投资看板 · {d.get('date','')}</title>
 <style>{CSS}</style></head><body>
 <div class="container">
-<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">{d.get('date','')} · 生成于 {d.get('generated_at','—')} · v5</div></div>{badge}</div>
+<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">{d.get('date','')} · 生成于 {d.get('generated_at','—')} · v6（含 V6 决策层）</div></div>{badge}</div>
+{render_nav()}
 {render_module1(d)}
 {render_module2(d)}
 {render_module3(d)}
+{render_module_v6()}
 {render_archive(theme, base)}
 {render_methodology(d)}
-<div class="footer">quant-ratio v5 · akshare 免费数据源 · cron 15 16 * * * 盘后刷新</div>
+<div class="footer">quant-ratio v6 · akshare 免费数据源 + V6 日报（工作日 02:45）· cron 15 16 * * * 盘后刷新</div>
 </div></body></html>"""
 
 
