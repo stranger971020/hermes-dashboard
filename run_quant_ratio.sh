@@ -42,7 +42,7 @@ if [ -d "${DASHBOARD_PATH}/.git" ]; then
     cd "${DASHBOARD_PATH}"
     git add collect_quant_ratio.py collect_quant_activity.py collect_quant_holdings.py \
         quant_ratio_render.py verify_quant.py run_quant_ratio.sh \
-        dashboard_investment.html quant_data.json \
+        dashboard_investment.html quant_data.json risk_state.json \
         "history/${THEME}_*.html" "history/${THEME}_*.json" 2>/dev/null || true
     git commit -m "quant-ratio: update ${THEME} dashboard [$(date +%Y-%m-%d)]" 2>/dev/null \
         || echo "Git commit skipped (no changes)"
