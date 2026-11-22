@@ -9,3 +9,6 @@ state.json
 redact_local.json
 # ⑤ 政策信号摘要（本地跨系统消费，不公开）
 policy/latest.json
+# 交易复盘（个人交易/持仓/复盘，绝不公开；2026-11-22）
+journal.html
+journal/

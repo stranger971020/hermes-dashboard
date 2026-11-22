@@ -356,6 +356,8 @@ header{{padding:18px 24px 0}} h1{{margin:0;font-size:20px}} .meta{{color:#8a8f98
 nav{{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid #232733;position:sticky;top:0;background:#0f1115;z-index:5}}
 nav button{{background:none;border:none;color:#8a8f98;padding:12px 16px;font-size:14px;cursor:pointer;border-bottom:2px solid transparent}}
 nav button.on{{color:#e6e8ec;border-bottom-color:#4a9eda}}
+nav a.navlink{{margin-left:auto;align-self:center;color:#8a8f98;text-decoration:none;font-size:12px;border:1px solid #232733;border-radius:999px;padding:4px 10px}}
+nav a.navlink:hover{{color:#4a9eda;border-color:#4a9eda}}
 main{{padding:18px 24px 70px}} .tab{{display:none}} .tab.on{{display:block}}
 h2{{font-size:15px;color:#aeb4bf;margin:22px 0 8px;text-transform:uppercase;letter-spacing:.5px}}
 h3{{font-size:14px;margin:18px 0 6px;display:flex;align-items:center;gap:8px}} .cnt{{color:#6f7682;font-weight:400}}
@@ -386,6 +388,7 @@ tr:hover td{{background:#181d28}} .mono{{font-family:ui-monospace,SF Mono,Menlo,
   <button class="on" data-t="t1">定时任务 ({n_sched})</button>
   <button data-t="t2">任务记录 ({A.get('total',0)})</button>
   <button data-t="t3">系统盘点</button>
+  {'''<a class="navlink" href="journal.html">🧾 交易复盘</a>''' if not PUBLIC else ''}
 </nav>
 <main>
   <section class="tab on" id="t1">
