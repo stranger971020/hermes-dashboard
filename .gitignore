@@ -12,3 +12,6 @@ policy/latest.json
 # 交易复盘（个人交易/持仓/复盘，绝不公开；2026-11-22）
 journal.html
 journal/
+# 个股按需查询（个人查询记录/报告，绝不公开；2026-11-22）
+stock.html
+stock/
