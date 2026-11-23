@@ -67,24 +67,33 @@ def main():
     if not etf.get('netbuy_coverage_pct'):
         errs.append("缺少 netbuy_coverage_pct（沪市覆盖比例）")
     amt = etf.get('broad_today_yi')
-    if amt is None:
+    incomplete_today = etf.get('netbuy_today_complete') is False
+    if incomplete_today:
+        miss = '、'.join(etf.get('netbuy_today_missing') or []) or '单侧市场'
+        warns.append(f"今日净申购不完整（缺 {miss}）：已标 incomplete，不计分位、不触发信号，"
+                     f"成交量级断言跳过（单口径 vs 合计口径不可比）")
+    elif amt is None:
         errs.append("缺少当日宽基ETF成交额（背景数字）")
     elif etf.get('netbuy_today_yi') is not None and abs(etf['netbuy_today_yi']) > amt:
         errs.append(f"净申购({etf['netbuy_today_yi']}亿) 大于成交额({amt}亿)，口径可疑")
 
-    # 4) 信号必须带分位/z 值；北向不得触发
+    # 4) 信号必须带分位/z 值；北向不得触发；标记 incomplete 的信号不得触发
     for s in (d.get('signals') or {}).get('signals', []):
         if '北向' in s.get('name', ''):
             if s.get('triggered'):
                 errs.append("北向被判定为触发（该指标已停止披露）")
             continue
+        if s.get('data_incomplete'):
+            if s.get('triggered'):
+                errs.append(f"数据不完整却判定触发: {s.get('name')}")
+            continue
         if s.get('percentile') is None and s.get('zscore') is None:
             errs.append(f"信号缺分位/z值: {s.get('name')}")
 
-    # 5) 主力资金序列可读
+    # 5) 主力资金序列可读（源断连属外部时效问题：记警告，不阻塞当日推送）
     mf = (d.get('flows') or {}).get('main_flow_series') or []
     if len(mf) < 15:
-        errs.append(f"主力资金序列过短: {len(mf)}")
+        warns.append(f"主力资金序列过短: {len(mf)}（东财源断连；页面显示数据缺失，不阻塞推送）")
 
     # 6) 归档存在（页面靠它做索引）
     if not os.path.exists(os.path.join(HISTORY_DIR, f"quant_{d.get('date')}.html")):

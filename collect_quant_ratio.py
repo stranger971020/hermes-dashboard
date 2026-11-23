@@ -25,6 +25,7 @@ sys.path.insert(0, "/Users/jren/hermes-agent/.hermes/bin")  # noqa: F401 (env co
 
 import json
 import os
+import random
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -53,13 +54,21 @@ def _safe_float(x, default=None):
 
 
 def _retry(fn, *args, attempts=3, **kwargs):
+    """指数退避重试（0.8s → 1.6s → 3.2s…＋抖动，上限 8s）。
+
+    2026-11-23 事故：东财 push2his 对密集重放直接 RemoteDisconnected；原来的等距短重试
+    （0.8s/1.6s）叠加上层多轮重跑 → 3 轮 × 10 次，反而把限流踩满，主力序列全空。
+    改成指数退避 + 抖动，并让调用方按数据重要性选 attempts（主力用 2，别再叠风暴）。
+    """
     last = None
     for i in range(attempts):
         try:
             return fn(*args, **kwargs)
         except Exception as e:  # noqa: BLE001
             last = e
-            time.sleep(0.8 * (i + 1))
+            if i == attempts - 1:
+                break
+            time.sleep(min(8.0, 0.8 * (2 ** i)) + random.uniform(0, 0.4))
     raise last
 
 
@@ -275,13 +284,23 @@ def collect_etf(trading_dates, today_iso):
             sh_amt = round(acc / 1e8, 2)
         sz_amt = sz_delta(d)
         if sh_amt is None and sz_amt is None:
-            netbuy.append({'date': d, 'net_yi': None, 'sh_yi': None, 'sz_yi': None})
+            netbuy.append({'date': d, 'net_yi': None, 'sh_yi': None, 'sz_yi': None,
+                           'complete': False})
         else:
+            # complete=False = 只有单侧市场（另一侧未发布/未累积）→ 该日不进分位基线、
+            # 也不允许触发信号。2026-11-23 事故：沪市当日未发布，P84 用「深市单口径」
+            # 去比「沪深合计」历史，得到一个看似触发实则混口径的信号。
+            complete = sh_amt is not None and sz_amt is not None
             total = round((sh_amt or 0) + (sz_amt or 0), 2)
-            netbuy.append({'date': d, 'net_yi': total, 'sh_yi': sh_amt, 'sz_yi': sz_amt})
+            netbuy.append({'date': d, 'net_yi': total, 'sh_yi': sh_amt, 'sz_yi': sz_amt,
+                           'complete': complete})
     out['netbuy_series'] = netbuy
     out['netbuy_today_yi'] = next((p['net_yi'] for p in netbuy if p['date'] == today_iso), None)
     today_entry = next((p for p in netbuy if p['date'] == today_iso), None)
+    out['netbuy_today_complete'] = bool(today_entry and today_entry.get('complete'))
+    out['netbuy_today_missing'] = [] if out['netbuy_today_complete'] else [
+        m for m, v in (('沪市', (today_entry or {}).get('sh_yi')),
+                       ('深市', (today_entry or {}).get('sz_yi'))) if v is None]
 
     # 覆盖率 = 今日能算出「变化」的宽基份额 / 全市场宽基份额
     # 深市要等到有前一日快照才能算变化，所以首日覆盖率=沪市占比（~85%），次日起 ~100%
@@ -318,7 +337,7 @@ def collect_etf(trading_dates, today_iso):
 def collect_flows():
     out = {'main_flow_series': [], 'northbound': None}
     try:
-        df = _retry(ak.stock_market_fund_flow)
+        df = _retry(ak.stock_market_fund_flow, attempts=2)
         for _, r in df.tail(HIST_TRADING_DAYS).iterrows():
             out['main_flow_series'].append({
                 'date': str(r['日期'])[:10],
@@ -419,21 +438,29 @@ def evaluate_signals(etf, flows):
     sigs = []
 
     def add(name, current, unit, triggered, *, percentile=None, zscore=None,
-            baseline='', direction='', note=''):
+            baseline='', direction='', note='', data_incomplete=False):
         sigs.append({'name': name, 'current': current, 'unit': unit, 'triggered': bool(triggered),
                      'percentile': percentile, 'zscore': zscore, 'baseline': baseline,
-                     'threshold': baseline, 'direction': direction if triggered else '', 'note': note})
+                     'threshold': baseline, 'direction': direction if triggered else '', 'note': note,
+                     'data_incomplete': bool(data_incomplete)})
 
     series = etf.get('netbuy_series') or []
-    hist = [p['net_yi'] for p in series[:-1]]
+    # 分位基线只取「沪深两侧齐全」的历史日：单口径(仅深/仅沪)的点与合计口径不可比
+    hist = [p['net_yi'] for p in series[:-1] if p.get('complete', True)]
     today = etf.get('netbuy_today_yi')
-    p = _pct_rank(hist, today)
-    p80 = _quantile(hist, 0.8)
-    add('国家队ETF净申购(沪市宽基)', today, '亿', (p is not None and p >= 80),
+    complete_today = etf.get('netbuy_today_complete', True)
+    missing = etf.get('netbuy_today_missing') or []
+    p = _pct_rank(hist, today) if complete_today else None
+    p80 = _quantile(hist, 0.8) if complete_today else None
+    add('国家队ETF净申购', today, '亿', (p is not None and p >= 80),
         percentile=p,
-        baseline=f'近{len([h for h in hist if h is not None])}日80分位 {p80}亿' if p80 is not None else '历史不足',
+        baseline=(f'近{len([h for h in hist if h is not None])}日80分位 {p80}亿' if p80 is not None
+                  else ('今日数据不完整' if not complete_today else '历史不足')),
         direction=f'国家队大额申购（P{p}，{today}亿）' if (p is not None and p >= 80) else '',
-        note='份额日变化×价格；ETF成交额含二级换手，不是净申购')
+        note='份额日变化×价格；ETF成交额含二级换手，不是净申购'
+             + (f'；⚠️ 今日缺 {"、".join(missing) or "单侧市场"} → 标记 incomplete，不计分位、不触发'
+                if not complete_today else ''),
+        data_incomplete=not complete_today)
 
     mf = [x.get('net_yi') for x in (flows.get('main_flow_series') or [])]
     if mf:
@@ -449,7 +476,8 @@ def evaluate_signals(etf, flows):
                       if (z is not None and abs(z) >= 1.0) else '',
             note='东财「超大单+大单」净额，按单笔金额分类，非机构身份')
     else:
-        add('主力净流入', None, '亿', False, note='数据缺失')
+        add('主力净流入', None, '亿', False, note='数据缺失（东财源断连，已指数退避重试）',
+            data_incomplete=True)
 
     sigs.append({'name': '北向单日净买额', 'current': None, 'unit': '亿', 'triggered': False,
                  'percentile': None, 'zscore': None, 'baseline': '停止披露',
