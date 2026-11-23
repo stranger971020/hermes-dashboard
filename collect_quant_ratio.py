@@ -52,6 +52,20 @@ AI_ETF_KEYWORDS = ['人工智能', 'AI', '算力', '大数据', '云计算', '�
 HIST_TRADING_DAYS = 21
 MAX_WORKERS = 6
 NEWS_PRIORITY = ['Finance', 'Market', 'Policy', 'AI', 'International', 'Business', 'DeepTech']
+FLOW_CACHE = os.path.join(DASHBOARD_PATH, 'cache', 'market_flow.json')
+
+# 东财连接级风控熔断：任一次 RemoteDisconnected 后，本进程内后续东财请求直接跳过降级。
+# 背景（2026-11-23）：flow 失败后 ETF 仍逐页重试 ~40 次，把 IP 打进风控，形成「一次失败→
+# 风暴→下一轮全失败」的自激循环；同一轮里东财既然已断，再打只会加重封禁。
+_EM_DOWN_UNTIL = [0.0]
+
+
+def _em_mark_down(seconds=180):
+    _EM_DOWN_UNTIL[0] = time.time() + seconds
+
+
+def _em_down():
+    return time.time() < _EM_DOWN_UNTIL[0]
 
 
 def _safe_float(x, default=None):
@@ -199,14 +213,19 @@ def collect_etf(trading_dates, today_iso):
     # 其内部整段分页 abort 时，降级到「每页独立重试」的容错抓取。
     spot = None
     used_sina = False
-    try:
-        spot = _retry(ak.fund_etf_spot_em, attempts=2)
-    except Exception as e:  # noqa: BLE001
-        print(f"   ⚠️ fund_etf_spot_em 分页失败，启用逐页容错重试: {e}")
+    if _em_down():
+        # 主力资金已判定东财熔断 → 不再逐页重试（~40 次请求会让 IP 封得更久），直接降级新浪
+        print("   ⚠️ 东财本轮已熔断，ETF 行情直接降级新浪源")
+    else:
         try:
-            spot = _fetch_etf_spot_resilient()
-        except Exception as e2:  # noqa: BLE001
-            print(f"   ⚠️ 东财两条路径均失败({type(e2).__name__})，降级新浪源(无份额列): {e2}")
+            spot = _retry(ak.fund_etf_spot_em, attempts=2)
+        except Exception as e:  # noqa: BLE001
+            print(f"   ⚠️ fund_etf_spot_em 分页失败，启用逐页容错重试: {e}")
+            try:
+                spot = _fetch_etf_spot_resilient()
+            except Exception as e2:  # noqa: BLE001
+                _em_mark_down()
+                print(f"   ⚠️ 东财两条路径均失败({type(e2).__name__})，降级新浪源(无份额列): {e2}")
     if spot is None:
         import pandas as _pd
         s = _retry(ak.fund_etf_category_sina, symbol="ETF基金", attempts=3)
@@ -366,6 +385,9 @@ def _fetch_market_fund_flow():
     sess = requests.Session()
     sess.trust_env = False          # 直连：本地代理常挂，国内接口无需经代理
 
+    if _em_down():
+        raise RuntimeError("东财本轮已熔断（前序请求触发连接级风控），跳过以免加重封禁")
+
     last = None
     for path in ("daykline", "kline"):
         for attempt in range(2):
@@ -401,7 +423,24 @@ def _fetch_market_fund_flow():
                 last = e
                 if attempt == 0:
                     time.sleep(0.8 + random.uniform(0, 0.4))
+    # 两条路径都断 = 不是路径差异而是 IP/主机级风控 → 熔断，阻止后续 ETF 再打东财
+    _em_mark_down()
     raise RuntimeError(f"东财主力资金两条路径均失败: {last}")
+
+
+def _load_flow_cache():
+    try:
+        with open(FLOW_CACHE, encoding='utf-8') as fh:
+            return json.load(fh)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _save_flow_cache(series):
+    os.makedirs(os.path.dirname(FLOW_CACHE), exist_ok=True)
+    with open(FLOW_CACHE, 'w', encoding='utf-8') as fh:
+        json.dump({'fetched_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                   'series': series}, fh, ensure_ascii=False)
 
 
 def collect_flows():
@@ -415,10 +454,23 @@ def collect_flows():
                 'net_yi': round(_safe_float(r.get('主力净流入-净额'), 0) / 1e8, 2),
                 'pct': _safe_float(r.get('主力净流入-净占比')),
             })
+        if out['main_flow_series']:
+            _save_flow_cache(out['main_flow_series'])
     except Exception as e:  # noqa: BLE001
         # 留痕：verify_quant 用它在「序列为空」时区分外部断连 vs 静默丢数
         out['main_flow_error'] = f"{type(e).__name__}: {str(e)[:160]}"
-        print(f"⚠️ 主力资金流获取失败: {e}")
+        # 同日重跑兜底：本次失败但当天早些时候已成功抓过 → 复用当日缓存，
+        # 避免后一轮把前一轮的好数据覆盖成空（2026-11-23 页面被清空的直接机制）。
+        cache = _load_flow_cache() or {}
+        series = cache.get('series') or []
+        if series and series[-1].get('date') == date.today().isoformat():
+            out['main_flow_series'] = series
+            out['main_flow_cached_at'] = cache.get('fetched_at')
+            out.pop('main_flow_error', None)
+            print(f"✅ 主力资金: 本次抓取失败，复用当日已抓缓存"
+                  f"（{cache.get('fetched_at')}，{len(series)}日）")
+        else:
+            print(f"⚠️ 主力资金流获取失败: {e}")
     try:
         df_nb = _retry(ak.stock_hsgt_fund_flow_summary_em)
         nb = df_nb[df_nb['资金方向'] == '北向'] if len(df_nb) else None
