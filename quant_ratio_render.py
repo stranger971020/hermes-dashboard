@@ -485,6 +485,21 @@ def render_module_policy():
                    f'评分基于部分数据源，读数和仓位上限打折看。'
                    + (f'<br>采集缺口：{gap}（窗口未覆盖，本页的“无动作”不可作结论）' if gap else "")
                    + '</div>')
+    org = p.get("origins") or {}
+    if org.get("n"):
+        _names = {"pbc": "央行", "csrc": "证监会", "nfra": "金融监管总局", "huijin": "中央汇金",
+                  "mof": "财政部", "ndrc": "发改委", "sasac": "国资委", "safe": "外汇局",
+                  "gov": "国务院", "relay": "转载", "exchange": "交易所",
+                  "sse_ex": "上交所", "szse_ex": "深交所", "bse_ex": "北交所"}
+        _top = _names.get(str(org.get("top")), org.get("top"))
+        quality += (f'<div style="font-size:12px;color:#90a4ae;margin:6px 0 0">'
+                    f'信源 {org["n"]} 个 / 事实 {org.get("facts") or 0} 条 · '
+                    f'最大 {float(org.get("top_share") or 0):.0%}（{_top}）· '
+                    f'熵 {float(org.get("entropy") or 0):.2f} · '
+                    f'纯转载 {float(org.get("relay_share") or 0):.0%}</div>')
+    if p.get("calendar_missing"):
+        quality += ('<div class="warn-note">⚠️ 有预期事件到期未捕获（LPR/MLF/会议等）：'
+                    '本日“无动作”需复核</div>')
 
     kpi = ('<div class="flow-grid">'
            + _v6_box("🧮 政策力度分", f'{score}<span style="font-size:13px;color:#90a4ae">/100</span>'
