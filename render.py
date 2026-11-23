@@ -88,6 +88,15 @@ def redact_title(t):
     return t
 
 
+# 公开版必须抹掉本机绝对路径（会泄漏用户名与目录结构；2026-11-23 发现
+# 中枢检查/备份卡把 /Users/jren/Documents/... 原样带上公开页）
+_PATH_RX = re.compile(r"/(?:Users|Volumes|private|opt|home)/[^\s'\"]*")
+
+
+def scrub_path(t):
+    return _PATH_RX.sub("[本机路径]", str(t)) if PUBLIC else str(t)
+
+
 # ── 顶栏卡片（每个数字都带判据）─────────────────────────────
 n_sched = len(S["hermes"]) + len(S["crontab"]) + len(S["launchd"])
 CK = D.get("checks", [])
@@ -229,7 +238,7 @@ def checks_html_fn(rows):
         supp = ('<div class="sub" style="color:#e8b552">已被抑制（基线）· 原判 '
                 + e(c.get("raw_status") or "") + '</div>') if c.get("suppressed") else ""
         out.append(f'<div class="svc"><span class="pill {_ckpill.get(c["status"],"warn")}">{e(c["status"])}</span> '
-                   f'<b>{e(c["name"])}</b> <span class="sub">{e(c["detail"])}</span>{supp}'
+                   f'<b>{e(c["name"])}</b> <span class="sub">{e(scrub_path(c["detail"]))}</span>{supp}'
                    f'<div class="sub mono">{e(c["at"])}</div></div>')
     return "".join(out)
 
@@ -265,7 +274,7 @@ else:
 bk_rows = (f'<div class="kv"><span>最近备份</span><b class="mono {bk_cls}">{e(backup_last[0] if backup_last else "—")}</b></div>'
            f'<div class="kv"><span>备份状态</span><b class="{bk_cls}">{e(bk_note)}</b></div>'
            f'<div class="kv"><span>备份提交数</span><b>{BK.get("commits", "?")}</b></div>'
-           f'<div class="sub mono">{e(_bk_res[-90:] or "（无日志）")}</div>')
+           f'<div class="sub mono">{e(scrub_path(_bk_res[-90:]) or "（无日志）")}</div>')
 
 # ── 📡 推送源登记 + 上次送达 ──────────────────────────────────────────────
 PU = D.get("pushes", [])
