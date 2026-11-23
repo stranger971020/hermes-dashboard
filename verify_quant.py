@@ -90,10 +90,17 @@ def main():
         if s.get('percentile') is None and s.get('zscore') is None:
             errs.append(f"信号缺分位/z值: {s.get('name')}")
 
-    # 5) 主力资金序列可读（源断连属外部时效问题：记警告，不阻塞当日推送）
-    mf = (d.get('flows') or {}).get('main_flow_series') or []
+    # 5) 主力资金序列可读
+    #    源断连属外部时效问题 → warn，不阻塞当日推送；
+    #    但「序列为空且没有 main_flow_error」= 采集静默丢数（2026-11-23 教训）→ error。
+    flows = d.get('flows') or {}
+    mf = flows.get('main_flow_series') or []
     if len(mf) < 15:
-        warns.append(f"主力资金序列过短: {len(mf)}（东财源断连；页面显示数据缺失，不阻塞推送）")
+        err = flows.get('main_flow_error')
+        if not err:
+            errs.append(f"主力资金序列过短: {len(mf)}，且无 main_flow_error 记录（静默丢数）")
+        else:
+            warns.append(f"主力资金序列过短: {len(mf)}（{str(err)[:80]}；页面显示数据缺失，不阻塞推送）")
 
     # 6) 归档存在（页面靠它做索引）
     if not os.path.exists(os.path.join(HISTORY_DIR, f"quant_{d.get('date')}.html")):

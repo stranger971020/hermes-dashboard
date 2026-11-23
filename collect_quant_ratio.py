@@ -11,6 +11,15 @@ v5 变更:
    （旧版用"今日成交额 Top40"固定成分回算 21 天，成分随日漂移，跨日不可比）。
 4. 信号：ETF 改用净申购分位；主力仍 |z|≥1；北向停止披露不占位。
 
+v5.1 (2026-11-23) 主力资金源修复:
+- 东财 `push2his.../fflow/daykline/get` 对本网络稳定空响应（akshare 1.18/1.20 仍只用它），
+  2026-11-23 起主力序列整段为空、页面显示「数据缺失」。
+- 改为自抓 + 双路径降级 daykline → kline（同 host 同口径，实测 11-19/11-20 数值完全一致），
+  Session(trust_env=False) 直连；两路都失败时写 flows.main_flow_error 留痕。
+- 采集顺序改为 flow 先、ETF 后：ETF 的 akshare 分页 + 逐页重试最多几十次请求，
+  先跑会把东财 IP 打进风控，轮到 flow 时必空。
+- 告警: verify_quant 对「序列为空且无 main_flow_error」判 error（静默丢数），有 error 仍只 warn。
+
 数据源（全部 akshare 免费接口）:
 - 宽基ETF份额   fund_etf_scale_sse（沪市，按日）
 - ETF行情/价格  fund_etf_spot_em
@@ -334,17 +343,81 @@ def collect_etf(trading_dates, today_iso):
 
 
 # ---------------- 主力资金 + 北向 ----------------
+def _fetch_market_fund_flow():
+    """东财全市场主力资金日频序列（直连，不读代理 env）。
+
+    2026-11-23 起 push2his 的 `/fflow/daykline/get` 对本网络**稳定空响应**
+    （同 host 的 `/fflow/kline/get` 正常；akshare 1.18/1.20 仍只用 daykline），
+    表现为 RemoteDisconnected / Empty reply → stock_market_fund_flow 整段失败。
+    这里按路径降级：daykline（15 列，含主力净占比）→ kline（6 列，仅净额），
+    字段按下标解析，返回 DataFrame[日期, 主力净流入-净额, 主力净流入-净占比]。
+    """
+    import pandas as pd
+    import requests
+
+    params = {
+        "lmt": "0", "klt": "101",
+        "secid": "1.000001", "secid2": "0.399001",
+        "fields1": "f1,f2,f3,f7",
+        "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65",
+        "ut": "b2884a393a59ad64002292a3e90d46a5",
+        "_": int(time.time() * 1000),
+    }
+    sess = requests.Session()
+    sess.trust_env = False          # 直连：本地代理常挂，国内接口无需经代理
+
+    last = None
+    for path in ("daykline", "kline"):
+        for attempt in range(2):
+            try:
+                r = sess.get(
+                    f"https://push2his.eastmoney.com/api/qt/stock/fflow/{path}/get",
+                    params=params, timeout=20,
+                    headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"})
+                r.raise_for_status()
+                klines = (r.json().get("data") or {}).get("klines") or []
+                if not klines:
+                    raise ValueError(f"{path}: 响应无 klines")
+                rows = []
+                for line in klines:
+                    f = line.split(",")
+                    if len(f) < 2:
+                        continue
+                    rows.append({
+                        "日期": f[0],
+                        "主力净流入-净额": _safe_float(f[1]),
+                        # f57=主力净占比；kline 路径只回 6 列，无占比
+                        "主力净流入-净占比": _safe_float(f[6]) if len(f) > 6 else None,
+                    })
+                df = pd.DataFrame(rows)
+                df["日期"] = pd.to_datetime(df["日期"], errors="coerce").dt.date
+                df = df.dropna(subset=["主力净流入-净额"])
+                if df.empty:
+                    raise ValueError(f"{path}: klines 解析后为空")
+                if path != "daykline":
+                    print("⚠️ 主力资金 daykline 路径失效，已降级 kline 路径（同源同口径）")
+                return df
+            except Exception as e:  # noqa: BLE001
+                last = e
+                if attempt == 0:
+                    time.sleep(0.8 + random.uniform(0, 0.4))
+    raise RuntimeError(f"东财主力资金两条路径均失败: {last}")
+
+
 def collect_flows():
     out = {'main_flow_series': [], 'northbound': None}
     try:
-        df = _retry(ak.stock_market_fund_flow, attempts=2)
+        # 函数内部已对两条路径各重试 2 次 → 不再叠 _retry，避免限流风暴
+        df = _fetch_market_fund_flow()
         for _, r in df.tail(HIST_TRADING_DAYS).iterrows():
             out['main_flow_series'].append({
                 'date': str(r['日期'])[:10],
                 'net_yi': round(_safe_float(r.get('主力净流入-净额'), 0) / 1e8, 2),
-                'pct': _safe_float(r.get('主力净流入-净占比'), 0),
+                'pct': _safe_float(r.get('主力净流入-净占比')),
             })
     except Exception as e:  # noqa: BLE001
+        # 留痕：verify_quant 用它在「序列为空」时区分外部断连 vs 静默丢数
+        out['main_flow_error'] = f"{type(e).__name__}: {str(e)[:160]}"
         print(f"⚠️ 主力资金流获取失败: {e}")
     try:
         df_nb = _retry(ak.stock_hsgt_fund_flow_summary_em)
@@ -507,8 +580,10 @@ def main():
         return
     print(f"→ 交易日窗口: {trading_dates[0]} → {trading_dates[-1]} ({len(trading_dates)}日)")
 
-    etf = collect_etf(trading_dates, today_iso)
+    # 先取主力资金（1 次请求），再取 ETF（akshare 分页 + 逐页重试，最多几十次请求）。
+    # 反了会先触发东财 IP 级风控，等轮到 flow 时已被封 → 主力序列全空（2026-11-23）。
     flows = collect_flows()
+    etf = collect_etf(trading_dates, today_iso)
     news = collect_news_digest()
     signals = evaluate_signals(etf, flows)
 
