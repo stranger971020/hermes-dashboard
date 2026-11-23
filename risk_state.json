@@ -1,41 +1,41 @@
 {
   "schema": 1,
-  "asof": "20261120",
-  "generated_at": "2026-11-23T02:46:36",
-  "expected_date": "20261120",
+  "asof": "20261123",
+  "generated_at": "2026-11-24T02:49:06",
+  "expected_date": "20261123",
   "stale_days": 0,
   "freshness": {
-    "asof": "20261120",
-    "expected": "20261120",
+    "asof": "20261123",
+    "expected": "20261123",
     "stale_days": 0,
     "ok": true,
     "source": "arg"
   },
   "entry_advice_ok": true,
-  "state": "crash",
-  "state_label": "崩跌",
-  "score": 6,
+  "state": "fragile",
+  "state_label": "脆弱",
+  "score": 5,
   "components": {
     "trend_60d_lt_-5": true,
     "trend_60d_lt_-10": true,
     "breadth_ma20_lt_30": true,
     "breadth_ma20_lt_20": true,
-    "shock_today": true,
+    "shock_today": false,
     "second_shock_10d": true,
     "strong_basket_rolling": false,
     "vol_expansion": false
   },
   "metrics": {
-    "g60": -0.139,
-    "g20": -0.0367,
-    "above_ma20": 0.0815,
-    "down_ratio": 0.9447,
+    "g60": -0.143,
+    "g20": -0.0354,
+    "above_ma20": 0.096,
+    "down_ratio": 0.1395,
     "shock5": 2,
     "shock10": 4,
-    "strong_ex5": 0.0884,
-    "ivol_ratio": 1.0489,
-    "lu": 28,
-    "ld": 78
+    "strong_ex5": 0.0555,
+    "ivol_ratio": 1.0574,
+    "lu": 144,
+    "ld": 3
   },
   "action": {
     "initial_trim": 0.5,
@@ -49,15 +49,6 @@
     "note": "初减后剩余仓位按「持仓峰值回撤 8%」移动止损；不预测顶，不因单日下跌砍掉全部仓位。"
   },
   "history": [
-    {
-      "trade_date": "20261026",
-      "frag_score": 4.0,
-      "frag_state": "fragile",
-      "down_ratio": 0.5729166666666666,
-      "above_ma20": 0.2197426618415762,
-      "g60": -0.11736416461381882,
-      "shock10": 3.0
-    },
     {
       "trade_date": "20261027",
       "frag_score": 6.0,
@@ -227,6 +218,15 @@
       "down_ratio": 0.9447226116563189,
       "above_ma20": 0.08147702187437286,
       "g60": -0.138954949522186,
+      "shock10": 4.0
+    },
+    {
+      "trade_date": "20261123",
+      "frag_score": 5.0,
+      "frag_state": "fragile",
+      "down_ratio": 0.13947895791583168,
+      "above_ma20": 0.09598393574297188,
+      "g60": -0.14302151735332724,
       "shock10": 4.0
     }
   ],
