@@ -480,8 +480,11 @@ def render_module_policy():
 
     quality = ""
     if p.get("degraded"):
+        gap = p.get("coverage_gap")
         quality = (f'<div class="warn-note">⚠️ 本日数据降级：{p.get("coverage") or "—"} —— '
-                   f'评分基于部分数据源，读数和仓位上限打折看。</div>')
+                   f'评分基于部分数据源，读数和仓位上限打折看。'
+                   + (f'<br>采集缺口：{gap}（窗口未覆盖，本页的“无动作”不可作结论）' if gap else "")
+                   + '</div>')
 
     kpi = ('<div class="flow-grid">'
            + _v6_box("🧮 政策力度分", f'{score}<span style="font-size:13px;color:#90a4ae">/100</span>'
