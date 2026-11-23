@@ -15,6 +15,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import sys
 
 DATA = "/Users/jren/projects/hermes-dashboard/quant_data.json"
@@ -367,6 +368,27 @@ def main():
             errs.append(f"量化持仓校验失败: {e}")
 
     print(f"quant-verify: {len(errs)} 错误 / {len(warns)} 警告  ({args.data})")
+    # 13) 九段标题行必须带「刷新 MM-DD HH:MM」（2026-11-23）
+    #     各段产出时点不同（V6 凌晨 02:45 / 要闻早间 / 政策 17:30 EOD / ①③ 本次 collect），
+    #     只写日期会把「凌晨的数据」误读成刚刷新。缺 tag = 渲染器回退或漏挂。
+    if os.path.exists(HTML):
+        try:
+            _h = open(HTML, encoding="utf-8").read()
+            _secs = [("sec-national", "①"), ("sec-news", "②"), ("sec-signals", "③"),
+                     ("sec-v6", "④"), ("sec-policy", "⑤"), ("sec-emotion", "⑥"),
+                     ("sec-risk", "⑦"), ("sec-quant", "⑧"), ("sec-holdings", "⑨")]
+            _miss = []
+            for _sid, _num in _secs:
+                _i = _h.find(f'id="{_sid}"')
+                _j = _h.find("</h2>", _i) if _i >= 0 else -1
+                if _i < 0 or _j < 0 or not re.search(r"刷新 \d{2}-\d{2} \d{2}:\d{2}",
+                                                     _h[_i:_j]):
+                    _miss.append(_num)
+            if _miss:
+                errs.append(f"模块标题缺「刷新 MM-DD HH:MM」: {'/'.join(_miss)}")
+        except Exception as e:  # noqa: BLE001
+            warns.append(f"刷新时间检查失败: {e}")
+
     for e in errs:
         print("  ❌", e)
     for w in warns:

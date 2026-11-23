@@ -503,6 +503,13 @@ def collect_news_digest():
     picked = [todays[t] for t in NEWS_PRIORITY if t in todays] or list(todays.values())
     result['source_files'] = picked
     result['date'] = picked[0][:8]
+    # 要闻是早间管道产出的，collect 往往在傍晚/夜间 → 记录源文件最后写入时刻，
+    # 看板标题行据此显示真实「刷新时间」，而不是本次 collect 时间。
+    try:
+        mtime = max(os.path.getmtime(os.path.join(VAULT_DIGEST_DIR, f)) for f in picked)
+        result['generated_at'] = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M')
+    except Exception:  # noqa: BLE001
+        pass
 
     seen_urls, seen_points = set(), set()
     for fname in picked:

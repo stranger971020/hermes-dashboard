@@ -7,11 +7,18 @@ index.html 是监控页（勿动）。纯 CSS；⑦ 段含一个移动止损计�
 
 v5: ① 国家队资金动向 / ② 今日财经要闻 / ③ 投资信号
     模块① 主指标改为 ETF 份额净申购（旧版用成交额，同日差 350 倍）
+
+v5.2 (2026-11-23): 各模块标题行增加「刷新 MM-DD HH:MM」
+- 九段产出时点不同（V6 凌晨 02:45、要闻早间、政策 17:30 EOD、量化持仓按季、
+  ①③ 为本次 collect），只写日期会让人误以为全是刚刷新。
+- 页面头部「生成于」改为「页面渲染于」，避免与各段产出时间混淆。
+- ② 要闻时间取 digest 源文件最后写入时刻（collect 只负责合并，不伪造为当前时间）。
 """
 
 import glob
 import json
 import os
+import re
 import sys
 from datetime import date, datetime
 
@@ -95,6 +102,27 @@ def _fmt(v, suffix="", default="—"):
     return f"{v}{suffix}"
 
 
+def _refresh_tag(ts, label="刷新"):
+    """把各数据源异构时间戳统一成「· 刷新 MM-DD HH:MM」，挂在模块标题行。
+
+    九段数据的产出时点本来就不同：V6 凌晨 02:45、要闻早间、政策 17:30 EOD、
+    量化持仓按季、①③ 为本次 collect 时刻。把它们都标出来，避免读者把
+    「凌晨的温度」误当成「刚刚刷新」。解析不了就不显示，不伪造时间。
+    """
+    if ts in (None, ""):
+        return ""
+    s = str(ts).strip().replace("T", " ")
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})", s)
+    if m:
+        txt = f"{m.group(2)}-{m.group(3)} {m.group(4)}:{m.group(5)}"
+    elif re.fullmatch(r"\d{8}", s):
+        txt = f"{s[4:6]}-{s[6:8]}（仅日期）"
+    else:
+        return ""
+    return (f'<span style="font-size:11.5px;color:#90a4ae;font-weight:400;'
+            f'margin-left:8px">· {label} {txt}</span>')
+
+
 def _sparkline(series, key, width=280, height=46):
     """series: [{date, <key>}] → 内联 SVG 折线（None 留空隙）"""
     if not series:
@@ -163,7 +191,7 @@ def render_module1(d):
                  f'⚠️ 今日仅单市场口径（缺{_miss}）：已标 incomplete，'
                  f'<b>不计分位、不触发信号</b></div>') if incomplete_today else ''
     return f"""<section class="section" id="sec-national">
-<h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span></h2>
+<h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span>{_refresh_tag(d.get('generated_at'))}</h2>
 <div class="sub">{etf.get('netbuy_basis','')}</div>
 <div class="flow-grid">
   <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（国家队代理）</div>
@@ -203,7 +231,8 @@ def render_module2(d):
         f'<a class="news-item" href="{it["url"]}" target="_blank">• {it["title"]}</a>'
         for it in news.get('items', []))
     return (f'<section class="section" id="sec-news"><h2>② 今日财经要闻 '
-            f'<span style="font-size:12px;color:#90a4ae;font-weight:400">{ds} · Sina News AI归纳 · {src}个主题</span></h2>'
+            f'<span style="font-size:12px;color:#90a4ae;font-weight:400">{ds} · Sina News AI归纳 · {src}个主题</span>'
+            f'{_refresh_tag(news.get("generated_at"))}</h2>'
             f'{points}{items}</section>')
 
 
@@ -233,7 +262,8 @@ def render_module3(d):
     total = len(sig.get('signals', []))
     return (f'<section class="section" id="sec-signals"><h2>③ 投资信号 '
             f'<span style="font-size:12px;color:#90a4ae;font-weight:400">滚动分位触发 · '
-            f'{sig.get("triggered_count",0)}/{total} 已触发</span></h2>'
+            f'{sig.get("triggered_count",0)}/{total} 已触发</span>'
+            f'{_refresh_tag(d.get("generated_at"))}</h2>'
             f'<table><thead><tr><th>信号</th><th class="num">当前值</th><th class="num">参照</th><th>状态</th></tr></thead>'
             f'<tbody>{rows}</tbody></table>'
             f'<p style="font-size:12px;color:#888;margin-top:8px">{sig.get("push_line","(无触发)") or "(无触发)"}</p>'
@@ -287,7 +317,9 @@ def render_module_v6():
     s, note = load_v6_summary()
     head = ('<section class="section" id="sec-v6"><h2>④ V6 交易决策 '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
-            'trend-trading-system · 波段决策单 · 100-500亿域</span></h2>')
+            'trend-trading-system · 波段决策单 · 100-500亿域</span>'
+            + _refresh_tag(s.get("generated_at") if isinstance(s, dict) else None)
+            + '</h2>')
     if not s:
         return head + f'<p style="color:#90a4ae;font-size:13px">{note or "无数据"}</p></section>'
 
@@ -468,7 +500,9 @@ def render_module_policy():
     p, note = load_policy_summary()
     head = ('<section class="section" id="sec-policy"><h2>⑤ 政策信号 '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
-            'policy-signal · 政策力度 × 市场位置 → 仓位上限</span></h2>')
+            'policy-signal · 政策力度 × 市场位置 → 仓位上限</span>'
+            + _refresh_tag(p.get("generated_at") if isinstance(p, dict) else None)
+            + '</h2>')
     if not p:
         return head + f'<p style="color:#90a4ae;font-size:13px">{note or "无数据"}</p></section>'
 
@@ -601,7 +635,9 @@ def render_module_emotion():
     s, note = load_v6_summary()
     head = ('<section class="section" id="sec-emotion"><h2>⑥ 情绪温度计 '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
-            '退潮/冰点判读 · <b>状态提示，非卖出信号</b></span></h2>')
+            '退潮/冰点判读 · <b>状态提示，非卖出信号</b></span>'
+            + _refresh_tag(s.get("generated_at") if isinstance(s, dict) else None)
+            + '</h2>')
     if not s:
         return head + f'<p style="color:#90a4ae;font-size:13px">{note or "无数据"}</p></section>'
     emo = s.get("emotion") or {}
@@ -658,19 +694,21 @@ def load_risk_summary():
     """⑦ 段数据源：优先 V6 摘要的 risk_guard，回退本地 risk_state.json。
 
     单一事实源在 trend-trading-system/analysis/risk_state.py；V6 日报 02:45 生成并
-    写入 summary["risk_guard"]，看板 16:15 只消费，不重算、不产生第二个判断。
+    写入 summary["risk_guard"]，看板日更（工作日 18:30）只消费，不重算、不产生第二个判断。
     """
     s, _ = load_v6_summary()
     if isinstance(s, dict) and isinstance(s.get("risk_guard"), dict):
         p = dict(s["risk_guard"])
         p["_source"] = "v6_summary"
         p["_v6_trading_date"] = s.get("trading_date")
+        p["_generated_at"] = s.get("generated_at")   # ⑦ 标题行的刷新时间取 V6 产出时刻
         return p, ""
     if os.path.exists(RISK_JSON):
         try:
             with open(RISK_JSON) as f:
                 p = json.load(f)
             p["_source"] = "file_fallback"
+            p["_generated_at"] = p.get("generated_at")
             return p, ""
         except Exception as e:  # noqa: BLE001
             return None, f"risk_state.json 解析失败: {e}"
@@ -690,7 +728,9 @@ def render_module_risk():
     p, note = load_risk_summary()
     head = ('<section class="section" id="sec-risk"><h2>⑦ 浮盈保护 · 风险状态 '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
-            'PIT 大盘脆弱度 + 持仓动作框架 · <b>初减 + 8% 移动止损</b></span></h2>')
+            'PIT 大盘脆弱度 + 持仓动作框架 · <b>初减 + 8% 移动止损</b></span>'
+            + _refresh_tag(p.get("_generated_at") if isinstance(p, dict) else None)
+            + '</h2>')
     if not p:
         return (head + f'<p style="color:#90a4ae;font-size:13px">{note}。'
                 f'运行 <code>python3 ~/projects/trend-trading-system/analysis/risk_state.py</code> 生成。</p></section>')
@@ -849,7 +889,9 @@ def render_module_quant_activity():
     p, note = load_quant_activity()
     head = ('<section class="section" id="sec-quant"><h2>⑧ 量化参与度（代理） '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
-            '活跃度代理 · <b>不是成交占比/持仓占比</b></span></h2>')
+            '活跃度代理 · <b>不是成交占比/持仓占比</b></span>'
+            + _refresh_tag(p.get("generated_at") if isinstance(p, dict) else None)
+            + '</h2>')
     if not p:
         return (head + f'<p style="color:#90a4ae;font-size:13px">{note}。'
                 f'运行 <code>python3 ~/projects/hermes-dashboard/collect_quant_activity.py</code> 生成。</p></section>')
@@ -936,7 +978,9 @@ def render_module_quant_holdings():
     p, note = load_quant_holdings()
     head = ('<section class="section" id="sec-holdings"><h2>⑨ 量化持仓（季度·公募下限） '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
-            '仅公募·前十大·不含私募 · <b>下限而非全量</b></span></h2>')
+            '仅公募·前十大·不含私募 · <b>下限而非全量</b></span>'
+            + _refresh_tag(p.get("generated_at") if isinstance(p, dict) else None)
+            + '</h2>')
     if not p:
         return (head + f'<p style="color:#90a4ae;font-size:13px">{note}。'
                 f'运行 <code>python3 ~/projects/hermes-dashboard/collect_quant_holdings.py --force</code> 生成。</p></section>')
@@ -1237,7 +1281,7 @@ def render_methodology(d):
 成交额绝大部分是做市与套利换手，不是国家队买入，已弃用（成交额仅作背景数字保留）。</p>
 <p><b>主力净流入</b> = 东财全市场「超大单 + 大单」净额，按<b>单笔成交金额</b>分类，不代表机构身份；与"国家队"不是同一概念。</p>
 <p><b>信号</b> = 滚动分位：ETF净申购 ≥ 近20日80分位 → 国家队大额申购；主力净流入 |z|≥1 → 资金异动。北向停止披露，不计入。</p>
-<p><b>数据源</b>：akshare 免费接口（东财 / 上交所 ETF 份额），cron <code>15 16 * * *</code> 盘后刷新。历史窗口 {tw[0]} → {tw[-1]}。</p>
+<p><b>数据源</b>：akshare 免费接口（东财 / 上交所 ETF 份额），Hermes cron 工作日 <code>30 18 * * *</code> 日更。历史窗口 {tw[0]} → {tw[-1]}。</p>
 <p><b>局限</b>：沪市份额可取历史（交易所按日），深市无历史接口 —— 自 {d.get('etf', {}).get('sz_tracked_since', '—')} 起逐日快照累积（已 {d.get('etf', {}).get('sz_tracked_days', 0)} 日），
 首日深市无变化值；估算价用最新价，历史日净申购存在小幅估值误差；主力净流入按单笔金额分类，无法区分量化/机构/游资。</p>
 <p><b>④ V6 交易决策</b> = 从 trend-trading-system 的 V6 日报结构化摘要（<code>reports/v6_daily/v6_daily_YYYYMMDD.json</code>，schema=1）读取，只做展示，不在本看板重算。
@@ -1267,7 +1311,7 @@ def render(d, theme='quant', base='history/'):
 <title>投资看板 · {d.get('date','')}</title>
 <style>{CSS}</style></head><body>
 <div class="container">
-<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">{d.get('date','')} · 生成于 {d.get('generated_at','—')} · v9（九段：V6 / 浮盈保护 / 量化代理）</div></div>{badge}</div>
+<div class="header"><div><h1>📊 个人投资看板</h1><div class="meta">{d.get('date','')} · 页面渲染于 {d.get('generated_at','—')}（各段实际产出时间见标题行）· v9（九段：V6 / 浮盈保护 / 量化代理）</div></div>{badge}</div>
 {render_nav()}
 {render_quick_nav()}
 {render_today_summary()}
@@ -1283,7 +1327,7 @@ def render(d, theme='quant', base='history/'):
 {render_archive(theme, base)}
 {render_glossary()}
 {render_methodology(d)}
-<div class="footer">投资看板 · akshare + V6 日报（工作日 02:45）+ 量化活跃度代理/季度持仓 · cron 15 16 * * * 盘后刷新</div>
+<div class="footer">投资看板 · akshare + V6 日报（工作日 02:45）+ 量化活跃度代理/季度持仓 · Hermes cron 工作日 18:30 日更</div>
 </div></body></html>"""
 
 
