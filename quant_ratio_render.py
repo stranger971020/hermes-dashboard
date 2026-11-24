@@ -178,11 +178,16 @@ def render_module1(d):
     tail = list(reversed(net[-10:]))
     net_color = 'up' if (net_today or 0) > 0 else ('down' if (net_today or 0) < 0 else 'flat')
 
+    def _total_cell(p):
+        """合计列：单市场口径加 *，避免把「仅深市」误读成沪深合计。"""
+        v = _fmt(p.get("net_yi"))
+        return v + ("*" if (p.get("complete") is False and p.get("net_yi") is not None) else "")
+
     rows = "".join(
         f'<tr><td>{p.get("date","")}</td>'
         f'<td class="num">{_fmt(p.get("sh_yi"))}</td>'
         f'<td class="num">{_fmt(p.get("sz_yi"))}</td>'
-        f'<td class="num">{_fmt(p.get("net_yi"))}</td>'
+        f'<td class="num">{_total_cell(p)}</td>'
         f'<td class="num">{_fmt(main_map.get(p.get("date")))}</td></tr>'
         for p in tail)
 
@@ -201,7 +206,7 @@ def render_module1(d):
     <span class="big-num {net_color}">{_fmt(net_today, '亿')}</span><br>{_sparkline(net, 'net_yi')}
     <div style="font-size:11.5px;color:#607d8b;margin-top:4px;line-height:1.9">
       沪市（T+1） <b>{sh_txt}</b> · 深市（当日） <b>{sz_txt}</b><br>
-      合计 <b>{_fmt(net_today)}亿</b></div>
+      合计 <b>{_fmt(net_today)}亿</b>{'（暂缺沪市）' if incomplete_today else ''}</div>
     {_inc_line}
     <div style="font-size:10.5px;color:#bbb">份额变化×价格 ≈ 申购赎回净额；正=申购（资金进场），负=赎回</div></div>
   <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">主力资金今日净流入（全市场）</div>
@@ -219,6 +224,7 @@ def render_module1(d):
 <p style="font-size:11.5px;color:#90a4ae;margin-top:8px">
 沪市＝上交所 ETF 份额（<b>T+1 发布</b>，官方口径约次日 23:00 更新，故当日 18:30 日更通常为空，次日晚间自动补抓并刷新本页）；
 深市＝深交所当日快照（自 2026-11-09 起逐日累积）。当日任一市场缺失 → 标 incomplete，<b>不计分位、不触发信号</b>。<br>
+<code>*</code> 该日仅单市场口径（另一侧未发布/未累积），<b>不是沪深合计</b>。<br>
 北向单日净买额自 2024-08 起停止披露，已从本模块移除。</p>
 </section>"""
 
