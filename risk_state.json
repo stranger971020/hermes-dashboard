@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "asof": "20261123",
-  "generated_at": "2026-11-24T02:49:06",
-  "expected_date": "20261123",
+  "asof": "20261124",
+  "generated_at": "2026-11-25T02:49:05",
+  "expected_date": "20261124",
   "stale_days": 0,
   "freshness": {
-    "asof": "20261123",
-    "expected": "20261123",
+    "asof": "20261124",
+    "expected": "20261124",
     "stale_days": 0,
     "ok": true,
     "source": "arg"
@@ -26,15 +26,15 @@
     "vol_expansion": false
   },
   "metrics": {
-    "g60": -0.143,
-    "g20": -0.0354,
-    "above_ma20": 0.096,
-    "down_ratio": 0.1395,
+    "g60": -0.1313,
+    "g20": -0.0212,
+    "above_ma20": 0.101,
+    "down_ratio": 0.633,
     "shock5": 2,
     "shock10": 4,
-    "strong_ex5": 0.0555,
-    "ivol_ratio": 1.0574,
-    "lu": 144,
+    "strong_ex5": 0.0511,
+    "ivol_ratio": 1.0217,
+    "lu": 53,
     "ld": 3
   },
   "action": {
@@ -42,22 +42,13 @@
     "initial_trim_reason": "弱市 + 10日内第二次广泛下跌 → 至少减半",
     "initial_trim_already_active": true,
     "incremental_trim": 0.0,
-    "previous_state": "crash",
+    "previous_state": "fragile",
     "previous_trim": 0.5,
     "trim_text": "前日建议初减 50%；若已执行，今日不重复；若未执行，今日补执行。剩余仓位执行 8% 移动止损",
     "trail_stop": 0.08,
     "note": "初减后剩余仓位按「持仓峰值回撤 8%」移动止损；不预测顶，不因单日下跌砍掉全部仓位。"
   },
   "history": [
-    {
-      "trade_date": "20261027",
-      "frag_score": 6.0,
-      "frag_state": "crash",
-      "down_ratio": 0.8868189102564102,
-      "above_ma20": 0.14917571371129876,
-      "g60": -0.13883800263829715,
-      "shock10": 4.0
-    },
     {
       "trade_date": "20261028",
       "frag_score": 4.0,
@@ -227,6 +218,15 @@
       "down_ratio": 0.13947895791583168,
       "above_ma20": 0.09598393574297188,
       "g60": -0.14302151735332724,
+      "shock10": 4.0
+    },
+    {
+      "trade_date": "20261124",
+      "frag_score": 5.0,
+      "frag_state": "fragile",
+      "down_ratio": 0.633033033033033,
+      "above_ma20": 0.10098373820517968,
+      "g60": -0.13133613255437615,
       "shock10": 4.0
     }
   ],
