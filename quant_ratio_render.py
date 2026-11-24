@@ -8,6 +8,11 @@ index.html 是监控页（勿动）。纯 CSS；⑦ 段含一个移动止损计�
 v5: ① 国家队资金动向 / ② 今日财经要闻 / ③ 投资信号
     模块① 主指标改为 ETF 份额净申购（旧版用成交额，同日差 350 倍）
 
+v5.3 (2026-11-24): 情绪标签可读性
+- 「上升期」→「高潮期」：原词易被读成趋势向上，实际是 score>=65 的过热桶。
+- 新增 phase_detail「单日爆发 / 连续高潮」；④/⑥ 段追加显示，缺字段自动降级。
+- ⑥ 段判读规则补一行：>=65 高潮/过热（反向），当日分-5日均值>=25 标单日爆发。
+
 v5.2 (2026-11-23): 各模块标题行增加「刷新 MM-DD HH:MM」
 - 九段产出时点不同（V6 凌晨 02:45、要闻早间、政策 17:30 EOD、量化持仓按季、
   ①③ 为本次 collect），只写日期会让人误以为全是刚刷新。
@@ -379,7 +384,9 @@ def render_module_v6():
     emo_box = _v6_box(
         "🎭 情绪周期",
         (f"{emo.get('emo_score')}" if emo.get("emo_score") is not None else "—") + "<span style='font-size:13px;color:#90a4ae'>/100</span>",
-        (f"{emo.get('phase') or '—'} · 涨停 {emo.get('limit_up')} / 跌停 {emo.get('limit_down')}")
+        (f"{emo.get('phase') or '—'}"
+         f"{(' · ' + emo['phase_detail']) if emo.get('phase_detail') else ''}"
+         f" · 涨停 {emo.get('limit_up')} / 跌停 {emo.get('limit_down')}")
         if emo else "未计算")
     shadow_box = _v6_box(
         "📈 影子实盘（前向跟踪）",
@@ -662,6 +669,7 @@ def render_module_emotion():
     ur = emo.get("updown_ratio")
     lu, ld = emo.get("limit_up"), emo.get("limit_down")
     score, phase = emo.get("emo_score"), emo.get("phase") or "—"
+    phase_detail = emo.get("phase_detail") or ""
     if isinstance(ur, (int, float)):
         if ur < 0.25:
             state, cls = ("冰点/退潮 — 禁止追高与加仓", "up")
@@ -677,7 +685,7 @@ def render_module_emotion():
                    f"{lu if lu is not None else '—'}<span style='font-size:13px;color:#90a4ae'>/</span>{ld if ld is not None else '—'}",
                    f"晋级率 {_v6_pct(emo.get('promotion_rate'))} · 最高连板 {emo.get('max_streak') if emo.get('max_streak') is not None else '—'}")
     box3 = _v6_box("🌡️ 情绪分", (f"{score}" if score is not None else "—") + "<span style='font-size:13px;color:#90a4ae'>/100</span>",
-                   f"{phase} · 恐慌分 {emo.get('panic_score') if emo.get('panic_score') is not None else '—'}")
+                   f"{phase}{(' · ' + phase_detail) if phase_detail else ''} · 恐慌分 {emo.get('panic_score') if emo.get('panic_score') is not None else '—'}")
 
     # 近 5 日趋势
     hist = emo.get("hist5") or []
@@ -695,7 +703,7 @@ def render_module_emotion():
     return head + f"""
 <div class="flow-grid" style="margin-top:12px">{box1}{box2}{box3}</div>
 {trend}
-<div class="kv" style="margin-top:12px">判读规则：涨跌家数比 <b>&lt;0.50</b> 偏弱 · <b>&lt;0.25</b> 退潮/冰点（禁止追高与加仓）· 跌停 ≥25 家 → 冰点档（历史上 T+1 胜率反而抬升）</div>
+<div class="kv" style="margin-top:12px">判读规则：涨跌家数比 <b>&lt;0.50</b> 偏弱 · <b>&lt;0.25</b> 退潮/冰点（禁止追高与加仓）· 跌停 ≥25 家 → 冰点档（历史上 T+1 胜率反而抬升）· 情绪分 <b>≥65</b> 为高潮/过热（<b>反向</b>：历史未来 5 日偏弱）；当日分 - 5 日均值 <b>≥25</b> 标「单日爆发」，否则「连续高潮」</div>
 <p style="font-size:12px;color:#90a4ae;margin-top:8px">
 <b>为什么这段不输出「卖出」：</b>2729 个交易日的实测里，涨占比 &lt;0.25 之后未来 5 日沪深300 平均
 <b>+0.34%</b>（下跌概率 42%，低于基准 48%）；叠加「涨停骤降」后是 <b>+0.97%</b>（下跌概率 37%）。
