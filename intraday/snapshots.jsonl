@@ -1,0 +1,2 @@
+{"date":"2026-11-24","time":"14:55","main_flow_cum_yi":-65.0,"etf_amt_yi":null,"delta_yi":null,"pct_rank_of_hist":null,"triggered":false,"direction":"","note":"injected baseline for delta/push verification"}
+{"date": "2026-11-24", "time": "15:28", "main_flow_cum_yi": -37.89, "etf_amt_yi": null, "delta_yi": 27.11, "pct_rank_of_hist": 60, "triggered": true, "direction": "净流入突增"}
