@@ -57,58 +57,9 @@ fi
 echo ""
 echo "[5/5] 检查投资信号..."
 SIGNAL_FILE="${DASHBOARD_PATH}/quant_push_signal.txt"
+# 推送逻辑收敛到 quant_push.py（与 T+1 终刷共用；去重键=数据日+信号hash）
 if [ -f "${SIGNAL_FILE}" ] && ! grep -q "无触发" "${SIGNAL_FILE}"; then
-    ${PY} - <<'PYEOF'
-import datetime
-import hashlib
-import json
-import os
-
-import requests
-
-STATE = os.path.expanduser("~/.hermes/state/quant_push_state.json")
-ENV = os.path.expanduser("~/.hermes/.env")
-URL = "https://stranger971020.github.io/hermes-dashboard/dashboard_investment.html"
-today = datetime.date.today().isoformat()
-
-with open("/Users/jren/projects/hermes-dashboard/quant_push_signal.txt") as f:
-    push_line = f.read().strip()
-sig_hash = hashlib.sha1(push_line.encode()).hexdigest()[:12]
-
-state = {}
-if os.path.exists(STATE):
-    try:
-        state = json.load(open(STATE))
-    except Exception:  # noqa: BLE001
-        state = {}
-if state.get("date") == today and state.get("sig_hash") == sig_hash:
-    print("⏭  同一信号今日已推送过，跳过（防刷屏）")
-    raise SystemExit(0)
-
-TOKEN = None
-with open(ENV, "rb") as f:
-    for line in f:
-        if b"TELEGRAM_BOT_TOKEN" in line and not line.startswith(b"#"):
-            TOKEN = line.strip().split(b"=", 1)[1].decode("utf-8")
-if not TOKEN:
-    print("⚠️ 未找到 TELEGRAM_BOT_TOKEN，跳过推送")
-    raise SystemExit(0)
-
-msg = "📊 投资看板 · 信号触发\n" + push_line + "\n" + URL
-r = requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
-                  json={"chat_id": "8632265776", "text": msg}, timeout=20)
-try:
-    body = r.json()
-except Exception:  # noqa: BLE001
-    body = {}
-if body.get("ok"):
-    os.makedirs(os.path.dirname(STATE), exist_ok=True)
-    json.dump({"date": today, "sig_hash": sig_hash,
-               "message_id": body["result"]["message_id"]}, open(STATE, "w"))
-    print(f"✅ 信号已推送 Telegram (message_id={body['result']['message_id']})")
-else:
-    print(f"⚠️ 推送失败: {r.text[:120]}")
-PYEOF
+    ${PY} "${DASHBOARD_PATH}/quant_push.py" || true
 else
     echo "（无触发，静默）"
 fi

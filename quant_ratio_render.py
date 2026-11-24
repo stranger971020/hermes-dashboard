@@ -193,6 +193,7 @@ def render_module1(d):
 
     sz_txt = f"{sz_today}亿" if sz_today is not None else "次日起追踪"
     sh_txt = f"{sh_today}亿" if sh_today is not None else "T+1 未发布"
+    sz_state = "·已确认" if etf.get("sz_final") else ("·更新中" if sz_today is not None else "")
     incomplete_today = etf.get('netbuy_today_complete') is False
     _miss = '、'.join(etf.get('netbuy_today_missing') or []) or '单侧市场'
     _inc_line = (f'<div style="font-size:11.5px;color:#b26a00;margin-top:4px">'
@@ -205,7 +206,7 @@ def render_module1(d):
   <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（沪深合计·国家队代理）</div>
     <span class="big-num {net_color}">{_fmt(net_today, '亿')}</span><br>{_sparkline(net, 'net_yi')}
     <div style="font-size:11.5px;color:#607d8b;margin-top:4px;line-height:1.9">
-      沪市（T+1） <b>{sh_txt}</b> · 深市（当日） <b>{sz_txt}</b><br>
+      沪市（T+1） <b>{sh_txt}</b> · 深市（当日{sz_state}） <b>{sz_txt}</b><br>
       合计 <b>{_fmt(net_today)}亿</b>{'（暂缺沪市）' if incomplete_today else ''}</div>
     {_inc_line}
     <div style="font-size:10.5px;color:#bbb">份额变化×价格 ≈ 申购赎回净额；正=申购（资金进场），负=赎回</div></div>
@@ -223,7 +224,7 @@ def render_module1(d):
 <tbody>{rows}</tbody></table></div>
 <p style="font-size:11.5px;color:#90a4ae;margin-top:8px">
 沪市＝上交所 ETF 份额（<b>T+1 发布</b>，官方口径约次日 23:00 更新，故当日 18:30 日更通常为空，次日晚间自动补抓并刷新本页）；
-深市＝深交所当日快照（自 2026-11-09 起逐日累积）。当日任一市场缺失 → 标 incomplete，<b>不计分位、不触发信号</b>。<br>
+深市＝深交所当日快照（自 2026-11-09 起逐日累积）；18:30 后会逐小时复核，连续 2 次无变化才标「已确认」。当日任一市场缺失 → 标 incomplete，<b>不计分位、不触发信号</b>。<br>
 <code>*</code> 该日仅单市场口径（另一侧未发布/未累积），<b>不是沪深合计</b>。<br>
 北向单日净买额自 2024-08 起停止披露，已从本模块移除。</p>
 </section>"""
