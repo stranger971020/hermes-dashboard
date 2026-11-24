@@ -20,6 +20,17 @@ v5.1 (2026-11-23) 主力资金源修复:
   先跑会把东财 IP 打进风控，轮到 flow 时必空。
 - 告警: verify_quant 对「序列为空且无 main_flow_error」判 error（静默丢数），有 error 仍只 warn。
 
+v5.2 (2026-11-24) 真根因: IPv6 路径不可用
+- 2026-11-24 18:31 日更再次全空，错误与两条路径都一致（RemoteDisconnected）。
+  实测: `push2his` 的 AAAA 记录（2409:8c1e:… / 2408:870c:…）TLS 可握手但请求
+  必被空响应；`curl -4` 3/3 成功、`curl -6` 0/3。getaddrinfo 把 IPv6 排在前，
+  requests/urllib3 默认先走 IPv6 → Python 侧无论 daykline 还是 kline 都必失败；
+  昨天的双路径降级因此从未真正生效（成功那次是手工 curl 的 IPv4）。
+- 修复: 进程级 `urllib3.util.connection.allowed_gai_family = AF_INET`，
+  并取消同路径的第二次重试（该端点对短时多请求敏感）。修复后首次补抓即成功。
+- 兜底: `backfill_quant_flow.py` 晚间 21/22/23 点各补一次（已有数据则零成本退出），
+  避免单次 18:30 撞上瞬时风控就整天无数据。
+
 数据源（全部 akshare 免费接口）:
 - 宽基ETF份额   fund_etf_scale_sse（沪市，按日）
 - ETF行情/价格  fund_etf_spot_em
@@ -36,11 +47,23 @@ import json
 import os
 import random
 import re
+import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 
 import akshare as ak
+
+# ── 强制 IPv4（2026-11-24 实测）──
+# push2his 的 AAAA（2409:8c1e:…/2408:870c:…）TLS 可握手但请求必被空响应；
+# getaddrinfo 返回 IPv6 在前 → requests/urllib3 默认先走 IPv6，表现为
+# RemoteDisconnected。curl -4 3/3 成功、curl -6 0/3；同 URL 换 IPv4 即恢复。
+# 全局 patch 会影响本进程所有 urllib3 请求（新浪/腾讯等 IPv4 也正常）。
+try:
+    from urllib3.util import connection as _u3conn
+    _u3conn.allowed_gai_family = lambda: socket.AF_INET
+except Exception:  # noqa: BLE001
+    pass
 
 DASHBOARD_PATH = "/Users/jren/projects/hermes-dashboard"
 HISTORY_DIR = os.path.join(DASHBOARD_PATH, "history")
@@ -390,7 +413,7 @@ def _fetch_market_fund_flow():
 
     last = None
     for path in ("daykline", "kline"):
-        for attempt in range(2):
+        for attempt in range(1):   # 每路径只打 1 次：该端点对短时多请求很敏感
             try:
                 r = sess.get(
                     f"https://push2his.eastmoney.com/api/qt/stock/fflow/{path}/get",
@@ -443,10 +466,10 @@ def _save_flow_cache(series):
                    'series': series}, fh, ensure_ascii=False)
 
 
-def collect_flows():
+def collect_flows(include_northbound=True):
     out = {'main_flow_series': [], 'northbound': None}
     try:
-        # 函数内部已对两条路径各重试 2 次 → 不再叠 _retry，避免限流风暴
+        # 每路径只打 1 次 → 不再叠 _retry，避免限流风暴
         df = _fetch_market_fund_flow()
         for _, r in df.tail(HIST_TRADING_DAYS).iterrows():
             out['main_flow_series'].append({
@@ -471,15 +494,16 @@ def collect_flows():
                   f"（{cache.get('fetched_at')}，{len(series)}日）")
         else:
             print(f"⚠️ 主力资金流获取失败: {e}")
-    try:
-        df_nb = _retry(ak.stock_hsgt_fund_flow_summary_em)
-        nb = df_nb[df_nb['资金方向'] == '北向'] if len(df_nb) else None
-        if nb is not None and len(nb):
-            out['northbound'] = {'date': str(nb.iloc[0]['交易日'])[:10],
-                                 'netbuy_yi': round(sum(_safe_float(x, 0) for x in nb['成交净买额']) / 1e8, 2),
-                                 'note': '2024-08 起不再披露实时净买额'}
-    except Exception as e:  # noqa: BLE001
-        print(f"⚠️ 北向资金获取失败: {e}")
+    if include_northbound:      # 补抓任务只需主力资金，少打一次东财
+        try:
+            df_nb = _retry(ak.stock_hsgt_fund_flow_summary_em)
+            nb = df_nb[df_nb['资金方向'] == '北向'] if len(df_nb) else None
+            if nb is not None and len(nb):
+                out['northbound'] = {'date': str(nb.iloc[0]['交易日'])[:10],
+                                     'netbuy_yi': round(sum(_safe_float(x, 0) for x in nb['成交净买额']) / 1e8, 2),
+                                     'note': '2024-08 起不再披露实时净买额'}
+        except Exception as e:  # noqa: BLE001
+            print(f"⚠️ 北向资金获取失败: {e}")
     if out['main_flow_series']:
         print(f"✅ 主力资金: 今日{out['main_flow_series'][-1]['net_yi']}亿")
     return out
