@@ -180,11 +180,14 @@ def render_module1(d):
 
     rows = "".join(
         f'<tr><td>{p.get("date","")}</td>'
+        f'<td class="num">{_fmt(p.get("sh_yi"))}</td>'
+        f'<td class="num">{_fmt(p.get("sz_yi"))}</td>'
         f'<td class="num">{_fmt(p.get("net_yi"))}</td>'
         f'<td class="num">{_fmt(main_map.get(p.get("date")))}</td></tr>'
         for p in tail)
 
     sz_txt = f"{sz_today}亿" if sz_today is not None else "次日起追踪"
+    sh_txt = f"{sh_today}亿" if sh_today is not None else "T+1 未发布"
     incomplete_today = etf.get('netbuy_today_complete') is False
     _miss = '、'.join(etf.get('netbuy_today_missing') or []) or '单侧市场'
     _inc_line = (f'<div style="font-size:11.5px;color:#b26a00;margin-top:4px">'
@@ -194,9 +197,11 @@ def render_module1(d):
 <h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span>{_refresh_tag(d.get('generated_at'))}</h2>
 <div class="sub">{etf.get('netbuy_basis','')}</div>
 <div class="flow-grid">
-  <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（国家队代理）</div>
+  <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（沪深合计·国家队代理）</div>
     <span class="big-num {net_color}">{_fmt(net_today, '亿')}</span><br>{_sparkline(net, 'net_yi')}
-    <div style="font-size:11.5px;color:#607d8b;margin-top:4px">沪市 <b>{_fmt(sh_today)}</b>亿 · 深市 <b>{sz_txt}</b></div>
+    <div style="font-size:11.5px;color:#607d8b;margin-top:4px;line-height:1.9">
+      沪市（T+1） <b>{sh_txt}</b> · 深市（当日） <b>{sz_txt}</b><br>
+      合计 <b>{_fmt(net_today)}亿</b></div>
     {_inc_line}
     <div style="font-size:10.5px;color:#bbb">份额变化×价格 ≈ 申购赎回净额；正=申购（资金进场），负=赎回</div></div>
   <div class="flow-box"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">主力资金今日净流入（全市场）</div>
@@ -209,9 +214,12 @@ def render_module1(d):
     <span class="big-num">{_fmt(etf.get('ai_union_amt_yi'), '亿')}</span>
     <div style="font-size:10.5px;color:#bbb;margin-top:6px">名称含人工智能/算力/芯片/通信等，仅反映交易热度</div></div>
 </div>
-<div class="table-scroll"><table><thead><tr><th>日期</th><th class="num">宽基ETF净申购(亿)</th><th class="num">主力净流入(亿)</th></tr></thead>
+<div class="table-scroll"><table><thead><tr><th>日期</th><th class="num">沪市净申购(亿)</th><th class="num">深市净申购(亿)</th><th class="num">沪深合计(亿)</th><th class="num">主力净流入(亿)</th></tr></thead>
 <tbody>{rows}</tbody></table></div>
-<p style="font-size:11.5px;color:#90a4ae;margin-top:8px">北向单日净买额自 2024-08 起停止披露，已从本模块移除。</p>
+<p style="font-size:11.5px;color:#90a4ae;margin-top:8px">
+沪市＝上交所 ETF 份额（<b>T+1 发布</b>，官方口径约次日 23:00 更新，故当日 18:30 日更通常为空，次日晚间自动补抓并刷新本页）；
+深市＝深交所当日快照（自 2026-11-09 起逐日累积）。当日任一市场缺失 → 标 incomplete，<b>不计分位、不触发信号</b>。<br>
+北向单日净买额自 2024-08 起停止披露，已从本模块移除。</p>
 </section>"""
 
 

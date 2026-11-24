@@ -389,6 +389,22 @@ def main():
         except Exception as e:  # noqa: BLE001
             warns.append(f"刷新时间检查失败: {e}")
 
+    # 14) ① 段必须拆分「沪市 / 深市 / 沪深合计」并为沪市标注 T+1（2026-11-24）
+    #     背景: 上交所 T+1、深交所当日；不拆开会把「沪市未发布」误读成 0 或单市场信号。
+    if os.path.exists(HTML):
+        try:
+            _h1 = open(HTML, encoding="utf-8").read()
+            _i = _h1.find('id="sec-national"')
+            _seg = _h1[_i:_h1.find('</section>', _i)] if _i >= 0 else ''
+            _miss = [c for c in ('沪市净申购(亿)', '深市净申购(亿)', '沪深合计(亿)')
+                     if c not in _seg]
+            if _miss:
+                errs.append(f"① 段缺沪深拆分列: {'/'.join(_miss)}")
+            if 'T+1' not in _seg:
+                errs.append("① 段缺「沪市 T+1」口径说明（未发布会与 0 混淆）")
+        except Exception as e:  # noqa: BLE001
+            warns.append(f"① 沪深拆分列检查失败: {e}")
+
     for e in errs:
         print("  ❌", e)
     for w in warns:

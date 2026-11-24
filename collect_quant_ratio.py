@@ -268,6 +268,9 @@ def collect_etf(trading_dates, today_iso):
     broad = [c for c, n in names.items() if any(k in n for k in BROAD_ETF_KEYWORDS)]
     sh_broad = [c for c in broad if c.startswith('5')]
     sz_broad = [c for c in broad if not c.startswith('5')]
+    # 落盘成分清单：次日「沪市补抓」按同一批代码复算，避免两套口径
+    out['sh_broad_codes'] = sorted(sh_broad)
+    out['sz_broad_codes'] = sorted(sz_broad)
     out['broad_count'] = len(broad)
     out['broad_today_yi'] = round(sum(amt_today.get(c) or 0 for c in broad) / 1e8, 2)
 
@@ -365,9 +368,9 @@ def collect_etf(trading_dates, today_iso):
     out['netbuy_coverage_pct'] = round((cov_sh + cov_sz) / tot * 100, 1) if tot else None
     out['sz_delta_available'] = sz_countable
     out['netbuy_basis'] = (
-        f"宽基ETF份额净申购 = 沪市（交易所按日，{len(sh_broad)}只，可回溯）+ "
-        f"深市（交易所快照逐日累积，{len(sz_broad)}只，自 {out['sz_tracked_since'] or today_iso} 起，"
-        f"已 {out['sz_tracked_days']} 个快照日）× 最新价；"
+        f"宽基ETF份额净申购 = 沪市（上交所按日，{len(sh_broad)}只，T+1 发布：官方口径约次日 23:00 更新，"
+        f"当日 18:30 日更通常没有）+ 深市（深交所当日快照，{len(sz_broad)}只，"
+        f"自 {out['sz_tracked_since'] or today_iso} 起累积，已 {out['sz_tracked_days']} 个快照日）× 最新价；"
         f"当前覆盖 {out['netbuy_coverage_pct']}% 宽基份额"
         + ('' if sz_countable else '（深市自次日起可算变化）')
         + ('；⚠️ 行情源降级为新浪(东财限流)，覆盖率分母=交易所已追踪全集' if used_sina else ''))
@@ -608,12 +611,12 @@ def evaluate_signals(etf, flows):
     missing = etf.get('netbuy_today_missing') or []
     p = _pct_rank(hist, today) if complete_today else None
     p80 = _quantile(hist, 0.8) if complete_today else None
-    add('国家队ETF净申购', today, '亿', (p is not None and p >= 80),
+    add('国家队ETF净申购（沪深合计）', today, '亿', (p is not None and p >= 80),
         percentile=p,
         baseline=(f'近{len([h for h in hist if h is not None])}日80分位 {p80}亿' if p80 is not None
                   else ('今日数据不完整' if not complete_today else '历史不足')),
         direction=f'国家队大额申购（P{p}，{today}亿）' if (p is not None and p >= 80) else '',
-        note='份额日变化×价格；ETF成交额含二级换手，不是净申购'
+        note='份额日变化×价格；沪市 T+1 发布、深市当日；ETF成交额含二级换手，不是净申购'
              + (f'；⚠️ 今日缺 {"、".join(missing) or "单侧市场"} → 标记 incomplete，不计分位、不触发'
                 if not complete_today else ''),
         data_incomplete=not complete_today)
