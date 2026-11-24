@@ -75,9 +75,10 @@ def fetch_main_flow():
 
 
 def fetch_etf_broad_amt():
-    """宽基ETF今日累计成交额(背景展示)。降级链：akshare → resilient直连。失败返回 (None, err)。"""
+    """宽基ETF今日累计成交额(背景展示)。降级链：akshare → resilient直连 → 新浪源。失败返回 (None, err)。"""
     from collect_quant_ratio import BROAD_ETF_KEYWORDS, _retry, _safe_float, _fetch_etf_spot_resilient
     import akshare as ak
+    import pandas as pd
 
     def _broad(spot):
         names = dict(zip(spot["代码"].astype(str), spot["名称"].astype(str)))
@@ -99,6 +100,15 @@ def fetch_etf_broad_amt():
             return cnt, tot, None
     except Exception as e2:  # noqa: BLE001
         last = f"{type(e2).__name__}: {str(e2)[:120]}"
+    try:  # 第三级兜底：新浪源（东财整体限流时仍可用，实测 ~1s、量级合理）
+        s = _retry(ak.fund_etf_category_sina, symbol="ETF基金", attempts=3)
+        code = s["代码"].astype(str).str.replace(r"^(sh|sz)", "", regex=True)
+        spot = pd.DataFrame({"代码": code, "名称": s["名称"], "成交额": s["成交额"]})
+        cnt, tot = _broad(spot)
+        if tot and tot > 0:
+            return cnt, tot, None
+    except Exception as e3:  # noqa: BLE001
+        last = f"{type(e3).__name__}: {str(e3)[:120]}"
     return None, None, str(last)
 
 
