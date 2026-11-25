@@ -2,3 +2,4 @@
 {"date": "2026-11-25", "time": "09:01", "main_flow_cum_yi": -37.89, "etf_amt_yi": null, "delta_yi": null, "pct_rank_of_hist": 57, "triggered": false, "direction": ""}
 {"date": "2026-11-25", "time": "09:30", "main_flow_cum_yi": null, "etf_amt_yi": null, "delta_yi": null, "triggered": false, "error": "RuntimeError: 东财主力资金两条路径均失败: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"}
 {"date": "2026-11-25", "time": "10:00", "main_flow_cum_yi": null, "etf_amt_yi": null, "delta_yi": null, "triggered": false, "error": "RuntimeError: 东财主力资金两条路径均失败: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"}
+{"date": "2026-11-25", "time": "10:30", "main_flow_cum_yi": null, "etf_amt_yi": null, "delta_yi": null, "triggered": false, "error": "RuntimeError: 东财主力资金两条路径均失败: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"}
