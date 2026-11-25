@@ -1,41 +1,41 @@
 {
   "schema": 1,
-  "asof": "20261124",
-  "generated_at": "2026-11-25T02:49:05",
-  "expected_date": "20261124",
+  "asof": "20261125",
+  "generated_at": "2026-11-26T02:49:07",
+  "expected_date": "20261125",
   "stale_days": 0,
   "freshness": {
-    "asof": "20261124",
-    "expected": "20261124",
+    "asof": "20261125",
+    "expected": "20261125",
     "stale_days": 0,
     "ok": true,
     "source": "arg"
   },
   "entry_advice_ok": true,
-  "state": "fragile",
-  "state_label": "脆弱",
-  "score": 5,
+  "state": "crash",
+  "state_label": "崩跌",
+  "score": 6,
   "components": {
     "trend_60d_lt_-5": true,
     "trend_60d_lt_-10": true,
     "breadth_ma20_lt_30": true,
     "breadth_ma20_lt_20": true,
-    "shock_today": false,
+    "shock_today": true,
     "second_shock_10d": true,
     "strong_basket_rolling": false,
     "vol_expansion": false
   },
   "metrics": {
-    "g60": -0.1313,
-    "g20": -0.0212,
-    "above_ma20": 0.101,
-    "down_ratio": 0.633,
-    "shock5": 2,
-    "shock10": 4,
-    "strong_ex5": 0.0511,
-    "ivol_ratio": 1.0217,
-    "lu": 53,
-    "ld": 3
+    "g60": -0.1436,
+    "g20": -0.0455,
+    "above_ma20": 0.0667,
+    "down_ratio": 0.8931,
+    "shock5": 3,
+    "shock10": 5,
+    "strong_ex5": 0.0632,
+    "ivol_ratio": 1.0392,
+    "lu": 49,
+    "ld": 56
   },
   "action": {
     "initial_trim": 0.5,
@@ -49,15 +49,6 @@
     "note": "初减后剩余仓位按「持仓峰值回撤 8%」移动止损；不预测顶，不因单日下跌砍掉全部仓位。"
   },
   "history": [
-    {
-      "trade_date": "20261028",
-      "frag_score": 4.0,
-      "frag_state": "fragile",
-      "down_ratio": 0.21890646905667935,
-      "above_ma20": 0.20603015075376885,
-      "g60": -0.10628095030039797,
-      "shock10": 3.0
-    },
     {
       "trade_date": "20261029",
       "frag_score": 6.0,
@@ -228,6 +219,15 @@
       "above_ma20": 0.10098373820517968,
       "g60": -0.13133613255437615,
       "shock10": 4.0
+    },
+    {
+      "trade_date": "20261125",
+      "frag_score": 6.0,
+      "frag_state": "crash",
+      "down_ratio": 0.8930502703785299,
+      "above_ma20": 0.06668005623619201,
+      "g60": -0.14362748632336242,
+      "shock10": 5.0
     }
   ],
   "validation": {
