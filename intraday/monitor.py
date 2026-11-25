@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
-"""盘中小时级资金异动监控 — STANDALONE（验证阶段，未整合进投资看板）
+"""盘中小时级资金监控 — STANDALONE（心跳模式，2026-11-25 起）
 
-目标：盘中每 30min 抓「主力净流入今日累计」+「宽基ETF成交额(背景)」，
-做 delta-based 异动检测（最近一个快照间隔的主力流增量 |Δ| ≥ 阈值 → 触发推 TG）。
+调度：cron `0 10,11,14,15 * * 1-5`（交易日 10:00/11:00/14:00/15:00，每整点一次）。
+每次运行抓「主力净流入今日累计」+「宽基ETF成交额(背景)」：
 
-为什么用 delta-based 而不是"盘中累计 vs 全天历史分位"：
-  盘中日内累计值天然比全天定格值低，直接比近20日全天历史会系统性偏保守、上午几乎不触发。
-  delta（最近30min增量）不受此影响、语义清晰（"过去半小时主力资金突然进出 X亿"）、立即可用不冷启动。
+- **心跳推送**：每个时段推一行状态（累计 / 较上次Δ / 历史分位），同一钟点去重。
+- **异动标记**：最近间隔 |Δ| ≥ DELTA_TRIGGER_YI → 消息加 🚨 前缀与方向行（不再单独双推）。
+- **故障可见**：抓取连续失败 ≥3 次 → 推一条告警（当天只推一次），恢复后心跳里注明。
 
-口径复用：抓数/重试/降级链全部 import collect_quant_ratio，与主看板同源同口径，不闭门造车重写。
+为什么 delta-based：盘中日内累计值天然比全天定格值低，直接比近20日全天历史会系统性
+偏保守；delta（距上次快照的增量）语义清晰、不冷启动。阈值含义随间隔变化（现=每小时）。
 
+口径复用：抓数/重试/降级链全部 import collect_quant_ratio，与主看板同源同口径。
 独立产物（不碰 dashboard_investment.html / quant_data.json）：
-  - intraday/snapshots.jsonl   逐次快照追加（积累同时段数据，后续可升级"同一时刻历史对比"阈值）
-  - ~/.hermes/state/intraday_push_state.json  TG推送去重
+  - intraday/snapshots.jsonl   逐次快照追加
+  - ~/.hermes/state/intraday_push_state.json  推送去重
+  - ~/.hermes/state/intraday_fail_state.json  连续失败计数（告警用）
 
-R9：外部源失败留痕不静默吞掉；非交易日/无数据如实输出；首次运行只记基线不触发。
+R9：外部源失败留痕不静默吞掉；非交易日/无数据如实输出；首次运行只记基线。
 """
 
 import json
@@ -29,20 +32,35 @@ sys.path.insert(0, "/Users/jren/hermes-agent/.hermes/bin")  # env compat
 if _DASH not in sys.path:
     sys.path.insert(0, _DASH)
 HERE = _HERE
-DASH = _DASH
-SNAP_FILE = os.path.join(HERE, "snapshots.jsonl")
+SNAP_FILE = os.path.join(_HERE, "snapshots.jsonl")
 PUSH_STATE = os.path.expanduser("~/.hermes/state/intraday_push_state.json")
+FAIL_STATE = os.path.expanduser("~/.hermes/state/intraday_fail_state.json")
 ENV_FILE = os.path.expanduser("~/.hermes/.env")
 CHAT_ID = "8632265776"
 
-# 触发阈值（可调）：最近一个快照间隔的主力净流入增量绝对值 ≥ 该亿元 → 视为异动
+# 异动阈值（可调）：距上次快照的主力净流入增量绝对值 ≥ 该亿元 → 🚨 标记。
+# 注意含义随调度间隔变化：当前整点调度下 = 「最近一小时」增量。
 DELTA_TRIGGER_YI = float(os.environ.get("INTRADAY_DELTA_TRIGGER", "25"))
-# 历史分位窗口（背景展示用，非触发）
 HIST_DAYS = 20
+ALERT_AT_FAILS = 3   # 连续失败 ≥N 次 → 推一条告警（当天只推一次）
 
 
 def log(msg):
     print(f"[intraday {datetime.now().strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+def _load_json(path, default=None):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:  # noqa: BLE001
+        return {} if default is None else default
+
+
+def _save_json(path, obj):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(obj, fh, ensure_ascii=False)
 
 
 def _pct_rank(hist, value):
@@ -129,27 +147,18 @@ def load_last_snapshot(today_iso):
 
 
 def append_snapshot(rec):
-    os.makedirs(HERE, exist_ok=True)
+    os.makedirs(_HERE, exist_ok=True)
     with open(SNAP_FILE, "a") as f:
         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
-def push_telegram(text):
-    """推 TG，当天同方向+同档位去重。返回 (pushed: bool, reason: str)。"""
-    import hashlib
+def push_telegram(text, dedup_key):
+    """推 TG，按 dedup_key 去重（心跳=当天同钟点；告警=当天一次）。返回 (pushed: bool, reason: str)。"""
     import requests
 
-    today = date.today().isoformat()
-    # 去重键：方向 + 触发值（四舍五入到亿）——同一异动档当天只推一次
-    key = hashlib.sha1(text.encode()).hexdigest()[:12]
-    state = {}
-    if os.path.exists(PUSH_STATE):
-        try:
-            state = json.load(open(PUSH_STATE))
-        except Exception:  # noqa: BLE001
-            state = {}
-    if state.get("date") == today and state.get("sig_hash") == key:
-        return False, "同一异动今日已推送，跳过（防刷屏）"
+    state = _load_json(PUSH_STATE, {})
+    if state.get("key") == dedup_key and state.get("date") == date.today().isoformat():
+        return False, "同一键今日已推送，跳过（防刷屏）"
 
     token = None
     with open(ENV_FILE, "rb") as f:
@@ -159,7 +168,7 @@ def push_telegram(text):
     if not token:
         return False, "未找到 TELEGRAM_BOT_TOKEN，跳过推送"
 
-    msg = ("📈 盘中资金异动（小时级监控·standalone）\n" + text)
+    msg = ("📈 盘中主力资金监控（standalone）\n" + text)
     r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
                       json={"chat_id": CHAT_ID, "text": msg}, timeout=20)
     try:
@@ -167,11 +176,41 @@ def push_telegram(text):
     except Exception:  # noqa: BLE001
         body = {}
     if body.get("ok"):
-        os.makedirs(os.path.dirname(PUSH_STATE), exist_ok=True)
-        json.dump({"date": today, "sig_hash": key,
-                   "message_id": body["result"]["message_id"]}, open(PUSH_STATE, "w"))
+        _save_json(PUSH_STATE, {"date": date.today().isoformat(), "key": dedup_key,
+                                "message_id": body["result"]["message_id"]})
         return True, f"已推送 (message_id={body['result']['message_id']})"
     return False, f"推送失败: {r.text[:120]}"
+
+
+def record_failure(err_msg):
+    """累计当天连续失败；≥ALERT_AT_FAILS 且未告警过 → 推一条。返回 (count, pushed_alert, reason)。"""
+    today = date.today().isoformat()
+    now_hm = datetime.now().strftime("%H:%M")
+    st = _load_json(FAIL_STATE, {})
+    if st.get("date") != today:
+        st = {"date": today, "count": 0, "first_fail": None}
+    st["count"] += 1
+    st.setdefault("first_fail", now_hm)
+
+    pushed_alert, reason = False, ""
+    if st["count"] >= ALERT_AT_FAILS and not st.get("alerted"):
+        text = (f"⚠️ 连续 {st['count']} 次抓取失败\n"
+                f"今日首次失败 {st['first_fail']} ｜ 最近 {now_hm}\n"
+                f"{str(err_msg)[:100]}\n每整点自动重试，恢复后心跳中注明")
+        pushed_alert, reason = push_telegram(text, dedup_key=f"fail-{today}")
+        if pushed_alert:
+            st["alerted"] = True
+    _save_json(FAIL_STATE, st)
+    return st["count"], pushed_alert, reason
+
+
+def clear_failures():
+    """成功一轮 → 清零。返回当天此前累计的失败次数（用于心跳里的恢复提示）。"""
+    today = date.today().isoformat()
+    st = _load_json(FAIL_STATE, {})
+    prev = st.get("count", 0) if st.get("date") == today else 0
+    _save_json(FAIL_STATE, {"date": today, "count": 0, "first_fail": None})
+    return prev
 
 
 def main():
@@ -185,10 +224,12 @@ def main():
         log(f"⏸ {today_iso} 非交易日，跳过")
         return
 
-    # 1) 主力净流入（核心）
+    # 1) 主力净流入（核心）— 失败走「故障可见」路径
     cum, hist, mf_err = fetch_main_flow()
     if cum is None:
+        count, pushed_alert, reason = record_failure(mf_err)
         log(f"❌ 主力资金抓取失败：{mf_err}")
+        log(f"⏭ 今日连续失败 {count} 次（≥{ALERT_AT_FAILS} 告警）| {'📢 ' + reason if pushed_alert else '未达告警阈值或今日已告警'}")
         append_snapshot({"date": today_iso, "time": datetime.now().strftime("%H:%M"),
                          "main_flow_cum_yi": None, "etf_amt_yi": None,
                          "delta_yi": None, "triggered": False, "error": mf_err})
@@ -197,7 +238,7 @@ def main():
     # 2) ETF成交额（背景，失败不阻断）
     etf_cnt, etf_amt, etf_err = fetch_etf_broad_amt()
 
-    # 3) delta-based 异动检测
+    # 3) delta-based 异动检测（标记用，不再单独双推）
     last = load_last_snapshot(today_iso)
     delta = None
     if last:
@@ -223,23 +264,28 @@ def main():
     }
     append_snapshot(rec)
 
-    log(f"主力净流入今日累计 {cum}亿 | 最近间隔增量 Δ={delta if delta is not None else '首次(基线)'}亿 | "
+    # 5) 心跳推送（每次运行必推，同钟点去重）
+    prev_fails = clear_failures()
+    head = f"🚨 {direction}" if triggered else f"{datetime.now().strftime('%H:%M')} 心跳"
+    lines = [head,
+             f"主力累计 {cum:+.1f}亿 ｜ Δ较上次 {delta if delta is not None else '基线'}" + ("" if delta is not None else ""),
+             ]
+    if triggered:
+        lines.append(f"|Δ|≥{DELTA_TRIGGER_YI:.0f}亿 异动阈值 · 近{len(hist)}日分位 P{pct}")
+    else:
+        ptxt = f"P{pct}" if pct is not None else "P?"
+        lines.append(f"历史分位 {ptxt}（盘中口径）")
+    if etf_amt is not None:
+        lines.append(f"宽基ETF今日成交 {etf_amt}亿")
+    if prev_fails >= ALERT_AT_FAILS:
+        lines.append(f"✅ 此前连续失败{prev_fails}次，现已恢复")
+    text = "\n".join(lines)
+
+    pushed, reason = push_telegram(text, dedup_key=f"hb-{today_iso}-{datetime.now().strftime('%H')}")
+    log(f"主力净流入今日累计 {cum}亿 | Δ={delta if delta is not None else '首次(基线)'}亿 | "
         f"ETF宽基成交 {etf_amt if etf_amt is not None else '缺失(' + (etf_err or '')[:30] + ')'}亿 | "
         f"历史分位 P{pct}（盘中口径）| 触发={triggered}")
-
-    # 5) 推送
-    if triggered:
-        etf_line = f"\n宽基ETF今日成交 {etf_amt}亿" if etf_amt is not None else ""
-        text = (f"{direction}：最近间隔主力净流入变化 Δ{delta:+.1f}亿\n"
-                f"今日累计主力净流入 {cum:+.1f}亿（近{len(hist)}日分位 P{pct}，盘中口径）\n"
-                f"{etf_line}\n阈值 |Δ|≥{DELTA_TRIGGER_YI:.0f}亿 · standalone 验证中")
-        pushed, reason = push_telegram(text)
-        log(f"📢 {reason}")
-    elif delta is None:
-        log("⏭ 首次运行，仅记录基线（无上次快照可比），不触发")
-    else:
-        log(f"⏭ |Δ|={abs(delta):.1f}亿 < 阈值{DELTA_TRIGGER_YI:.0f}亿，未触发，静默")
-
+    log(f"📢 {reason}")
     log(f"完成，耗时 {int(time.time() - t0)}s → snapshot 已落盘 {SNAP_FILE}")
 
 

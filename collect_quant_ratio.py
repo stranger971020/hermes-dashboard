@@ -80,15 +80,37 @@ FLOW_CACHE = os.path.join(DASHBOARD_PATH, 'cache', 'market_flow.json')
 # 东财连接级风控熔断：任一次 RemoteDisconnected 后，本进程内后续东财请求直接跳过降级。
 # 背景（2026-11-23）：flow 失败后 ETF 仍逐页重试 ~40 次，把 IP 打进风控，形成「一次失败→
 # 风暴→下一轮全失败」的自激循环；同一轮里东财既然已断，再打只会加重封禁。
+# 2026-11-25：熔断状态持久化到文件 → 跨进程生效（盘中监控每个整点是独立 cron 进程，
+# 原内存版熔断对下一轮完全无效，导致每 30min 反复撞风控）。
 _EM_DOWN_UNTIL = [0.0]
+_EM_DOWN_FILE = os.path.expanduser("~/.hermes/state/em_fengkong.json")
 
 
 def _em_mark_down(seconds=180):
-    _EM_DOWN_UNTIL[0] = time.time() + seconds
+    until = time.time() + seconds
+    _EM_DOWN_UNTIL[0] = until
+    try:
+        os.makedirs(os.path.dirname(_EM_DOWN_FILE), exist_ok=True)
+        with open(_EM_DOWN_FILE, "w", encoding="utf-8") as fh:
+            json.dump({"until": until,
+                       "marked_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                       "seconds": seconds}, fh)
+    except Exception:  # noqa: BLE001 — 落盘失败不阻断主流程，退回进程内熔断
+        pass
 
 
 def _em_down():
-    return time.time() < _EM_DOWN_UNTIL[0]
+    if time.time() < _EM_DOWN_UNTIL[0]:
+        return True
+    try:  # 跨进程：其他进程（如盘中监控）可能刚触发熔断
+        with open(_EM_DOWN_FILE, encoding="utf-8") as fh:
+            until = float(json.load(fh).get("until", 0))
+        if time.time() < until:
+            _EM_DOWN_UNTIL[0] = until
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    return False
 
 
 def _safe_float(x, default=None):
@@ -423,9 +445,12 @@ def _fetch_market_fund_flow():
                     params=params, timeout=20,
                     headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"})
                 r.raise_for_status()
-                klines = (r.json().get("data") or {}).get("klines") or []
+                body = r.json()
+                klines = (body.get("data") or {}).get("klines") or []
                 if not klines:
-                    raise ValueError(f"{path}: 响应无 klines")
+                    # rc!=0（如 102）= 东财限流/风控的空响应，不是网络断连
+                    raise ValueError(f"{path}: 响应无 klines（rc={body.get('rc')}"
+                                     + ("，疑似限流/风控" if body.get("rc") not in (0, None) else "") + "）")
                 rows = []
                 for line in klines:
                     f = line.split(",")
