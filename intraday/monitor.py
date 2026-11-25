@@ -71,7 +71,11 @@ def _pct_rank(hist, value):
 
 
 def fetch_main_flow():
-    """主力净流入：今日累计值 + 近 HIST_DAYS 日历史序列（单位亿）。失败返回 (None, [], err)。"""
+    """主力净流入：今日累计值 + 近 HIST_DAYS 日历史序列（单位亿）。
+
+    返回 (cum, hist, err, stale)。stale=True = daykline 尚无今日行，cum 取上一交易日
+    （东财 edge node 数据不同步时会出现；此时 delta 不可信、不触发异动）。
+    """
     from collect_quant_ratio import _fetch_market_fund_flow, _safe_float
     try:
         df = _fetch_market_fund_flow()
@@ -81,15 +85,15 @@ def fetch_main_flow():
             if v is not None:
                 series.append({"date": str(r["日期"])[:10], "net_yi": round(v / 1e8, 2)})
         if not series:
-            return None, [], "klines 解析后为空"
+            return None, [], "klines 解析后为空", False
         today = date.today().isoformat()
         # 今日累计值：优先取 date==today；若接口当日行尚未写入则用最后一根（盘中实时累计）
         today_row = next((s for s in series if s["date"] == today), None)
         cum = (today_row or series[-1])["net_yi"]
         hist = [s["net_yi"] for s in series if s["date"] != today]  # 不含今日 → 历史基线
-        return round(cum, 2), hist, None
+        return round(cum, 2), hist, None, (today_row is None)
     except Exception as e:  # noqa: BLE001
-        return None, [], f"{type(e).__name__}: {str(e)[:140]}"
+        return None, [], f"{type(e).__name__}: {str(e)[:140]}", False
 
 
 def fetch_etf_broad_amt():
@@ -131,7 +135,7 @@ def fetch_etf_broad_amt():
 
 
 def load_last_snapshot(today_iso):
-    """读今日最近一条快照（用于 delta）。"""
+    """读今日最近一条可信快照（用于 delta）：cum 非空且非 stale 降级值。"""
     if not os.path.exists(SNAP_FILE):
         return None
     last = None
@@ -141,7 +145,8 @@ def load_last_snapshot(today_iso):
                 rec = json.loads(line)
             except Exception:  # noqa: BLE001
                 continue
-            if rec.get("date") == today_iso and rec.get("main_flow_cum_yi") is not None:
+            if (rec.get("date") == today_iso and rec.get("main_flow_cum_yi") is not None
+                    and not rec.get("stale")):
                 last = rec
     return last
 
@@ -225,7 +230,7 @@ def main():
         return
 
     # 1) 主力净流入（核心）— 失败走「故障可见」路径
-    cum, hist, mf_err = fetch_main_flow()
+    cum, hist, mf_err, stale = fetch_main_flow()
     if cum is None:
         count, pushed_alert, reason = record_failure(mf_err)
         log(f"❌ 主力资金抓取失败：{mf_err}")
@@ -246,7 +251,7 @@ def main():
         if prev_cum is not None:
             delta = round(cum - prev_cum, 2)
 
-    triggered = delta is not None and abs(delta) >= DELTA_TRIGGER_YI
+    triggered = (not stale) and delta is not None and abs(delta) >= DELTA_TRIGGER_YI
     direction = "净流入突增" if (triggered and delta > 0) else ("净流出突增" if (triggered and delta < 0) else "")
 
     # 4) 历史分位（背景展示，标注盘中口径）
@@ -261,15 +266,20 @@ def main():
         "pct_rank_of_hist": pct,
         "triggered": triggered,
         "direction": direction,
+        "stale": stale,
     }
     append_snapshot(rec)
 
     # 5) 心跳推送（每次运行必推，同钟点去重）
     prev_fails = clear_failures()
     head = f"🚨 {direction}" if triggered else f"{datetime.now().strftime('%H:%M')} 心跳"
-    lines = [head,
-             f"主力累计 {cum:+.1f}亿 ｜ Δ较上次 {delta if delta is not None else '基线'}" + ("" if delta is not None else ""),
-             ]
+    lines = [head]
+    if stale:
+        # daykline 尚无今日行 → cum 是上一交易日值，Δ 不可信（不触发、只标注）
+        lines.append(f"主力累计 {cum:+.1f}亿 ⚠️ 接口暂无今日行（按最近交易日）")
+    else:
+        delta_txt = "基线" if delta is None else f"{delta:+.1f}"
+        lines.append(f"主力累计 {cum:+.1f}亿 ｜ Δ较上次 {delta_txt}")
     if triggered:
         lines.append(f"|Δ|≥{DELTA_TRIGGER_YI:.0f}亿 异动阈值 · 近{len(hist)}日分位 P{pct}")
     else:
