@@ -1,63 +1,54 @@
 {
   "schema": 1,
-  "asof": "20261125",
-  "generated_at": "2026-11-26T02:49:07",
-  "expected_date": "20261125",
+  "asof": "20261126",
+  "generated_at": "2026-11-27T02:49:05",
+  "expected_date": "20261126",
   "stale_days": 0,
   "freshness": {
-    "asof": "20261125",
-    "expected": "20261125",
+    "asof": "20261126",
+    "expected": "20261126",
     "stale_days": 0,
     "ok": true,
     "source": "arg"
   },
   "entry_advice_ok": true,
-  "state": "crash",
-  "state_label": "崩跌",
-  "score": 6,
+  "state": "fragile",
+  "state_label": "脆弱",
+  "score": 5,
   "components": {
     "trend_60d_lt_-5": true,
     "trend_60d_lt_-10": true,
     "breadth_ma20_lt_30": true,
     "breadth_ma20_lt_20": true,
-    "shock_today": true,
+    "shock_today": false,
     "second_shock_10d": true,
     "strong_basket_rolling": false,
     "vol_expansion": false
   },
   "metrics": {
-    "g60": -0.1436,
-    "g20": -0.0455,
-    "above_ma20": 0.0667,
-    "down_ratio": 0.8931,
-    "shock5": 3,
-    "shock10": 5,
-    "strong_ex5": 0.0632,
-    "ivol_ratio": 1.0392,
-    "lu": 49,
-    "ld": 56
+    "g60": -0.1504,
+    "g20": -0.035,
+    "above_ma20": 0.0723,
+    "down_ratio": 0.6426,
+    "shock5": 2,
+    "shock10": 4,
+    "strong_ex5": 0.0614,
+    "ivol_ratio": 1.0315,
+    "lu": 66,
+    "ld": 7
   },
   "action": {
     "initial_trim": 0.5,
     "initial_trim_reason": "弱市 + 10日内第二次广泛下跌 → 至少减半",
     "initial_trim_already_active": true,
     "incremental_trim": 0.0,
-    "previous_state": "fragile",
+    "previous_state": "crash",
     "previous_trim": 0.5,
     "trim_text": "前日建议初减 50%；若已执行，今日不重复；若未执行，今日补执行。剩余仓位执行 8% 移动止损",
     "trail_stop": 0.08,
     "note": "初减后剩余仓位按「持仓峰值回撤 8%」移动止损；不预测顶，不因单日下跌砍掉全部仓位。"
   },
   "history": [
-    {
-      "trade_date": "20261029",
-      "frag_score": 6.0,
-      "frag_state": "crash",
-      "down_ratio": 0.8423793310634888,
-      "above_ma20": 0.16237942122186494,
-      "g60": -0.1213897711574018,
-      "shock10": 3.0
-    },
     {
       "trade_date": "20261030",
       "frag_score": 6.0,
@@ -228,6 +219,15 @@
       "above_ma20": 0.06668005623619201,
       "g60": -0.14362748632336242,
       "shock10": 5.0
+    },
+    {
+      "trade_date": "20261126",
+      "frag_score": 5.0,
+      "frag_state": "fragile",
+      "down_ratio": 0.6425855513307985,
+      "above_ma20": 0.07228915662650602,
+      "g60": -0.15035422525539432,
+      "shock10": 4.0
     }
   ],
   "validation": {
