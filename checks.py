@@ -22,6 +22,13 @@ PY = "/Users/jren/miniforge3/bin/python3"
 STATE = os.path.join(HOME, ".hermes/state/hub_checks.json")
 TT = os.path.join(HOME, "projects/trend-trading-system")
 
+# P1 单一调度事实源：有效窗口/最大间隔从这里读（文件缺失时用各检查项的硬编码兜底）
+sys.path.insert(0, os.path.join(HOME, ".hermes/scripts"))
+try:
+    import schedule_registry  # noqa: E402
+except Exception:  # noqa: BLE001
+    schedule_registry = None
+
 CHECKS = [
     {
         "key": "fd", "name": "Gateway FD / 代理",
@@ -47,6 +54,7 @@ CHECKS = [
         # 调度器自己也守住有效窗口（第二层防线）：即使脚本里的 CHECK_NOT_BEFORE 被删，
         # 09:00 也不会再调用。两处的值由 P0 契约测试断言必须一致。
         "every": 30, "hours": [9, 10], "not_before": "09:30",
+        "registry_id": "intraday_startup_check",
         "weekdays": True, "timeout": 120,
     },
     {
@@ -94,9 +102,19 @@ def _due(chk, now, st):
         return False
     if "hours" in chk and now.hour not in chk["hours"]:
         return False
-    if chk.get("not_before"):
+    not_before = chk.get("not_before")
+    if schedule_registry is not None:
         try:
-            hh, mm = (int(x) for x in str(chk["not_before"]).split(":"))
+            vw = (schedule_registry.valid_window_by_id(chk["registry_id"])
+                  if chk.get("registry_id")
+                  else schedule_registry.valid_window(" ".join(chk.get("cmd") or [])))
+            if vw:
+                not_before = vw[0].strftime("%H:%M")
+        except Exception:  # noqa: BLE001 — 注册表坏了退回硬编码，不让调度停摆
+            pass
+    if not_before:
+        try:
+            hh, mm = (int(x) for x in str(not_before).split(":"))
             if now.time() < datetime.time(hh, mm):
                 return False
         except (ValueError, TypeError):

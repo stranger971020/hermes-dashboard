@@ -31,7 +31,14 @@ Changelog
     · 推送源 pending：stamp 文件缺失时不再误报「有未推产物」。
     · 备份：记录日志末行（成功/失败由 render 判定并把失败送进告警）。
 """
-import json, os, re, subprocess, datetime, glob, socket, hashlib
+import json, os, re, subprocess, datetime, glob, socket, hashlib, sys
+
+# P1 单一调度事实源：关键任务的最大间隔从这里读（缺项退回 cron 表达式推断）
+sys.path.insert(0, os.path.expanduser("~/.hermes/scripts"))
+try:
+    import schedule_registry  # noqa: E402
+except Exception:  # noqa: BLE001
+    schedule_registry = None
 
 HOME = os.path.expanduser("~")
 VAULT = os.path.join(HOME, "Documents/Obsidian Vault")
@@ -215,9 +222,20 @@ def cron_name(cmd):
     return stripped.split()[0] if stripped else "?"
 
 
-def cron_stale_days(expr, last_mtime, size):
-    """按排程周期判停更。抽成函数供 selftest 做变异测试。"""
-    gap = cron_max_gap_days(expr) if expr else 1
+def cron_stale_days(expr, last_mtime, size, cmd=""):
+    """按排程周期判停更。抽成函数供 selftest 做变异测试。
+
+    关键任务优先用 schedules.json 的 max_gap_days（人明确写下的口径），
+    未登记的任务才退回 cron 表达式推断。
+    """
+    gap = None
+    if schedule_registry is not None and cmd:
+        try:
+            gap = schedule_registry.max_gap_days(cmd)
+        except Exception:  # noqa: BLE001
+            gap = None
+    if gap is None:
+        gap = cron_max_gap_days(expr) if expr else 1
     limit = gap if gap > 3 else 3
     if not last_mtime or not size:
         return 0
@@ -302,8 +320,15 @@ def collect_crontab():
         name = cron_name(cmd)
         # 停更判定放进 collect：dashboard_push（晨报）与 render（看板）共用同一口径，
         # 避免两处各写一套 3 天阈值（周任务必误报）。
-        gap = cron_max_gap_days(expr) if expr else 1
-        stale_days = cron_stale_days(expr, last_mtime, size)
+        gap = None
+        if schedule_registry is not None:
+            try:
+                gap = schedule_registry.max_gap_days(cmd)
+            except Exception:  # noqa: BLE001
+                gap = None
+        if gap is None:
+            gap = cron_max_gap_days(expr) if expr else 1
+        stale_days = cron_stale_days(expr, last_mtime, size, cmd=cmd)
         out.append({
             "schedule": expr, "macro": macro,
             "human": (f"{macro} " if macro else "") + (human_cron(expr) if expr else ""),
