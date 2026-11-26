@@ -201,6 +201,35 @@ def cron_next(expr, after=None):
     return ""
 
 
+def cron_max_gap_days(expr):
+    """cron 表达式 → 该任务「正常最长间隔」的粗估天数。
+
+    2026-11-26: 看板晨报只用固定 3 天阈值判日志停更 → 每周六 09:00 的
+    policy-signal weekly（日志 11-21 09:00，下次 11-28）在 11-26 被报
+    「停更 4 天」，纯属误报。日更任务仍保留 3 天容差；周/月级任务按周期放宽。
+    """
+    try:
+        f = expr.split()
+        if len(f) < 5:
+            return 1
+        dom, mon, dow = f[2], f[3], f[4]
+    except Exception:
+        return 1
+    gaps = []
+    if mon != "*":
+        gaps.append(366)
+    if dom != "*":
+        gaps.append(32)
+    if dow != "*":
+        # 工作日任务（1-5）最长空档是周五→周一 3 天，不能按「每周一次」放宽到 8 天，
+        # 否则周中停摆 4 天也不会报。
+        if dow.strip() in ("1-5", "0-4", "1-6", "0-6", "1,2,3,4,5", "0,1,2,3,4"):
+            gaps.append(4)
+        else:
+            gaps.append(8)
+    return max(gaps) if gaps else 1
+
+
 def resolve_log(cmd):
     """crontab 命令 → 日志文件绝对路径。
 
@@ -244,7 +273,31 @@ def collect_crontab():
             tail = sh(f"tail -1 {json.dumps(logf)} 2>/dev/null")[:100]
         # 名称：命令里最后一个 .py/.sh 脚本 basename（无扩展名）
         hits = re.findall(r"([\w.\-]+\.(?:py|sh))\b", cmd)
-        name = os.path.splitext(os.path.basename(hits[-1]))[0] if hits else (cmd.split()[0] if cmd else "?")
+        if hits:
+            name = os.path.splitext(os.path.basename(hits[-1]))[0]
+        else:
+            # `cd <dir> && python3 -m app.run eod` 没有脚本文件；旧逻辑取
+            # cmd.split()[0] → "cd"，三条 policy-signal 任务同名，看板只能显示
+            # 「cd（停更 N 天）」，既看不出是哪条也无法按周期判断（2026-11-26）。
+            mm = re.search(r"-m\s+([\w.]+)\s+([\w\-]+)", cmd)
+            if mm:
+                name = f"{mm.group(1)}:{mm.group(2)}"
+            else:
+                stripped = re.sub(r"^\s*cd\s+\S+\s*&&\s*", "", cmd).strip()
+                name = stripped.split()[0] if stripped else "?"
+        # 停更判定放进 collect：dashboard_push（晨报）与 render（看板）共用同一口径，
+        # 避免两处各写一套 3 天阈值（周任务必误报）。
+        gap = cron_max_gap_days(expr) if expr else 1
+        limit = gap if gap > 3 else 3
+        stale_days = 0
+        if last_mtime:
+            try:
+                age = (datetime.datetime.now() -
+                       datetime.datetime.strptime(last_mtime, "%Y-%m-%d %H:%M")).days
+                if size and age > limit:
+                    stale_days = age
+            except ValueError:
+                pass
         out.append({
             "schedule": expr, "macro": macro,
             "human": (f"{macro} " if macro else "") + (human_cron(expr) if expr else ""),
@@ -254,6 +307,7 @@ def collect_crontab():
             "has_redirect": ">>" in cmd,      # 有重定向却解析不出路径 → 才是「未解析」
             "log_exists": exists,
             "last_log": last_mtime, "last_line": tail, "log_size": size,
+            "max_gap_days": gap, "stale_days": stale_days,
         })
     out.sort(key=lambda x: x["next_run"] or "9")
     return out

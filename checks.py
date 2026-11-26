@@ -40,7 +40,10 @@ CHECKS = [
     },
     {
         "key": "intraday", "name": "盘中 bot 启动",
-        "cmd": [PY, os.path.join(TT, "backtest/check_intraday_bot_startup.py")],
+        # --no-send: 失败由 run.sh → dashboard_push --checks-alert 统一告警；
+        # 否则本检查自推一条 + 中枢再推一条（2026-11-26 实测同一失败两条消息）。
+        # 09:00 的调用由脚本内 CHECK_NOT_BEFORE=09:30 静默跳过（bot 09:20 才启动）。
+        "cmd": [PY, os.path.join(TT, "backtest/check_intraday_bot_startup.py"), "--no-send"],
         "every": 30, "hours": [9, 10], "weekdays": True, "timeout": 120,
     },
     {

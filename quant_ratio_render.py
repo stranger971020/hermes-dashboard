@@ -128,6 +128,26 @@ def _refresh_tag(ts, label="刷新"):
             f'margin-left:8px">· {label} {txt}</span>')
 
 
+def _etf_data_note(etf):
+    """① 段标题行的「数据到达」注记。
+
+    2026-11-26 用户问「刷新为什么是 01:17 而不是次日 8/9 点」：01:17 是脚本
+    「深市连续 2 次不变」的确认时刻，份额实际是前一晚 22:17(沪)/23:17(深) 到的。
+    只显示 generated_at 会让人误以为 01:17 才抓数。这里把两侧数据到达时刻与
+    次日复核结果显式标出来；没有该字段就不显示（旧数据不伪造）。
+    """
+    parts = []
+    if etf.get("sh_published_at"):
+        parts.append(f"沪 {etf['sh_published_at']}")
+    if etf.get("sz_snapshot_at"):
+        parts.append(f"深 {etf['sz_snapshot_at']}")
+    if not parts:
+        return ""
+    extra = " · 次日复核已修订" if etf.get("sz_morning_revision") else ""
+    return (f'<span style="font-size:11.5px;color:#90a4ae;font-weight:400;margin-left:8px">'
+            f'· 数据到达 {" / ".join(parts)}{extra}</span>')
+
+
 def _sparkline(series, key, width=280, height=46):
     """series: [{date, <key>}] → 内联 SVG 折线（None 留空隙）"""
     if not series:
@@ -205,7 +225,7 @@ def render_module1(d):
                  f'⚠️ 今日仅单市场口径（缺{_miss}）：已标 incomplete，'
                  f'<b>不计分位、不触发信号</b></div>') if incomplete_today else ''
     return f"""<section class="section" id="sec-national">
-<h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span>{_refresh_tag(d.get('generated_at'))}</h2>
+<h2>① 国家队资金动向 <span style="font-size:12px;color:#90a4ae;font-weight:400">主指标＝宽基ETF份额净申购</span>{_refresh_tag(d.get('generated_at'))}{_etf_data_note(etf)}</h2>
 <div class="sub">{etf.get('netbuy_basis','')}</div>
 <div class="flow-grid">
   <div class="flow-box primary"><div style="font-size:12px;color:#607d8b;margin-bottom:4px">宽基ETF今日<b>净申购</b>（沪深合计·国家队代理）</div>

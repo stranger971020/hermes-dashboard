@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""投资看板 · 沪深 ETF 份额 T+1 终刷（2026-11-24）
+"""投资看板 · 沪深 ETF 份额 T+1 终刷（2026-11-24，2026-11-26 加次日早间复核）
 
 背景：
   · 深交所份额 = 当日快照（18:30 采集）；但快照可能在晚间继续滚动，18:30 未必是终值。
@@ -8,12 +8,20 @@
   · 因此 18:30 只出「深市 + 合计（暂缺沪）」；之后每小时轮询，直到沪市发布。
 
 每小时一次（cron 22:00-次日 09:00）：
-  1. 深市：与 18:30 快照逐只对比，记录仍有几只变化；连续 2 次不变 → sz_final，
-     之后不再请求深交所（除非沪市发布的终刷那一轮，会再取一次两侧）。
+  1. 深市：与 18:30 快照逐只对比，记录仍有几只变化；连续 2 次不变 → sz_final。
   2. 沪市：轮询 T+1 份额；一旦发布 → 同时抓沪深两侧、复算合计与信号。
   3. 任一侧有新数据 → 重渲染 + verify + **Telegram 推送**（去重：数据日+信号hash）
      + git commit/push。
-  4. 沪市已发布且深市已确认 → 标记 done，后续运行零网络退出。
+
+2026-11-26 修正「01:17 就 done、08-09 点修订窗口被漏掉」：
+  · 实测证据（verify_t1_nextday.py，11-24 → 11-25 09:07）：晚间深市 2.69亿，
+    次日上午复核 7/15 只份额被修订，复算 -12.62亿。**晚间「连续 2 次不变」不等于终值**。
+  · 因此 done 只在 09 点早间复核之后置位；02-07 点静默（不请求），08/09 点各复核一次：
+      - 深市：当前快照逐只 vs cache[D]，有修订 → 用「晚间价格基准」复算并更新 cache[D]
+        （更新 cache 是关键：次日 18:30 collect 会用它重算历史，否则修订会被覆盖回旧值）。
+      - 沪市：上交所按日期可回溯，与晚间存的逐只快照比对（实测 0/56 修订）。
+      - 主力资金：08 点重抓一次，仅当 D 日数值变化时更新（用户实测次日 8-9 点才定稿）。
+  · 价格基准落盘到 cache/etf_price_basis.json：09:17 已过集合竞价，不能用实时价复算。
 日志 `~/.hermes/logs/sse_shares_refresh.log` 每行记录：
   sz_diff（相对 18:30 仍有变化的只数）/ unchanged（连续未变次数）/ final / 沪市状态，
   可据此判断「18:30 的深市到底是不是终值」。
@@ -31,8 +39,12 @@ DASH = C.DASHBOARD_PATH
 DATA = C.DATA_FILE
 SIGNAL_FILE = os.path.join(DASH, "quant_push_signal.txt")
 SZ_CACHE = os.path.join(DASH, "cache", "etf_shares_szse.json")
+SH_CACHE = os.path.join(DASH, "cache", "etf_shares_sse.json")
+PRICE_BASIS = os.path.join(DASH, "cache", "etf_price_basis.json")
 STATE = os.path.join(DASH, "cache", "t1_refresh_state.json")
 PY = sys.executable
+# 早间复核窗口（cron 08:17 / 09:17）。09 点这轮通过后才置 done。
+MORNING_HOURS = (8, 9)
 
 
 def load_json(path, default):
@@ -105,23 +117,28 @@ def broad_codes_from_spot():
         return [], []
 
 
-def compute_sz_delta(D, snap, cache, codes):
+def delta_from_snap(cur, prev, codes, prices):
+    """逐只 (cur - prev) × price 求和（亿元）。缺份额/价格的不计入。"""
+    acc, used = 0.0, 0
+    for c in codes:
+        s1, s0, px = cur.get(c), prev.get(c), prices.get(c)
+        if s1 is not None and s0 is not None and px:
+            acc += (s1 - s0) * px
+            used += 1
+    return round(acc / 1e8, 2) if used else None
+
+
+def compute_sz_delta(D, snap, cache, codes, prices=None):
+    """深市当日净申购。prices 可传入「晚间价格基准」，早间复核时不能用实时价。"""
     prevs = [x for x in cache if x < D]
     if not prevs or not codes:
         return None
     prev = cache[prevs[-1]]
-    prices = tencent_prices(codes, "sz")
-    acc, used = 0.0, 0
-    for c in codes:
-        if c in snap and c in prev:
-            s1, s0, px = snap[c], prev[c], prices.get(c)
-            if s1 is not None and s0 is not None and px:
-                acc += (s1 - s0) * px
-                used += 1
-    return round(acc / 1e8, 2) if used else None
+    prices = prices if prices is not None else tencent_prices(codes, "sz")
+    return delta_from_snap(snap, prev, codes, prices)
 
 
-def compute_sh_delta(D, Dprev, codes):
+def compute_sh_delta(D, Dprev, codes, prices=None):
     cur = sse_snapshot(D)
     if not cur:
         return None, False
@@ -131,15 +148,131 @@ def compute_sh_delta(D, Dprev, codes):
     if not codes:
         codes = [c for c, (n, _) in cur.items()
                  if c.startswith("5") and any(k in n for k in C.BROAD_ETF_KEYWORDS)]
-    prices = tencent_prices(codes, "sh")
-    acc, used = 0.0, 0
-    for c in codes:
-        if c in cur and c in prev:
-            s1, s0, px = cur[c][1], prev[c][1], prices.get(c)
-            if s1 is not None and s0 is not None and px:
-                acc += (s1 - s0) * px
-                used += 1
-    return (round(acc / 1e8, 2) if used else None), True
+    prices = prices if prices is not None else tencent_prices(codes, "sh")
+    cur_s = {c: v[1] for c, v in cur.items()}
+    prev_s = {c: v[1] for c, v in prev.items()}
+    return delta_from_snap(cur_s, prev_s, codes, prices), True
+
+
+# ── 次日复核辅助：价格基准 / 上交所逐只快照 ─────────────────────────
+def save_price_basis(D, sz=None, sh=None):
+    """落盘晚间复算所用的价格。09:17 已过集合竞价，早间复核必须复用同一基准价，
+    否则「份额修订」和「价格漂移」会混在一起，算出一个既非晚间也非终值的数。"""
+    allb = load_json(PRICE_BASIS, {})
+    e = allb.get(D) or {}
+    if sz:
+        e["sz"] = sz
+    if sh:
+        e["sh"] = sh
+    allb[D] = e
+    for k in sorted(allb)[:-30]:
+        allb.pop(k, None)
+    save_json(PRICE_BASIS, allb)
+
+
+def save_sh_snapshot(D, shares):
+    allc = load_json(SH_CACHE, {})
+    allc[D] = shares
+    for k in sorted(allc)[:-30]:
+        allc.pop(k, None)
+    save_json(SH_CACHE, allc)
+
+
+def morning_recheck(d, D, etf, entry, st, now):
+    """08/09 点早间复核：交易所可能在次日开盘前修订上一交易日份额。
+
+    返回 True = 有修订并已更新 entry（调用方负责 publish）。
+    安全闸：若变化只数超过一半，判为「快照已切到新交易日」，不当作修订。
+    """
+    changed = False
+    basis = (load_json(PRICE_BASIS, {}) or {}).get(D) or {}
+    cache = load_json(SZ_CACHE, {})
+    codes_sz = etf.get("sz_broad_codes") or list((cache.get(D) or {}).keys())
+    base = cache.get(D)
+
+    if base and codes_sz:
+        try:
+            full = szse_snapshot()
+            snap = {c: v for c, v in full.items() if c in set(codes_sz)}
+        except Exception as e:  # noqa: BLE001
+            print(f"[{now:%H:%M}] 早间深市复核抓取失败: {str(e)[:80]}")
+            snap = None
+        if snap:
+            diff = sum(1 for c in set(base) | set(snap) if base.get(c) != snap.get(c))
+            if diff > max(3, len(codes_sz) // 2):
+                print(f"[早间复核] 深市变化 {diff}/{len(codes_sz)} 只 → "
+                      f"疑似快照已切新交易日，不按修订处理")
+            elif diff:
+                px = basis.get("sz")
+                if not px:
+                    print("[早间复核] 深市有修订但缺晚间价格基准，无法复算（保留旧值）")
+                else:
+                    # 先更新 cache[D] 再复算：次日 18:30 collect 会按 cache 重算历史，
+                    # 不更新缓存的话修订会在下一次 collect 时被覆盖回旧值（11-24 实测）。
+                    cache[D] = snap
+                    save_json(SZ_CACHE, cache)
+                    new_sz = compute_sz_delta(D, snap, cache, codes_sz, prices=px)
+                    if new_sz is not None:
+                        entry["sz_yi"] = new_sz
+                        etf["sz_snapshot_at"] = f"{now:%m-%d %H:%M}"
+                        etf["sz_morning_revision"] = True
+                        changed = True
+                        print(f"[早间复核] 深市修订 {diff}/{len(codes_sz)} 只 → sz={new_sz}亿")
+            else:
+                print(f"[早间复核] 深市份额无修订（0/{len(codes_sz)}）")
+
+    sh_base = (load_json(SH_CACHE, {}) or {}).get(D)
+    codes_sh = etf.get("sh_broad_codes") or []
+    if sh_base and codes_sh:
+        cur = sse_snapshot(D)
+        if cur:
+            cur_s = {c: v[1] for c, v in cur.items()}
+            diff = sum(1 for c in codes_sh if cur_s.get(c) != sh_base.get(c))
+            if 0 < diff <= max(3, len(codes_sh) // 2):
+                px = basis.get("sh")
+                if px:
+                    new_sh = delta_from_snap(cur_s, sh_base, codes_sh, px)
+                    if new_sh is not None:
+                        entry["sh_yi"] = new_sh
+                        etf["sh_published_at"] = f"{now:%m-%d %H:%M}"
+                        allc = load_json(SH_CACHE, {})
+                        allc[D] = cur_s
+                        save_json(SH_CACHE, allc)
+                        changed = True
+                        print(f"[早间复核] 沪市修订 {diff}/{len(codes_sh)} 只 → sh={new_sh}亿")
+    return changed
+
+
+def morning_recheck_flows(d, D, st, now):
+    """08/09 点重抓主力资金：用户实测次日 8-9 点才定稿。
+    只回填 D 当日一条（不动今天的盘中序列）；抓取失败不标 verified，下一小时再试。"""
+    try:
+        flows = C.collect_flows(include_northbound=False)
+    except Exception as e:  # noqa: BLE001
+        print(f"[{now:%H:%M}] 早间主力资金复核抓取失败: {str(e)[:80]}")
+        return False
+    series = flows.get("main_flow_series") or []
+    new = next((x for x in series if x.get("date") == D), None)
+    if new is None:
+        print("[早间复核] 主力资金源未返回 D 日数据，下轮再试")
+        return False
+    st["flows_morning_verified"] = True
+    existing = d.get("flows") or {}
+    rows = existing.get("main_flow_series") or []
+    old = next((x for x in rows if x.get("date") == D), None)
+    if old is None or new.get("net_yi") is None:
+        return False
+    if abs((new.get("net_yi") or 0) - (old.get("net_yi") or 0)) < 0.01:
+        print(f"[早间复核] 主力资金无修订（{old.get('net_yi')}亿）")
+        return False
+    for i, x in enumerate(rows):
+        if x.get("date") == D:
+            rows[i] = new
+            break
+    existing["main_flow_series"] = rows
+    d["flows"] = existing
+    print(f"[早间复核] 主力资金修订: {old.get('net_yi')} → {new.get('net_yi')}亿")
+    return True
 
 
 def publish(d, D, etf, entry, context):
@@ -185,7 +318,8 @@ def publish(d, D, etf, entry, context):
 
 
 def main():
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_dt = datetime.now()
+    now = now_dt.strftime("%Y-%m-%d %H:%M:%S")
     d = load_json(DATA, None)
     if not d:
         print(f"[{now}] 读取 {DATA} 失败")
@@ -203,20 +337,66 @@ def main():
     all_state = load_json(STATE, {})
     st = all_state.setdefault(D, {"sz_unchanged_polls": 0, "sz_final": False,
                                   "done": False, "last_sz_change": None})
+    st.setdefault("morning_verified", False)
+    st.setdefault("flows_morning_verified", False)
     if st.get("done"):
-        print(f"[{now}] D={D} 已完成终刷，零网络退出")
+        print(f"[{now}] D={D} 已完成终刷与早间复核，零网络退出")
         return 0
 
+    hour = now_dt.hour
+    is_morning = hour in MORNING_HOURS
     sh_done = entry.get("sh_yi") is not None
     sz_final_before = bool(st.get("sz_final"))
 
-    # 1) 沪市：未完成时先探测是否发布（1 次请求）
-    sh_available = sh_done
+    # 0) 早间复核窗口（08:17 / 09:17）：交易所可能修订上一交易日份额；
+    #    主力资金用户实测次日 8-9 点才定稿。09 点这轮通过后才置 done。
+    if is_morning and not st.get("morning_verified"):
+        if sh_done and sz_final_before:
+            etf_changed = morning_recheck(d, D, etf, entry, st, now_dt)
+            flows_changed = morning_recheck_flows(d, D, st, now_dt)
+            if etf_changed or flows_changed:
+                rc = publish(d, D, etf, entry, "T+1 次日复核")
+                if rc:
+                    return rc
+            if hour >= 9:
+                st["morning_verified"] = True
+                st["done"] = True
+            etf["sz_checked_at"] = now
+            save_json(STATE, all_state)
+            print(f"[{now}] D={D} | 早间复核完成 etf_changed={int(etf_changed)} "
+                  f"flows_changed={int(flows_changed)} stage={'done' if hour >= 9 else 'pending-09'}")
+            return 0
+        # 晚间没settle（沪市未发布/深市仍在变）→ 落到下面的常规路径继续抓。
+        print(f"[{now}] D={D} | 早间复核前置未满足（沪={int(sh_done)} sz_final={int(sz_final_before)}），继续常规抓取")
+
+    # 夜间静默（02-07 点）：晚间已确认双市场后不必再打交易所，等 08/09 点复核。
+    if (not is_morning) and 2 <= hour < 8 and sh_done and sz_final_before:
+        print(f"[{now}] D={D} 晚间快照已确认（沪 {entry.get('sh_yi')} / 深 {entry.get('sz_yi')}），"
+              f"等待 08/09 点早间复核（T+1 可能修订）")
+        return 0
+
+    # 1) 沪市：未完成时先探测是否发布；同时存逐只快照供次日复核
     sh_new = None
+    codes_sh = etf.get("sh_broad_codes") or []
     if not sh_done and Dprev:
-        sh_new, sh_available = compute_sh_delta(D, Dprev, etf.get("sh_broad_codes") or [])
-        if not sh_available:
+        cur = sse_snapshot(D)
+        if not cur:
             print(f"[{now}] D={D} | 沪市: 未发布 | 深市: final={sz_final_before}")
+        else:
+            prev = sse_snapshot(Dprev)
+            if not prev:
+                print(f"[{now}] D={D} | 沪市: 当日已发布但缺前一日，无法算差额")
+            else:
+                if not codes_sh:
+                    codes_sh = [c for c, (n, _) in cur.items()
+                                if c.startswith("5") and any(k in n for k in C.BROAD_ETF_KEYWORDS)]
+                cur_s = {c: v[1] for c, v in cur.items()}
+                prev_s = {c: v[1] for c, v in prev.items()}
+                prices_sh = tencent_prices(codes_sh, "sh")
+                sh_new = delta_from_snap(cur_s, prev_s, codes_sh, prices_sh)
+                save_sh_snapshot(D, cur_s)
+                if sh_new is not None:
+                    save_price_basis(D, sh=prices_sh)
 
     # 2) 深市：未确认时逐只对比；沪市发布的那轮强制再取一次两侧
     sz_changed, sz_diff = False, None
@@ -241,11 +421,14 @@ def main():
                 keys = set(baseline) | set(snap)
                 sz_diff = sum(1 for c in keys if baseline.get(c) != snap.get(c))
                 if sz_diff:
-                    new_sz = compute_sz_delta(D, snap, cache, codes_sz)
+                    prices_sz = tencent_prices(codes_sz, "sz")
+                    new_sz = compute_sz_delta(D, snap, cache, codes_sz, prices=prices_sz)
                     if new_sz is not None:
                         cache[D] = snap
                         save_json(SZ_CACHE, cache)
                         entry["sz_yi"] = new_sz
+                        etf["sz_snapshot_at"] = f"{now_dt:%m-%d %H:%M}"
+                        save_price_basis(D, sz=prices_sz)
                         sz_changed = True
                         st["sz_unchanged_polls"] = 0
                         st["last_sz_change"] = now
@@ -260,6 +443,7 @@ def main():
     if sh_new is not None:
         entry["sh_yi"] = sh_new
         etf["sh_t1_published"] = True
+        etf["sh_published_at"] = f"{now_dt:%m-%d %H:%M}"
 
     etf["sz_final"] = bool(st.get("sz_final"))
     etf["sz_checked_at"] = now
@@ -267,9 +451,8 @@ def main():
     sz_final_now = bool(st.get("sz_final"))
     sh_done = entry.get("sh_yi") is not None
     final = sh_done and sz_final_now
-    if final:
-        st["done"] = True
-        etf["sz_final"] = True
+    # 2026-11-26: 这里不再 st["done"]=True —— 晚间「连续不变」实测不是终值，
+    # done 只在次日 09 点早间复核后置位（见 morning_recheck / 文件头 Changelog）。
     save_json(STATE, all_state)
 
     action = "wait"

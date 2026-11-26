@@ -180,9 +180,16 @@ def tbl_crontab(rows):
         elif not (r.get("log_size") or 0):
             note = ' <span class="sub">0 字节（重定向到别处）</span>'
         elif r.get("last_log"):
+            # 2026-11-26: 阈值按 cron 周期（collect.cron_max_gap_days）算好放在
+            # stale_days；固定 3 天会把每周任务误标「停更」。
             try:
-                age = (datetime.datetime.now() - datetime.datetime.strptime(r["last_log"], "%Y-%m-%d %H:%M")).days
-                if age > 3: note = f' <span class="pill warn">停更 {age}天</span>'
+                if "stale_days" in r:
+                    age = r.get("stale_days") or 0
+                else:
+                    age = (datetime.datetime.now() - datetime.datetime.strptime(
+                        r["last_log"], "%Y-%m-%d %H:%M")).days
+                    age = age if age > 3 else 0
+                if age: note = f' <span class="pill warn">停更 {age}天</span>'
             except ValueError: pass
         name = r.get("name") or "—"      # collect 已算好的脚本名（原先 render 自解析 → 显示 2>&1）
         cmd = mask_path(r["cmd"])[:80]
