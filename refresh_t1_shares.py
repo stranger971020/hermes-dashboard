@@ -428,15 +428,21 @@ def main():
             else:
                 keys = set(baseline) | set(snap)
                 sz_diff = sum(1 for c in keys if baseline.get(c) != snap.get(c))
-                if sz_diff:
+                # 价格基准即使「今日没变化」也要落盘：早间复核若发现交易所修订，
+                # 必须用晚间同一套价格复算（不能用次日实时价）。
+                basis = (load_json(PRICE_BASIS, {}) or {}).get(D) or {}
+                prices_sz = basis.get("sz")
+                if not prices_sz:
                     prices_sz = tencent_prices(codes_sz, "sz")
+                    if prices_sz:
+                        save_price_basis(D, sz=prices_sz)
+                if sz_diff:
                     new_sz = compute_sz_delta(D, snap, cache, codes_sz, prices=prices_sz)
                     if new_sz is not None:
                         cache[D] = snap
                         save_json(SZ_CACHE, cache)
                         entry["sz_yi"] = new_sz
                         etf["sz_snapshot_at"] = f"{now_dt:%m-%d %H:%M}"
-                        save_price_basis(D, sz=prices_sz)
                         sz_changed = True
                         st["sz_unchanged_polls"] = 0
                         st["last_sz_change"] = now
