@@ -143,7 +143,9 @@ def _etf_data_note(etf):
         parts.append(f"深 {etf['sz_snapshot_at']}")
     if not parts:
         return ""
-    extra = " · 次日复核已修订" if etf.get("sz_morning_revision") else ""
+    rev = etf.get("sz_revised_at") or etf.get("sh_revised_at")
+    extra = (f" · 次日 {rev} 复核修订" if rev
+             else (" · 次日复核已修订" if etf.get("sz_morning_revision") else ""))
     return (f'<span style="font-size:11.5px;color:#90a4ae;font-weight:400;margin-left:8px">'
             f'· 数据到达 {" / ".join(parts)}{extra}</span>')
 

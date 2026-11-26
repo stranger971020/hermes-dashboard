@@ -494,7 +494,9 @@ def _save_flow_cache(series):
                    'series': series}, fh, ensure_ascii=False)
 
 
-def collect_flows(include_northbound=True):
+def collect_flows(include_northbound=True, save_cache=True):
+    """save_cache=False：早间复核只用于比对/回填，不写「当日已抓」缓存 ——
+    否则 18:30 抓取失败时会拿早间的盘中半成品当收盘值兜底。"""
     out = {'main_flow_series': [], 'northbound': None}
     try:
         # 每路径只打 1 次 → 不再叠 _retry，避免限流风暴
@@ -505,7 +507,7 @@ def collect_flows(include_northbound=True):
                 'net_yi': round(_safe_float(r.get('主力净流入-净额'), 0) / 1e8, 2),
                 'pct': _safe_float(r.get('主力净流入-净占比')),
             })
-        if out['main_flow_series']:
+        if out['main_flow_series'] and save_cache:
             _save_flow_cache(out['main_flow_series'])
     except Exception as e:  # noqa: BLE001
         # 留痕：verify_quant 用它在「序列为空」时区分外部断连 vs 静默丢数
