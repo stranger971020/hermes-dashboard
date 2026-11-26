@@ -13,9 +13,10 @@ PY=/Users/jren/miniforge3/bin/python3
 # ── 0) 中枢检查（内部按到期规则调度；替代 4 个独立检查 cron）──
 CHK=$($PY "$HOME/projects/hermes-dashboard/checks.py" --due 2>&1); CHK_RC=$?
 echo "$TS $CHK" >> "$HOME/.hermes/logs/hub_checks.log"
-if [ "$CHK_RC" -ne 0 ]; then
-  $PY "$HOME/.hermes/scripts/dashboard_push.py" --checks-alert >/dev/null 2>&1 || true
-fi
+# 无论成功失败都调用 --checks-alert：
+#   失败 → 发给状态机（冷却/每日上限）；成功 → 销账 hub: 告警（自动 resolved）。
+# 原逻辑只在 rc!=0 时调用，恢复后永远不销账，下次再坏会被冷却误抑制（2026-11-26 P0 闭环）。
+$PY "$HOME/.hermes/scripts/dashboard_push.py" --checks-alert >/dev/null 2>&1 || true
 
 # ── 指纹守卫：任务/回执/cron/检查结果 无变化则直接退出 ──
 FP=$($PY - <<'PYEOF'
