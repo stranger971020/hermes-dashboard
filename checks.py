@@ -44,7 +44,10 @@ CHECKS = [
         # 否则本检查自推一条 + 中枢再推一条（2026-11-26 实测同一失败两条消息）。
         # 09:00 的调用由脚本内 CHECK_NOT_BEFORE=09:30 静默跳过（bot 09:20 才启动）。
         "cmd": [PY, os.path.join(TT, "backtest/check_intraday_bot_startup.py"), "--no-send"],
-        "every": 30, "hours": [9, 10], "weekdays": True, "timeout": 120,
+        # 调度器自己也守住有效窗口（第二层防线）：即使脚本里的 CHECK_NOT_BEFORE 被删，
+        # 09:00 也不会再调用。两处的值由 P0 契约测试断言必须一致。
+        "every": 30, "hours": [9, 10], "not_before": "09:30",
+        "weekdays": True, "timeout": 120,
     },
     {
         "key": "cron", "name": "Cron 模型/配置",
@@ -91,6 +94,13 @@ def _due(chk, now, st):
         return False
     if "hours" in chk and now.hour not in chk["hours"]:
         return False
+    if chk.get("not_before"):
+        try:
+            hh, mm = (int(x) for x in str(chk["not_before"]).split(":"))
+            if now.time() < datetime.time(hh, mm):
+                return False
+        except (ValueError, TypeError):
+            pass
     if chk.get("weekdays") and now.weekday() > 4:
         return False
     return True

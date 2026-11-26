@@ -252,6 +252,8 @@ def morning_recheck(d, D, etf, entry, st, now):
 def morning_recheck_flows(d, D, st, now):
     """08/09 点重抓主力资金：用户实测次日 8-9 点才定稿。
     只回填 D 当日一条（不动今天的盘中序列）；抓取失败不标 verified，下一小时再试。"""
+    if st.get("flows_morning_verified"):
+        return False
     try:
         # save_cache=False：早间数据只用于比对，不能污染「当日已抓」缓存
         flows = C.collect_flows(include_northbound=False, save_cache=False)

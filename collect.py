@@ -201,6 +201,34 @@ def cron_next(expr, after=None):
     return ""
 
 
+def cron_name(cmd):
+    """crontab 命令 → 展示名。抽成函数供 selftest 做变异测试。"""
+    hits = re.findall(r"([\w.\-]+\.(?:py|sh))\b", cmd)
+    if hits:
+        return os.path.splitext(os.path.basename(hits[-1]))[0]
+    # `cd <dir> && python3 -m app.run eod` 没有脚本文件；旧逻辑取
+    # cmd.split()[0] → "cd"，三条 policy-signal 任务同名（2026-11-26）。
+    mm = re.search(r"-m\s+([\w.]+)\s+([\w\-]+)", cmd)
+    if mm:
+        return f"{mm.group(1)}:{mm.group(2)}"
+    stripped = re.sub(r"^\s*cd\s+\S+\s*&&\s*", "", cmd).strip()
+    return stripped.split()[0] if stripped else "?"
+
+
+def cron_stale_days(expr, last_mtime, size):
+    """按排程周期判停更。抽成函数供 selftest 做变异测试。"""
+    gap = cron_max_gap_days(expr) if expr else 1
+    limit = gap if gap > 3 else 3
+    if not last_mtime or not size:
+        return 0
+    try:
+        age = (datetime.datetime.now() -
+               datetime.datetime.strptime(last_mtime, "%Y-%m-%d %H:%M")).days
+    except ValueError:
+        return 0
+    return age if age > limit else 0
+
+
 def cron_max_gap_days(expr):
     """cron 表达式 → 该任务「正常最长间隔」的粗估天数。
 
@@ -271,33 +299,11 @@ def collect_crontab():
             last_mtime = datetime.datetime.fromtimestamp(os.path.getmtime(logf)).strftime("%Y-%m-%d %H:%M")
             size = os.path.getsize(logf)
             tail = sh(f"tail -1 {json.dumps(logf)} 2>/dev/null")[:100]
-        # 名称：命令里最后一个 .py/.sh 脚本 basename（无扩展名）
-        hits = re.findall(r"([\w.\-]+\.(?:py|sh))\b", cmd)
-        if hits:
-            name = os.path.splitext(os.path.basename(hits[-1]))[0]
-        else:
-            # `cd <dir> && python3 -m app.run eod` 没有脚本文件；旧逻辑取
-            # cmd.split()[0] → "cd"，三条 policy-signal 任务同名，看板只能显示
-            # 「cd（停更 N 天）」，既看不出是哪条也无法按周期判断（2026-11-26）。
-            mm = re.search(r"-m\s+([\w.]+)\s+([\w\-]+)", cmd)
-            if mm:
-                name = f"{mm.group(1)}:{mm.group(2)}"
-            else:
-                stripped = re.sub(r"^\s*cd\s+\S+\s*&&\s*", "", cmd).strip()
-                name = stripped.split()[0] if stripped else "?"
+        name = cron_name(cmd)
         # 停更判定放进 collect：dashboard_push（晨报）与 render（看板）共用同一口径，
         # 避免两处各写一套 3 天阈值（周任务必误报）。
         gap = cron_max_gap_days(expr) if expr else 1
-        limit = gap if gap > 3 else 3
-        stale_days = 0
-        if last_mtime:
-            try:
-                age = (datetime.datetime.now() -
-                       datetime.datetime.strptime(last_mtime, "%Y-%m-%d %H:%M")).days
-                if size and age > limit:
-                    stale_days = age
-            except ValueError:
-                pass
+        stale_days = cron_stale_days(expr, last_mtime, size)
         out.append({
             "schedule": expr, "macro": macro,
             "human": (f"{macro} " if macro else "") + (human_cron(expr) if expr else ""),
