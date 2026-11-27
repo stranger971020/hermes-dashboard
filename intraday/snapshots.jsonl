@@ -18,3 +18,4 @@
 {"date": "2026-11-27", "time": "10:02", "main_flow_cum_yi": -18.12, "etf_amt_yi": 26.15, "delta_yi": null, "pct_rank_of_hist": 60, "triggered": false, "direction": "", "stale": false}
 {"date": "2026-11-27", "time": "11:01", "main_flow_cum_yi": 141.11, "etf_amt_yi": 59.93, "delta_yi": 159.23, "pct_rank_of_hist": 80, "triggered": true, "direction": "净流入突增", "stale": false}
 {"date": "2026-11-27", "time": "14:01", "main_flow_cum_yi": 900.47, "etf_amt_yi": 254.09, "delta_yi": 759.36, "pct_rank_of_hist": 100, "triggered": true, "direction": "净流入突增", "stale": false}
+{"date": "2026-11-27", "time": "15:01", "main_flow_cum_yi": 1076.73, "etf_amt_yi": 353.77, "delta_yi": 176.26, "pct_rank_of_hist": 100, "triggered": true, "direction": "净流入突增", "stale": false}
