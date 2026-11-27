@@ -8,6 +8,11 @@ index.html 是监控页（勿动）。纯 CSS；⑦ 段含一个移动止损计�
 v5: ① 国家队资金动向 / ② 今日财经要闻 / ③ 投资信号
     模块① 主指标改为 ETF 份额净申购（旧版用成交额，同日差 350 倍）
 
+v5.4 (2026-11-27): ⑦ 段出场口径统一（读 trading-journal/config/exit_rules.json）
+- 移动止盈激活 = 峰值浮盈曾达 +10%；峰值收盘回撤 8% → 清仓剩余
+- 止损 = 成本 -8% 减半 / -13% 清仓；删除「8% 移动止损」模糊说法
+- 计算器新增「成本价」输入，可判断是否已激活（此前只算回撤线）
+
 v5.3 (2026-11-24): 情绪标签可读性
 - 「上升期」→「高潮期」：原词易被读成趋势向上，实际是 score>=65 的过热桶。
 - 新增 phase_detail「单日爆发 / 连续高潮」；④/⑥ 段追加显示，缺字段自动降级。
@@ -37,6 +42,28 @@ V6_DIR = "/Users/jren/projects/trend-trading-system/reports/v6_daily"
 V6_PAGES = "https://stranger971020.github.io/trend-trading-system/reports/v6_daily"
 V6_MAX_AGE_DAYS = 5   # 超过则标"数据陈旧"（周末+节假日不产报，5 天覆盖长周末）
 RISK_JSON = os.path.join(DASHBOARD_PATH, "risk_state.json")
+# 出场纪律单一真源（与 09:20 盘前卡 / V6 日报共用，2026-11-27）
+EXIT_RULES_PATH = os.path.expanduser("~/projects/trading-journal/config/exit_rules.json")
+EXIT_RULES_DEFAULT = {"stop_warn_pct": 0.08, "stop_hard_pct": 0.13,
+                      "trail_activate_pct": 0.10, "trail_dd_pct": 0.08}
+
+
+def load_exit_rules() -> dict:
+    try:
+        with open(EXIT_RULES_PATH, encoding="utf-8") as f:
+            raw = json.load(f)
+        return {k: float(raw[k]) for k in EXIT_RULES_DEFAULT}
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] 出场纪律参数不可用 {EXIT_RULES_PATH} ({exc})，回退内置默认",
+              file=sys.stderr)
+        return dict(EXIT_RULES_DEFAULT)
+
+
+EXIT = load_exit_rules()
+EXIT_ACT = EXIT["trail_activate_pct"]
+EXIT_DD = EXIT["trail_dd_pct"]
+EXIT_WARN = EXIT["stop_warn_pct"]
+EXIT_HARD = EXIT["stop_hard_pct"]
 QUANT_ACTIVITY_JSON = os.path.join(DASHBOARD_PATH, "cache", "quant_activity.json")
 QUANT_HOLDINGS_JSON = os.path.join(DASHBOARD_PATH, "cache", "quant_holdings.json")
 
@@ -768,12 +795,12 @@ def render_module_risk():
       · 弱市第二次冲击（10日内>=2次 80%下跌）：均值 -6.7% → -1.0%
       · 峰值浮盈 +12~18% 切片：最终浮亏概率 26% → 0%，回吐>10pp 42% → 3%
     动作：状态脆弱→初减25%，崩跌→40%，弱市第二次冲击→至少50%；
-          剩余仓位以「持有期最高收盘价」为基准，回撤 8% 收盘触发减仓/退出。
+          剩余仓位以「持有期最高收盘价」为基准，浮盈曾达 +10% 后回撤 8% 收盘触发清仓剩余。
     """
     p, note = load_risk_summary()
     head = ('<section class="section" id="sec-risk"><h2>⑦ 浮盈保护 · 风险状态 '
             '<span style="font-size:12px;color:#90a4ae;font-weight:400">'
-            'PIT 大盘脆弱度 + 持仓动作框架 · <b>初减 + 8% 移动止损</b></span>'
+            f'PIT 大盘脆弱度 + 持仓动作框架 · <b>初减 + 峰值回撤{EXIT_DD:.0%}清仓</b></span>'
             + _refresh_tag(p.get("_generated_at") if isinstance(p, dict) else None)
             + '</h2>')
     if not p:
@@ -803,7 +830,7 @@ def render_module_risk():
                    f"脆弱度 {score}/8 · asof {p.get('asof', '—')}{stale_txt}", cls)
     box2 = _v6_box("✂️ 建议初减", ("暂停" if not ok else f"{trim:.0%}"),
                    ("风险状态不可用 — 新仓建议暂停" if not ok
-                    else f"剩余仓位 8% 移动止损"), "up" if (ok and trim >= 0.4) else "")
+                    else f"剩余仓位峰值回撤{EXIT_DD:.0%}清仓"), "up" if (ok and trim >= 0.4) else "")
     box3 = _v6_box("📉 市场广度", _v6_pct(m.get("down_ratio")),
                    f"MA20上方 {_v6_pct(m.get('above_ma20'))} · 60日 {_v6_pct(m.get('g60'))}")
 
@@ -812,19 +839,22 @@ def render_module_risk():
         msg = "；".join(p.get("warnings") or ["风险状态未计算/数据滞后 — 新建仓建议暂停"])
         warn_html = (f"<div class='kv' style='margin-top:10px;color:#b45309;background:#fffbeb;"
                      f"padding:8px 10px;border-left:3px solid #f59e0b'>"
-                     f"⚠️ {msg}。已有仓位按 8% 移动止损纪律执行。</div>")
+                     f"⚠️ {msg}。已有仓位按「浮盈曾达+{EXIT_ACT:.0%} 后峰值回撤"
+                     f"{EXIT_DD:.0%}清仓剩余」纪律执行。</div>")
     if source == "file_fallback":
         warn_html += (f"<div class='kv' style='margin-top:6px;color:#90a4ae'>"
                       f"数据源：risk_state.json（V6 摘要未包含 risk_guard，使用独立文件兜底）。</div>")
 
     existing_text = existing.get("text") or a.get("trim_text") or (
-        f"初减 {trim:.0%}；剩余仓位自峰值回撤 8% 即减/退" if ok else "风险状态不可用")
+        f"初减 {trim:.0%}；剩余仓位自峰值回撤{EXIT_DD:.0%}清仓"
+        f"（需浮盈曾达+{EXIT_ACT:.0%}）" if ok else "风险状态不可用")
     ceiling_text = new_entry.get("ceiling_text") or "按 V6 温度档执行（无 V6 上下文对照）"
     divergence = new_entry.get("divergence")
     div_html = f"<br><span style='color:#b45309'>⚠️ {divergence}</span>" if divergence else ""
     division_html = (
         "<div class='kv' style='margin-top:12px'><b>与 V6 分工：</b>"
-        "④ = 进攻/新仓（温度档、行业、候选）；⑦ = 防守/已有浮盈（初减 + 8% 移动止损）。"
+        f"④ = 进攻/新仓（温度档、行业、候选）；⑦ = 防守/已有浮盈（初减 + "
+        f"峰值回撤{EXIT_DD:.0%}清仓）。"
         "两层并行、不互相覆盖。新仓/总仓上限见下；⑦ 的动作只作用于已有浮盈仓。</div>")
 
     volr = m.get("ivol_ratio")
@@ -883,12 +913,13 @@ def render_module_risk():
 新仓/总仓上限：<b>{ceiling_text}</b>。{div_html}</div>
 {division_html}
 <div class="flow-box" style="margin-top:12px">
-  <div style="font-size:12px;color:#607d8b;margin-bottom:6px">🧮 移动止损计算器（峰值=持有期最高收盘价，不是成本价）</div>
+  <div style="font-size:12px;color:#607d8b;margin-bottom:6px">🧮 移动止盈计算器（激活需峰值浮盈曾达+{EXIT_ACT:.0%}；峰值=持有期最高收盘价，不是成本价）</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px">
+    <label>成本价 <input id="rk-cost" type="number" step="0.01" style="width:110px;padding:4px"></label>
     <label>峰值价 <input id="rk-peak" type="number" step="0.01" style="width:110px;padding:4px"></label>
     <label>当前价 <input id="rk-cur" type="number" step="0.01" style="width:110px;padding:4px"></label>
     <button onclick="rkCalc()" style="padding:4px 12px;cursor:pointer">计算</button>
-    <span id="rk-out" style="color:#607d8b">输入两个价格</span>
+    <span id="rk-out" style="color:#607d8b">输入成本价、峰值价与当前价</span>
   </div>
 </div>
 <div class="table-scroll" style="margin-top:12px"><table><thead><tr>
@@ -897,16 +928,25 @@ def render_module_risk():
 {val_html}
 <script>
 function rkCalc() {{
+  var k = parseFloat(document.getElementById('rk-cost').value);
   var p = parseFloat(document.getElementById('rk-peak').value);
   var c = parseFloat(document.getElementById('rk-cur').value);
   var out = document.getElementById('rk-out');
   if (!isFinite(p) || !isFinite(c) || p <= 0 || c <= 0) {{ out.textContent = '输入峰值价与当前价'; return; }}
   var dd = c / p - 1;
-  if (dd <= -0.08) {{
-    out.innerHTML = '当前回撤 <b>' + (dd * 100).toFixed(1) + '%</b> → <b style="color:#c62828">已触发 8% 移动止损</b>';
+  var pct = function (x) {{ return (x * 100).toFixed(1) + '%'; }};
+  if (!isFinite(k) || k <= 0) {{
+    out.innerHTML = '当前回撤 <b>' + pct(dd) + '</b>（未填成本价，无法判断是否已激活）';
+    return;
+  }}
+  var peakGain = p / k - 1;
+  if (peakGain < {EXIT_ACT}) {{
+    out.innerHTML = '峰值浮盈仅 <b>' + pct(peakGain) + '</b> · <b style="color:#607d8b">移动止盈未激活</b>（需曾达 +{EXIT_ACT:.0%}）';
+  }} else if (dd <= -{EXIT_DD}) {{
+    out.innerHTML = '当前回撤 <b>' + pct(dd) + '</b> → <b style="color:#c62828">已触发 {EXIT_DD:.0%} 峰值回撤，清仓剩余</b>';
   }} else {{
-    out.innerHTML = '当前回撤 <b>' + (dd * 100).toFixed(1) + '%</b> · 距 8% 止损还有 <b>' +
-      ((dd + 0.08) * 100).toFixed(1) + 'pp</b>';
+    out.innerHTML = '已激活 · 当前回撤 <b>' + pct(dd) + '</b> · 距 {EXIT_DD:.0%} 回撤线还有 <b>' +
+      ((dd + {EXIT_DD}) * 100).toFixed(1) + 'pp</b>';
   }}
 }}
 </script>

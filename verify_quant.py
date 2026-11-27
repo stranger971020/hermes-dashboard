@@ -260,8 +260,16 @@ def main():
             _stale = int(rk.get("stale_days", _fresh.get("stale_days", 0)) or 0)
             if _ok and _stale == 0 and abs(float(act.get("initial_trim", -1)) - trim) > 1e-9:
                 errs.append(f"初减建议不可复现: 记录 {act.get('initial_trim')} vs 规则 {trim}")
-            if abs(float(act.get("trail_stop", -1)) - 0.08) > 1e-9:
-                errs.append(f"移动止损应为 8%，记录 {act.get('trail_stop')}")
+            try:
+                with open(os.path.expanduser(
+                        "~/projects/trading-journal/config/exit_rules.json"),
+                        encoding="utf-8") as _ef:
+                    _er = json.load(_ef)
+                _trail = float(_er.get("trail_dd_pct", 0.08))
+            except Exception:  # noqa: BLE001
+                _trail = 0.08
+            if abs(float(act.get("trail_stop", -1)) - _trail) > 1e-9:
+                errs.append(f"移动止盈回撤应为 {_trail:.0%}，记录 {act.get('trail_stop')}")
             if not (rk.get("validation") or {}).get("fragile_crash_15"):
                 warns.append("风险状态缺回测锚点（先跑 backtest/rb_export.py）")
             # 页面段
@@ -271,17 +279,24 @@ def main():
                     errs.append("看板缺 ⑦ 浮盈保护段（render_module_risk 未挂载）")
                 else:
                     seg10 = html10.split("<h2>⑦ 浮盈保护", 1)[1][:12000]
-                    for mk in ("建议初减", "移动止损计算器", "回测锚点",
+                    for mk in ("建议初减", "移动止盈计算器", "回测锚点",
                                "与 V6 分工", "防守/已有浮盈"):
                         if mk not in seg10:
                             errs.append(f"⑦ 段缺标记: {mk}")
+                    # 2026-11-27: 口径统一为「浮盈曾达+10% → 峰值回撤8%清仓剩余」。
+                    # 「清仓」不再是一键卖光禁词——它只作用于已激活的剩余仓位；
+                    # 仍禁止无差别的立即/全部卖出表述。
+                    for need in ("+10%", "清仓"):
+                        if need not in seg10:
+                            errs.append(f"⑦ 段缺出场口径标记: {need}")
                     if _ok and _stale == 0 and f"{trim:.0%}" not in seg10:
                         errs.append(f"⑦ 段建议初减与状态不符: 期望 {trim:.0%}")
                     if (not _ok or _stale) and not any(x in seg10 for x in ("暂停", "风险状态未计算")):
                         errs.append("⑦ 段风险状态不可用/滞后，但页面没有暂停提示")
-                    for bad in ("清仓", "立即卖出", "全部卖出"):
+                    for bad in ("立即卖出", "全部卖出"):
                         if bad in seg10:
-                            errs.append(f"⑦ 段出现卖出指令「{bad}」—— 规则是初减+移动止损，不是一键卖光")
+                            errs.append(f"⑦ 段出现无差别卖出指令「{bad}」—— "
+                                        f"初减是部分动作；只有移动止盈触发才清仓剩余")
             # 陈旧告警
             try:
                 import datetime as _dt
