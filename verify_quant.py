@@ -186,7 +186,13 @@ def main():
             if "⑥ 情绪温度计" not in html:
                 errs.append("看板缺 ⑥ 情绪温度计段（render_module_emotion 未挂载）")
             else:
-                seg = html.split("⑥ 情绪温度计", 1)[1][:6000]
+                # 2026-11-27 修复：精确切到 </section> 边界。旧 split+[:6000] 窗口会溢出进
+                # ⑦ 浮盈保护段，而「清仓」在 ⑦ 是合法口径（甚至是必填标记），导致误报 err。
+                _i = html.find("<h2>⑥ 情绪温度计")
+                if _i < 0:
+                    _i = html.find("⑥ 情绪温度计")
+                _j = html.find("</section>", _i)
+                seg = html[_i:_j] if _j > _i else html[_i:_i + 6000]
                 if "非卖出信号" not in seg:
                     errs.append("⑥ 段缺「非卖出信号」定位说明（易被误读为卖出指令）")
                 # 涨跌家数比必须能在 V6 摘要里对得上
