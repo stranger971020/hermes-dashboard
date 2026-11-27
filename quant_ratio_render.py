@@ -26,6 +26,7 @@ v5.2 (2026-11-23): 各模块标题行增加「刷新 MM-DD HH:MM」
 """
 
 import glob
+import html
 import json
 import os
 import re
@@ -664,6 +665,23 @@ def render_module_policy():
                     '本期无偏多政策事件（扫描 '
                     f'{cnt.get("scanned") or "—"} 条 / 命中 {cnt.get("hit") or 0} 条）</div>')
 
+    # ── 过去 7 天政策 ──
+    ra = p.get("recent_actions_7d") or []
+    week_html = ""
+    if ra:
+        rows = "".join(
+            (f'<div style="padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px">'
+             f'<span style="color:#90a4ae">{html.escape(str(x.get("date") or ""))}</span> · '
+             f'<span class="tname">{html.escape(str(x.get("dept") or "—"))}</span> · '
+             f'<span style="color:#90a4ae">{html.escape(str(x.get("type") or "—"))}</span>　'
+             + (f'<a class="news-item" style="display:inline" href="{html.escape(str(x.get("url")))}" '
+                f'target="_blank" rel="noopener">{html.escape(str(x.get("title") or ""))}</a>'
+                if x.get("url") else html.escape(str(x.get("title") or "")))
+             + '</div>')
+            for x in ra[:12])
+        week_html = ('<div style="margin-top:14px;font-size:12px;color:#607d8b">'
+                     f'过去 7 天政策（最近 {min(len(ra), 12)} 条，自动抽取）</div>' + rows)
+
     # ── 最近读数 ──
     def _mmdd(r):
         v = str(r.get("trade_date_iso") or r.get("trade_date") or "")
@@ -688,7 +706,7 @@ def render_module_policy():
             f'<a class="news-item" style="display:inline" href="{p.get("links", {}).get("page") or POLICY_PAGE}" '
             f'target="_blank" rel="noopener">→ 政策信号完整页（① 今日动作 ② 力度构成 ③ 市场位置 ④ 风险 ⑤ 所以怎么做）</a></div>')
 
-    return head + quality + kpi + build_html + act_html + recent_html + meta + '</section>'
+    return head + quality + kpi + build_html + act_html + week_html + recent_html + meta + '</section>'
 
 
 def render_module_emotion():
