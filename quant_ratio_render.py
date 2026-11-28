@@ -584,6 +584,8 @@ def render_module_policy():
     cnt = p.get("counts") or {}
     hits = p.get("hits") or []
     recent = p.get("recent") or []
+    fuse = p.get("fusion") or {}
+    cap_show = fuse.get("cap_fused", p.get("cap"))
 
     band = p.get("band") or "—"
     score = p.get("score")
@@ -617,9 +619,10 @@ def render_module_policy():
            + _v6_box("🧮 政策力度分", f'{score}<span style="font-size:13px;color:#90a4ae">/100</span>'
                      if isinstance(score, (int, float)) else "—",
                      f"档位：{band}", band_cls)
-           + _v6_box("📏 仓位上限（政策给出的 cap）",
-                     f"{cap}%" if isinstance(cap, (int, float)) else "—",
-                     BAND_MEANING.get(band, ""))
+           + _v6_box("📏 仓位上限（档位 × 状态）",
+                     f"{cap_show}%" if isinstance(cap_show, (int, float)) else "—",
+                     (f"基础 {fuse.get('cap_base')}% × {fuse.get('mult')}"
+                      if fuse else BAND_MEANING.get(band, "")))
            + _v6_box("📍 市场位置（决定政策有没有用）",
                      f"{mk.get('dd250')}%" if mk.get("dd250") is not None else "—",
                      _position_zone(mk.get("dd250")))
@@ -648,6 +651,14 @@ def render_module_policy():
                     f' · 最大回撤 <b>{ex.get("max_dd")}%</b></div>'
                   + '</div></div>')
 
+    fusion_html = ""
+    if fuse:
+        fusion_html = ('<div class="kv" style="margin-top:8px">🧭 状态增量：'
+                       + html.escape(str(fuse.get("state_note") or ""))
+                       + f'｜融合 cap {html.escape(str(fuse.get("cap_fused")))}%'
+                         f'（基础 {html.escape(str(fuse.get("cap_base")))}% × '
+                         f'{html.escape(str(fuse.get("mult")))}）</div>')
+
     # ── 今日动作 ──
     if hits:
         items = "".join(
@@ -672,7 +683,7 @@ def render_module_policy():
         rows = "".join(
             (f'<div style="padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px">'
              f'<span style="color:#90a4ae">{html.escape(str(x.get("date") or ""))}</span> · '
-             f'<span class="tname">{html.escape(str(x.get("dept") or "—"))}</span> · '
+             f'<span class="tname">{html.escape(str(x.get("dept_label") or x.get("dept") or "—"))}</span> · '
              f'<span style="color:#90a4ae">{html.escape(str(x.get("type") or "—"))}</span>　'
              + (f'<a class="news-item" style="display:inline" href="{html.escape(str(x.get("url")))}" '
                 f'target="_blank" rel="noopener">{html.escape(str(x.get("title") or ""))}</a>'
@@ -706,7 +717,7 @@ def render_module_policy():
             f'<a class="news-item" style="display:inline" href="{p.get("links", {}).get("page") or POLICY_PAGE}" '
             f'target="_blank" rel="noopener">→ 政策信号完整页（① 今日动作 ② 力度构成 ③ 市场位置 ④ 风险 ⑤ 所以怎么做）</a></div>')
 
-    return head + quality + kpi + build_html + act_html + week_html + recent_html + meta + '</section>'
+    return head + quality + kpi + build_html + fusion_html + act_html + week_html + recent_html + meta + '</section>'
 
 
 def render_module_emotion():
